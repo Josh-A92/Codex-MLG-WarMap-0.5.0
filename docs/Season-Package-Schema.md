@@ -1,7 +1,7 @@
 # Season Package Schema
 
 ## 1. Purpose and Scope
-This document defines the formal, season-neutral contract that every MLG WarMap season package must satisfy before a Season Loader is implemented.
+This document defines the formal, season-neutral contract that every MLG WarMap season package must satisfy.
 
 A season package is a definition bundle, not live server state. It describes the rules, map concepts, and application configuration needed to start the application for a season. It does not contain mutable server ownership, persistence behavior, or UI concerns.
 
@@ -39,7 +39,9 @@ The canonical package shape is nested:
 
 Bootstrap may inspect the full canonical package, but it must pass only the rules definition to the Game Rules Engine. Application configuration must be resolved separately and injected into bootstrap/application services.
 
-The current flat `SEASON_1_DEFINITION` is a legacy pre-loader shape. It must be migrated to the canonical nested package or explicitly adapted by loader/bootstrap code before the canonical contract is used.
+The canonical Season 1 startup path now uses `SEASON_1_PACKAGE` via the validator and loader.
+
+The former flat `SEASON_1_DEFINITION` shape was a legacy pre-loader structure and has been removed from active startup.
 
 The package should be considered versioned, self-describing, and complete enough for startup without relying on silent defaults.
 
@@ -656,8 +658,8 @@ In this example, `structureTypeRef` appears only on logical structure instances 
 }
 ```
 
-## 15. Mapping from Current Season 1 Definition
-The current Season 1 source contract maps to this contract as follows:
+## 15. Migration History: Mapping from Former Flat Season 1 Definition
+This historical mapping documents the migration from the former flat `SEASON_1_DEFINITION` contract to the canonical nested package. It is migration history, not the current source contract.
 
 | Current flat field | Canonical package path | Notes |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Testing Checklist
 
-Version context: v0.5.0
+Version context: current main following v0.5.0
 
 Legend:
 - Completed: behavior exists and should pass regression checks
@@ -24,11 +24,10 @@ Completed:
 - Server dock is data-driven from data/season1-servers.json
 - Command Centre cards are data-driven from data/season1-servers.json
 - Server dock and card navigation opens the correct server workspace
-
-Partial:
-- Per-server ownership isolation
-  - Expected: ownership edits remain server-local
-  - Current: edits mutate shared season1-map ownerId and leak across servers
+- Per-server ownership isolation is enforced during runtime editing
+- Ownership edits do not leak between server workspaces
+- Shared base-map runtime objects remain unmodified during ownership editing
+- Fresh runtime maps begin unclaimed unless overridden by per-server ownership
 
 ## Dashboard Summaries
 
@@ -45,12 +44,18 @@ Pending:
 Pending:
 - Persistence/save
 - History timeline/playback
-- Notes workflows
-- Objectives workflows
+- Descriptive notes workflows
 - Search and filters
+
+## Current Regression Commands
+
+- npm run test:application-bootstrap
+- npm run test:season1-package
+- npm run test:season-package
+- npm run test:season-loader
 
 ## Documentation Validation
 
 Completed:
-- v0.5.0 reconciliation recorded in changelog.md
+- Current-main reconciliation recorded in changelog.md
 - Version and milestone status aligned across docs

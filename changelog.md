@@ -1,3 +1,14 @@
+## Unreleased
+- Canonical Season 1 startup migration completed on current main following v0.5.0.
+- Application startup now resolves src/seasons/season1-package.js through src/services/season-loader.js with validation by src/services/season-package-validator.js.
+- Bootstrap now loads the season package asynchronously and passes only rulesDefinition to the Game Rules Engine.
+- index.html no longer loads the legacy startup definition path.
+- Removed src/seasons/season1-definition.js after canonical startup migration.
+- Runtime ownership editing is now isolated to the active server workspace and no longer leaks between server workspaces.
+- Shared base-map runtime objects remain immutable during ownership editing.
+- Fresh runtime maps begin unclaimed; persistence remains unimplemented and edits remain session-only.
+- Command Centre dashboard values remain placeholders and src/services/summary-service.js remains unintegrated.
+
 ## v0.5.0
 - Documentation reconciliation across core project docs to match repository-authoritative behavior.
 - Marked camera, selection, ownership overlays, in-memory ownership editing, Command Centre, and eight data-driven server workspaces as implemented.

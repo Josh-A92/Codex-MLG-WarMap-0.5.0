@@ -1,6 +1,6 @@
 # Development Roadmap
 
-Version context: v0.5.0
+Version context: current main following v0.5.0
 
 ## Phase 0 - Foundation
 
@@ -29,16 +29,14 @@ Status: Completed
 - Data-driven server dock and dashboard cards
 - Shared-base-map plus per-server-state architecture documented and represented in schema
 
-Status detail: Partial
-- Per-server ownership isolation is not complete in runtime behavior.
-- Ownership edits still mutate shared season1-map tile ownerId.
-
 ## Phase 3 - Territory Ownership
 
-Status: Partial
+Status: Completed
 - Ownership overlays are implemented
 - In-memory tile and structure footprint ownership editing is implemented
-- Cross-server ownership leakage remains open
+- Runtime ownership edits are isolated to the active server workspace
+- Shared base-map runtime objects are not mutated by ownership editing
+- Runtime ownership remains session-only until persistence is implemented
 
 ## Phase 4 - Persistence and Real Summaries
 
@@ -47,12 +45,11 @@ Status: Pending
 - Real scoring integration
 - Replace dashboard placeholders with computed values
 
-## Phase 5 - History, Notes, Objectives
+## Phase 5 - History and Descriptive Notes
 
 Status: Pending
 - History timeline/playback
-- Notes workflows
-- Objectives workflows
+- Descriptive server notes workflows
 
 ## Phase 6 - Search and Filters
 

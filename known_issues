@@ -1,19 +1,14 @@
 # Known Issues
 
-Version context: v0.5.0
+Version context: current main following v0.5.0
 
 ## Active
 
-1. Cross-server ownership leakage
-- Per-server ownership schema exists in data/season1-servers.json.
-- Runtime territory editing mutates shared season1-map tile ownerId.
-- Ownership changes made in one server workspace appear in other server workspaces.
-
-2. Dashboard summaries are placeholders
+1. Dashboard summaries are placeholders
 - Command Centre cards render static placeholder values.
 - Real scoring and computed strategic summaries are not yet integrated.
 
-3. Summary service is inactive
+2. Summary service is inactive
 - src/services/summary-service.js exists.
 - It is not loaded by index.html and not wired into runtime UI.
 
@@ -22,6 +17,5 @@ Version context: v0.5.0
 - Persistence/save
 - Real scoring rules pipeline
 - History playback
-- Notes workflows
-- Objectives workflows
+- Descriptive notes workflows
 - Search and filters
