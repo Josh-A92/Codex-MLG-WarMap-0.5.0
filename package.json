@@ -7,6 +7,7 @@
   "scripts": {
   "start": "electron .",
   "build": "electron-builder",
+  "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
   "test:season-loader": "node tests/season-loader.test.js"
 },
