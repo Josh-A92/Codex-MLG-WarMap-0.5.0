@@ -267,6 +267,75 @@ runTest("missing application-config field", () => {
   assertError(result, "MISSING_REQUIRED_FIELD", "applicationConfig.dataSources.mapDataUrl");
 });
 
+runTest("valid configured designated union id", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.designatedUnionId = "union-0001";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.errors, []);
+});
+
+runTest("omitted designated union id remains valid", () => {
+  const candidate = createMinimalValidPackage();
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.errors, []);
+});
+
+runTest("present undefined designated union id is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.designatedUnionId = undefined;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "applicationConfig.designatedUnionId");
+});
+
+runTest("empty designated union id is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.designatedUnionId = "";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "applicationConfig.designatedUnionId");
+});
+
+runTest("whitespace-only designated union id is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.designatedUnionId = "   \t   ";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "applicationConfig.designatedUnionId");
+});
+
+runTest("non-string designated union id is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.designatedUnionId = 1001;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "applicationConfig.designatedUnionId");
+});
+
+runTest("unknown applicationConfig field is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.applicationConfig.unknownField = true;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "applicationConfig.unknownField");
+});
+
 runTest("invalid map dimensions", () => {
   const candidate = createMinimalValidPackage();
   candidate.rulesDefinition.mapDefinition.dimensions.rows = 0;

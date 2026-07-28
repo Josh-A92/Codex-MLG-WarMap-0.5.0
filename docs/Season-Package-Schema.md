@@ -79,6 +79,7 @@ Conceptual top-level shape:
     "buffDefinitions": []
   },
   "applicationConfig": {
+    "designatedUnionId": "union-0001",
     "dataSources": {
       "mapDataUrl": "",
       "seasonServerStateDataUrl": "",
@@ -192,7 +193,11 @@ It must include:
 - `workspace.mapLabel`
 
 Optional fields:
+- `designatedUnionId` as a non-empty string identifier for the designated/player-union summary scope
 - additional application-only routing or UI startup data, provided it does not become rules input
+
+`applicationConfig.designatedUnionId` is a display/calculation selection used by summary services across servers. It must not be interpreted as native status, active status, ownership confirmation, diplomacy, or strategic importance.
+Omitting `applicationConfig.designatedUnionId` is valid and means no designated union is configured. Consumers must not hard-code or infer a fallback union identifier.
 
 Expected types:
 - URLs or path-like strings for data sources
@@ -632,6 +637,7 @@ In this example, `structureTypeRef` appears only on logical structure instances 
     "buffDefinitions": []
   },
   "applicationConfig": {
+    "designatedUnionId": "union-0001",
     "dataSources": {
       "mapDataUrl": "data/season1-map.json",
       "seasonServerStateDataUrl": "data/season1-servers.json",
@@ -681,6 +687,8 @@ This historical mapping documents the migration from the former flat `SEASON_1_D
 | `appConfig.dataSources.unionsDataUrl` | `applicationConfig.dataSources.unionsDataUrl` | Required application configuration |
 | `appConfig.workspace.homeId` | `applicationConfig.workspace.homeId` | Required application configuration |
 | `appConfig.workspace.mapLabel` | `applicationConfig.workspace.mapLabel` | Required application configuration |
+
+`applicationConfig.designatedUnionId` is a new optional canonical configuration value introduced after migration. It was not present in the former flat Season 1 definition and is therefore not migrated legacy data.
 
 The map-data contract normalizes both collections into one internal model:
 - `rulesDefinition.mapDefinition.mapDataContract.cells` supplies the stable logical cell identity and optional per-cell type reference

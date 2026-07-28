@@ -110,6 +110,8 @@ runTest("structure catalog and unlocks preserve all current entries", () => {
 });
 
 runTest("data URLs, workspace, phases, capture rules, and scoring labels are preserved", () => {
+  assert.strictEqual(SEASON_1_PACKAGE.applicationConfig.designatedUnionId, "union-0001");
+
   assert.deepStrictEqual(SEASON_1_PACKAGE.applicationConfig.dataSources, {
     mapDataUrl: "data/season1-map.json",
     seasonServerStateDataUrl: "data/season1-servers.json",

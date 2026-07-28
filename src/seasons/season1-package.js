@@ -134,6 +134,7 @@
       buffDefinitions: []
     },
     applicationConfig: {
+      designatedUnionId: "union-0001",
       dataSources: {
         mapDataUrl: "data/season1-map.json",
         seasonServerStateDataUrl: "data/season1-servers.json",

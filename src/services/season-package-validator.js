@@ -20,7 +20,7 @@
   const ALLOWED_SCORING_MODEL_KEYS = ["calculationModelId", "configured", "resourceLabel", "serverField", "unconfiguredLabel"];
   const ALLOWED_PHASE_KEYS = ["id", "label", "status", "activationMode", "startAt", "endAt", "notes"];
   const ALLOWED_CAPTURE_RULES_KEYS = ["defaultCapturable", "byCode", "byType", "phaseRestrictions"];
-  const ALLOWED_APPLICATION_CONFIG_KEYS = ["dataSources", "workspace"];
+  const ALLOWED_APPLICATION_CONFIG_KEYS = ["dataSources", "workspace", "designatedUnionId"];
   const ALLOWED_DATA_SOURCE_KEYS = ["mapDataUrl", "seasonServerStateDataUrl", "unionsDataUrl"];
   const ALLOWED_WORKSPACE_KEYS = ["homeId", "mapLabel"];
   const ALLOWED_EXTERNAL_REGISTRY_KEYS = ["registryId", "registryType", "sourceRef", "required", "expectedSchemaVersion"];
@@ -727,6 +727,15 @@
 
   function validateApplicationConfig(applicationConfig, errors) {
     checkUnknownFields(errors, applicationConfig, ALLOWED_APPLICATION_CONFIG_KEYS, "applicationConfig");
+
+    if (Object.prototype.hasOwnProperty.call(applicationConfig, "designatedUnionId")) {
+      validateNonEmptyString(
+        errors,
+        applicationConfig.designatedUnionId,
+        "applicationConfig.designatedUnionId",
+        "applicationConfig.designatedUnionId"
+      );
+    }
 
     if (!Object.prototype.hasOwnProperty.call(applicationConfig, "dataSources") || !isPlainObject(applicationConfig.dataSources)) {
       pushError(errors, "MISSING_REQUIRED_FIELD", "applicationConfig.dataSources", "applicationConfig.dataSources is required and must be an object.");
