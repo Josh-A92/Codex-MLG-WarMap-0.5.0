@@ -12,6 +12,7 @@
   "test:persistence-storage": "node tests/persistence-storage.test.js",
   "test:persistence-service": "node tests/persistence-service.test.js",
   "test:persistence-state": "node tests/persistence-state-serializer.test.js",
+  "test:summary-service": "node tests/summary-service.test.js",
   "test:server-state": "node tests/server-state-service.test.js",
   "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
