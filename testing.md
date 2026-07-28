@@ -37,7 +37,7 @@ Partial:
 
 Pending:
 - Real scoring-backed values
-- Integrated computed summaries from a runtime summary service
+- Integrated computed summaries from a runtime summary service (summary-service remains unintegrated)
 
 ## Persistence and Strategic Workflows
 
@@ -53,6 +53,7 @@ Pending:
 - npm run test:season1-package
 - npm run test:season-package
 - npm run test:season-loader
+- npm run test:server-state
 
 ## Documentation Validation
 

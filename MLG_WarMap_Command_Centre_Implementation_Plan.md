@@ -2,7 +2,7 @@
 
 Version context: v0.5.0
 
-This file now tracks delivery status instead of future-only planning language.
+This file remains a broad implementation plan with current-status notes.
 
 ## Milestone Status
 
@@ -42,10 +42,10 @@ Status: Partial
 
 ### Milestone 6: Per-Server Ownership Isolation
 
-Status: Partial
-- Architecture and schema support per-server ownership.
-- Runtime edits currently mutate shared season1-map tile ownerId.
-- Ownership leaks between servers and must be corrected.
+Status: Completed
+- Runtime ownership edits are routed through Server State Service.
+- Ownership is isolated between server workspaces.
+- Shared base-map tile ownerId is fallback-only and shared tile objects are not mutated by normal ownership editing.
 
 ### Milestone 7: Persistence and Strategic Workflows
 
@@ -59,6 +59,6 @@ Status: Pending
 
 ## Current Priorities
 
-1. Route territory editing to per-server ownership state instead of shared base map tiles.
-2. Integrate summary-service (or equivalent) into runtime dashboard rendering.
-3. Replace placeholders with verified computed values after scoring rules are defined.
+1. Integrate summary-service (or equivalent) into runtime dashboard rendering.
+2. Replace placeholders with verified computed values after scoring rules are defined.
+3. Implement persistence for server state and ownership history workflows.

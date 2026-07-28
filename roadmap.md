@@ -34,8 +34,12 @@ Status: Completed
 Status: Completed
 - Ownership overlays are implemented
 - In-memory tile and structure footprint ownership editing is implemented
+- Server State Service is integrated as the runtime ownership authority
+- Application Bootstrap injects the Server State Service factory into renderer startup context
+- Renderer ownership reads and writes route through the Server State Service
 - Runtime ownership edits are isolated to the active server workspace
 - Shared base-map runtime objects are not mutated by ownership editing
+- Base-map tile ownerId is fallback-only when no server-specific ownership value exists
 - Runtime ownership remains session-only until persistence is implemented
 
 ## Phase 4 - Persistence and Real Summaries

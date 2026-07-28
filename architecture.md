@@ -13,13 +13,14 @@ This document reflects current main after v0.5.0.
 - src/seasons/season1-package.js is the canonical Season 1 package definition.
 - src/services/season-package-validator.js validates package shape and references.
 - src/services/season-loader.js resolves and loads validated season packages.
-- src/app/application-bootstrap.js asynchronously loads the season package and passes only rulesDefinition to the Game Rules Engine.
+- src/app/application-bootstrap.js asynchronously loads the season package, passes only rulesDefinition to the Game Rules Engine, and injects ownership and server-state service factories into the renderer bootstrap context.
 
 3. Rendering and interaction
 - src/map-renderer.js loads data, renders the 20x20 map, handles camera controls, workspace switching, selection, and in-memory ownership edits.
 
 4. Ownership logic
 - src/services/ownership-service.js provides tile/structure ownership lookup, label/color resolution, and owner mutation helpers.
+- src/services/server-state-service.js is the runtime authority for mutable per-server tile ownership state.
 
 5. Data
 - data/season1-map.json stores shared map tiles and structures.
@@ -41,7 +42,8 @@ Verified runtime behavior:
 - Ownership edits are written to the active server ownership store.
 - Ownership edits do not leak between server workspaces.
 - Shared base-map runtime tile objects are not mutated by ownership editing.
-- Maps start unclaimed unless a server ownership override is explicitly set.
+- Base-map tile ownerId is used only as fallback when no server-specific ownership value exists.
+- Structure ownership editing applies through the existing footprint tile flow across all tiles in the selected structure footprint.
 - Persistence is not implemented, so ownership edits remain session-only.
 
 ## Camera and Selection
@@ -79,3 +81,6 @@ Not implemented:
 - History playback
 - Descriptive server notes integration
 - Search and filters
+
+Design note:
+- docs/Server-State-Data-Model.md defines a target snapshot/evidence model and is not fully implemented in the current runtime.

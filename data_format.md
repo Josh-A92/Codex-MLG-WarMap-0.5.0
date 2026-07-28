@@ -13,7 +13,7 @@ Version context: v0.5.0
 season1-map.json provides:
 - grid size and tile objects
 - structure objects and footprints
-- tile ownerId fields used by current runtime ownership overlays and editing
+- tile ownerId fields used as fallback ownership values when no server override exists
 
 ## Union Registry
 
@@ -43,17 +43,19 @@ Per-server fields currently present:
 
 This schema preserves the intended shared-base-map plus per-server-state architecture.
 
-## Current Runtime Mismatch
+## Current Runtime Ownership Flow
 
-Implemented schema:
-- server.ownership exists for per-server overrides.
+Implemented runtime:
+- Server State Service reads and writes per-server ownership through server.ownership.
+- Renderer ownership reads and writes flow through service boundaries.
+- Ownership remains isolated per server workspace.
+- Shared base-map tile objects are not mutated during normal ownership editing.
 
-Current runtime behavior:
-- ownership edits mutate shared season1-map tile ownerId in memory.
-- server.ownership is not used as the active edit target.
+Fallback behavior:
+- Base-map tile ownerId is read only as a fallback value when a server-specific ownership value is missing.
 
-Impact:
-- Ownership state leaks between server workspaces.
+Current limits:
+- Ownership state is in-memory only and is lost when the application closes.
 
 ## Dashboard Summary Data
 

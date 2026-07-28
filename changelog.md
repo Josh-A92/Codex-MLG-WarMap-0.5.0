@@ -1,4 +1,12 @@
 ## Unreleased
+- Reconciled project documentation with completed Server State Service runtime integration.
+- Runtime now loads src/services/server-state-service.js in index.html and injects createServerStateService from application bootstrap into renderer startup context.
+- Server State Service now serves as runtime authority for mutable per-server territory ownership edits.
+- Renderer ownership reads and writes now route through serverStateService.getTerritoryOwner and serverStateService.setTerritoryOwner.
+- Confirmed ownership edits stay isolated per server workspace, shared base-map tile objects are not mutated during normal editing, and tile ownerId is fallback-only when no server override exists.
+- Confirmed structure ownership editing still applies across selected footprint tiles through the existing ownership flow.
+- Confirmed persistence remains pending; runtime ownership state is in-memory and lost when the application closes.
+- Confirmed summary-service remains unintegrated and Command Centre summaries remain placeholders.
 - Canonical Season 1 startup migration completed on current main following v0.5.0.
 - Application startup now resolves src/seasons/season1-package.js through src/services/season-loader.js with validation by src/services/season-package-validator.js.
 - Bootstrap now loads the season package asynchronously and passes only rulesDefinition to the Game Rules Engine.

@@ -19,6 +19,7 @@ Completed:
 - Canonical Season 1 startup path via season package, validator, loader, and asynchronous bootstrap
 - Per-server ownership isolation in runtime editing
 - Fresh unclaimed map behavior at runtime with no legacy seeded ownership defaults
+- Server State Service is loaded at runtime and used as the mutable per-server ownership authority
 
 Pending:
 - Persistence/save
@@ -43,3 +44,9 @@ Season 1 remains a shared-base-map model:
 - Per-server state: data/season1-servers.json
 
 Current behavior is isolated per-server ownership/state with no cross-server leakage during runtime editing.
+
+Ownership fallback behavior:
+- Base-map tile ownerId is used only when no server-specific ownership override exists.
+
+Current limits:
+- State is runtime memory only and is lost when the application closes.

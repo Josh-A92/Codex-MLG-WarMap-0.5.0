@@ -50,10 +50,13 @@ Decision:
 Reason:
 - Current runtime does not load or call this service; dashboard values remain placeholders.
 
-## ADR-007: Cross-server ownership leakage is a tracked defect
+## ADR-007: Cross-server ownership leakage defect is resolved
 
 Decision:
-- Current ownership editing behavior is documented as a known issue, not intended architecture.
+- Runtime ownership editing is isolated per server workspace through the Server State Service.
 
 Reason:
-- Intended model is per-server isolation, but runtime currently mutates shared season1-map tile ownerId.
+- Ownership reads and writes now route through server-scoped service APIs, preventing cross-server leakage and avoiding shared base-map mutation during normal edits.
+
+Superseded history note:
+- The former leakage behavior remains recorded in changelog v0.5.0 as historical context.

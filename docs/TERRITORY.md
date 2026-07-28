@@ -12,24 +12,26 @@ Completed:
 
 ## Ownership Model
 
-Intended model:
-- Shared base map for geometry and structure footprints
-- Per-server ownership state stored separately in season1-servers.json
-
 Current runtime model:
-- Ownership edits mutate tile ownerId on shared season1-map runtime tile objects
+- Shared base map for geometry and structure footprints
+- Per-server ownership state stored separately in season1-servers.json and managed by Server State Service at runtime
 
-Known issue:
-- Ownership edits leak between server workspaces because per-server ownership overrides are not the active edit target.
+- Renderer ownership reads and writes route through Server State Service
+- Shared base-map tile ownerId is fallback-only when no server-specific ownership value exists
+- Ownership edits do not leak between server workspaces
+- Shared base-map runtime tile objects are not mutated by normal ownership editing
+
+Current limitations:
+- State remains in memory and is lost when the application closes
 
 ## Structure Ownership
 
 - Structure ownership is derived from footprint tile ownership.
+- Logical-structure ownership records are not a separate runtime authority in current implementation.
 - Uniform footprints resolve as owned.
 - Mixed footprints resolve as contested/partial in selection editing state.
 
 ## Pending Territory Work
 
-- Per-server ownership isolation during editing
 - Persistence of edits
 - History timeline integration
