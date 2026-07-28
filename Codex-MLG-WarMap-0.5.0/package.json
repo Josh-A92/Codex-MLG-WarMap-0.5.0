@@ -1,0 +1,29 @@
+{
+  "name": "codex-mlg-warmap",
+  "version": "0.5.0",
+  "description": "> An interactive, data-driven strategic map for X-Clash.",
+  "main": "main.js",
+
+  "scripts": {
+  "start": "electron .",
+  "build": "electron-builder",
+  "test:season-package": "node tests/season-package-validator.test.js",
+  "test:season-loader": "node tests/season-loader.test.js"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Josh-A92/Codex-MLG-WarMap.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Josh-A92/Codex-MLG-WarMap/issues"
+  },
+  "homepage": "https://github.com/Josh-A92/Codex-MLG-WarMap#readme",
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "unions": [
+    {
+      "id": "union-0001",
+      "shortName": "MLG",
+      "displayName": "Moonlight Guillotine",
+      "color": "#8FCEFF",
+      "emblem": "crescent-blade",
+      "notes": "Primary active test union using a clearer pastel sky blue for ownership readability.",
+      "active": true
+    },
+    {
+      "id": "union-0002",
+      "shortName": "ACA",
+      "displayName": "Aurora Crest Accord",
+      "color": "#AEECCB",
+      "emblem": "aurora-spire",
+      "notes": "Inactive registry sample for mint green territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0003",
+      "shortName": "RAV",
+      "displayName": "Ravenwatch Compact",
+      "color": "#CFB9FF",
+      "emblem": "raven-gate",
+      "notes": "Inactive registry sample for lavender territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0004",
+      "shortName": "DRG",
+      "displayName": "Dragonrise Guild",
+      "color": "#F7B2C3",
+      "emblem": "ember-dragon",
+      "notes": "Inactive registry sample for rose territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0005",
+      "shortName": "SUN",
+      "displayName": "Sunward Dominion",
+      "color": "#F8E89D",
+      "emblem": "solar-standard",
+      "notes": "Inactive registry sample for warm yellow territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0006",
+      "shortName": "WLD",
+      "displayName": "Wildmere League",
+      "color": "#F6C8A1",
+      "emblem": "wind-branch",
+      "notes": "Inactive registry sample for peach territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0007",
+      "shortName": "PHX",
+      "displayName": "Phoenix Banner",
+      "color": "#F6A8A1",
+      "emblem": "phoenix-plume",
+      "notes": "Inactive registry sample for coral territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0008",
+      "shortName": "OBL",
+      "displayName": "Obelisk Tide",
+      "color": "#A8E7E2",
+      "emblem": "tidal-obelisk",
+      "notes": "Inactive registry sample for aqua territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0009",
+      "shortName": "BRN",
+      "displayName": "Bronzewarden Ring",
+      "color": "#DCC3A8",
+      "emblem": "stone-ward",
+      "notes": "Inactive registry sample for sandstone territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0010",
+      "shortName": "VLT",
+      "displayName": "Violet Lattice Tribunal",
+      "color": "#DDBEF2",
+      "emblem": "violet-lattice",
+      "notes": "Inactive registry sample for lilac territory contrast.",
+      "active": false
+    },
+    {
+      "id": "union-0011",
+      "shortName": "FRO",
+      "displayName": "Frostbound Order",
+      "color": "#B8E4FF",
+      "emblem": "frost-crown",
+      "notes": "Inactive registry sample for ice-blue territory contrast.",
+      "active": false
+    }
+  ]
+}

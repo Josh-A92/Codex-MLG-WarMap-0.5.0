@@ -1,0 +1,82 @@
+﻿<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MLG WarMap - Excel-Driven Map Render Test</title>
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>MLG WarMap · Map Render Test</h1>
+    <div class="sub">Excel-driven · tile-first · no ownership · no UI shell</div>
+  </div>
+  <div class="badge">400 tiles · 80 structures/markers</div>
+</header>
+
+<div class="stage">
+  <aside class="legend">
+    <h2>Legend</h2>
+    <div class="legend-row"><span class="sw V1"></span>V1 · Village</div>
+    <div class="legend-row"><span class="sw FM1"></span>FM1 · Frost Mine 1</div>
+    <div class="legend-row"><span class="sw FM2"></span>FM2 · Frost Mine 2</div>
+    <div class="legend-row"><span class="sw FM3"></span>FM3 · Frost Mine 3</div>
+    <div class="legend-row"><span class="sw FM4"></span>FM4 · Frost Mine 4</div>
+    <div class="legend-row"><span class="sw FM5"></span>FM5 · Frost Mine 5</div>
+    <div class="legend-row"><span class="sw FM6"></span>FM6 · Frost Mine 6</div>
+    <div class="legend-row"><span class="sw FM7"></span>FM7 · Frost Mine 7</div>
+    <div class="legend-row"><span class="sw FM8"></span>FM8 · Frost Mine 8</div>
+    <div class="legend-row"><span class="sw FM9"></span>FM9 · Frost Mine 9</div>
+    <div class="legend-row"><span class="sw FM10"></span>FM10 · Frost Mine 10</div>
+    <div class="legend-row"><span class="sw C2"></span>C2 · City</div>
+    <div class="legend-row"><span class="sw MN3"></span>MN3 · Manor</div>
+    <div class="legend-row"><span class="sw F4"></span>F4 · Factory</div>
+    <div class="legend-row"><span class="sw T5"></span>T5 · Town</div>
+    <div class="legend-row"><span class="sw MP6"></span>MP6 · Metropolis</div>
+    <div class="legend-row"><span class="sw RC7"></span>RC7 · Royal City</div>
+  </aside>
+
+  <section class="map-frame">
+    <div class="map-head">
+      <strong>Season 1 Blueprint</strong>
+      <span>Row 1 = top · Col 1 = left</span>
+    </div>
+    <div class="camera-viewport" id="cameraViewport">
+      <div class="camera-toolbar" id="cameraToolbar" role="toolbar" aria-label="Camera Controls">
+        <button class="camera-button" data-camera-action="zoom-in" aria-label="Zoom In" title="Zoom In">
+          <span class="camera-icon camera-icon--zoom-in">+</span>
+        </button>
+        <button class="camera-button" data-camera-action="zoom-out" aria-label="Zoom Out" title="Zoom Out">
+          <span class="camera-icon camera-icon--zoom-out">−</span>
+        </button>
+        <button class="camera-button" data-camera-action="fit-map" aria-label="Fit Map" title="Fit Map">
+          <span class="camera-icon camera-icon--fit-map">⛶</span>
+        </button>
+        <button class="camera-button" data-camera-action="reset-view" aria-label="Reset View" title="Reset View">
+          <span class="camera-icon camera-icon--reset-view">⌂</span>
+        </button>
+        <button class="camera-button" data-camera-action="center-selection" aria-label="Centre on Selection" title="Centre on Selection">
+          <span class="camera-icon camera-icon--center-selection">◎</span>
+        </button>
+      </div>
+      <div class="grid-wrap" id="cameraSurface">
+        <div class="colheads" id="colheads"></div>
+        <div class="rowheads" id="rowheads"></div>
+        <div class="map" id="map"></div>
+        <div class="rowheads-right" id="rowheadsRight"></div>
+        <div class="colheads-bottom" id="colheadsBottom"></div>
+      </div>
+    </div>
+    <section class="selection-panel" id="selection-panel" aria-live="polite">
+      <h2>Tile Details</h2>
+      <div class="selection-empty">Select a tile to view details.</div>
+    </section>
+    <div class="note">This is deterministic HTML from the workbook, not image generation.</div>
+  </section>
+</div>
+
+<script src="src/services/ownership-service.js"></script>
+<script src="src/map-renderer.js"></script>
+</body>
+</html>
+

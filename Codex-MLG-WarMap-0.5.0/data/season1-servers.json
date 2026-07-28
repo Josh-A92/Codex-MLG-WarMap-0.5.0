@@ -1,0 +1,94 @@
+{
+  "seasonId": "season-1",
+  "baseMapId": "season1-map",
+  "servers": [
+    {
+      "id": "server-366",
+      "label": "Server 366",
+      "baseMapId": "season1-map",
+      "activeUnionId": "union-0001",
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-367",
+      "label": "Server 367",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-368",
+      "label": "Server 368",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-369",
+      "label": "Server 369",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-370",
+      "label": "Server 370",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-371",
+      "label": "Server 371",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-372",
+      "label": "Server 372",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    },
+    {
+      "id": "server-373",
+      "label": "Server 373",
+      "baseMapId": "season1-map",
+      "activeUnionId": null,
+      "ownership": {},
+      "notes": {},
+      "objectives": [],
+      "history": [],
+      "lastUpdated": null
+    }
+  ]
+}

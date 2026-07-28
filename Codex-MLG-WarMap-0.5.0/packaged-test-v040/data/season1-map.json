@@ -1,0 +1,4938 @@
+{
+  "kingdomNumber": 1,
+  "seasonName": "Season 1",
+  "gridSize": 20,
+  "tiles": [
+    [
+      {
+        "row": 1,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 2,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 3,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 4,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 5,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 6,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 7,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 8,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 9,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 10,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 11,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 12,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 13,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 14,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 15,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 16,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 17,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 18,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 19,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 1,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 2,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 3,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 4,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 5,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 6,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 7,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 8,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 9,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 10,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 11,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 12,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 13,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 14,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 15,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 16,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 17,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 18,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 2,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 3,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 4,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 5,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 6,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 7,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 8,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 9,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 10,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 11,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 12,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 13,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 14,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 15,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 16,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 17,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 3,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 4,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 5,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 6,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 7,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 8,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 9,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 10,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 11,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 12,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 13,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 14,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 15,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 16,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 18,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 4,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 5,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 3,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 5,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 6,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 7,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 8,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 9,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 10,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 11,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 12,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 13,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 14,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 15,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 16,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 5,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 6,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 5,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 6,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 7,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 8,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 9,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 10,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 11,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 12,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 13,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 14,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 15,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 16,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 6,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 7,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 3,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 4,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 5,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 6,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 7,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 8,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 9,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 10,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 11,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 12,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 13,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 14,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 15,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 16,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 18,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 7,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 8,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 3,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 6,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 7,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 8,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": "T5_8_8",
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 9,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": false,
+        "mergedId": "T5_8_8",
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 10,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 11,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 12,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 13,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": "T5_8_13",
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 14,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 15,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 17,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 18,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 8,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 9,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 6,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 7,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 8,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 9,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 10,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": "MP6_9_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 9,
+        "col": 11,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": false,
+        "mergedId": "MP6_9_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 9,
+        "col": 12,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 13,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": false,
+        "mergedId": "T5_8_13",
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 14,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 15,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 9,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 10,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 3,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 4,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 6,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 7,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 8,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 9,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": "MP6_10_9",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 10,
+        "col": 10,
+        "code": "RC7",
+        "type": "Royal City",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": "RC7_10_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 10,
+        "col": 11,
+        "code": "RC7",
+        "type": "Royal City",
+        "level": 7,
+        "isAnchor": false,
+        "mergedId": "RC7_10_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 10,
+        "col": 12,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": "MP6_10_12",
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 13,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 14,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 15,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 18,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 10,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 11,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 3,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 6,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 7,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 8,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 9,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": false,
+        "mergedId": "MP6_10_9",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 11,
+        "col": 10,
+        "code": "RC7",
+        "type": "Royal City",
+        "level": 7,
+        "isAnchor": false,
+        "mergedId": "RC7_10_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 11,
+        "col": 11,
+        "code": "RC7",
+        "type": "Royal City",
+        "level": 7,
+        "isAnchor": false,
+        "mergedId": "RC7_10_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 11,
+        "col": 12,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": false,
+        "mergedId": "MP6_10_12",
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 13,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 14,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 15,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 17,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 11,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 12,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 6,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 7,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 8,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": "T5_12_8",
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 9,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 10,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": "MP6_12_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 12,
+        "col": 11,
+        "code": "MP6",
+        "type": "Metropolis",
+        "level": 6,
+        "isAnchor": false,
+        "mergedId": "MP6_12_10",
+        "ownerId": "union-0001"
+      },
+      {
+        "row": 12,
+        "col": 12,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 13,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 14,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 15,
+        "code": "FM7",
+        "type": "Frost Mine",
+        "level": 7,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 18,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 12,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 13,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 3,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 4,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 5,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 6,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 7,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 8,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": false,
+        "mergedId": "T5_12_8",
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 9,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 10,
+        "code": "FM10",
+        "type": "Frost Mine",
+        "level": 10,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 11,
+        "code": "FM9",
+        "type": "Frost Mine",
+        "level": 9,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 12,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": "T5_13_12",
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 13,
+        "code": "T5",
+        "type": "Town",
+        "level": 5,
+        "isAnchor": false,
+        "mergedId": "T5_13_12",
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 14,
+        "code": "FM8",
+        "type": "Frost Mine",
+        "level": 8,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 15,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 16,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 18,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 13,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 14,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 3,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 5,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 6,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 7,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 8,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 9,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 10,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 11,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 12,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 13,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 14,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 15,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 16,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 14,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 15,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 5,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 6,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 7,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 8,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 9,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 10,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 11,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 12,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 13,
+        "code": "F4",
+        "type": "Factory",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 14,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 15,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 16,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 15,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 16,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 5,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 6,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 7,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 8,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 9,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 10,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 11,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 12,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 13,
+        "code": "FM6",
+        "type": "Frost Mine",
+        "level": 6,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 14,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 15,
+        "code": "FM5",
+        "type": "Frost Mine",
+        "level": 5,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 16,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 18,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 16,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 17,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 3,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 4,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 5,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 6,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 7,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 8,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 9,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 10,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 11,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 12,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 13,
+        "code": "MN3",
+        "type": "Manor",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 14,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 15,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 16,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 17,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 17,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 18,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 3,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 4,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 5,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 6,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 7,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 8,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 9,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 10,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 11,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 12,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 13,
+        "code": "FM4",
+        "type": "Frost Mine",
+        "level": 4,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 14,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 15,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 16,
+        "code": "C2",
+        "type": "City",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 17,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 18,
+        "code": "FM3",
+        "type": "Frost Mine",
+        "level": 3,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 18,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 19,
+        "col": 1,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 2,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 3,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 4,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 5,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 6,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 7,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 8,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 9,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 10,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 11,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 12,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 13,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 14,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 15,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 16,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 17,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 18,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 19,
+        "code": "FM2",
+        "type": "Frost Mine",
+        "level": 2,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 19,
+        "col": 20,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ],
+    [
+      {
+        "row": 20,
+        "col": 1,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 2,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 3,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 4,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 5,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 6,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 7,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 8,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 9,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 10,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 11,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 12,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 13,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 14,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 15,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 16,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 17,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 18,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 19,
+        "code": "FM1",
+        "type": "Frost Mine",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      },
+      {
+        "row": 20,
+        "col": 20,
+        "code": "V1",
+        "type": "Village",
+        "level": 1,
+        "isAnchor": true,
+        "mergedId": null,
+        "ownerId": null
+      }
+    ]
+  ],
+  "structures": [
+    {
+      "id": "V1_1_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_5",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 5,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_7",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 7,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_11",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 11,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_14",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 14,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_16",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 16,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_1_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 1,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_3_5",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 3,
+      "col": 5,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_3_7",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 3,
+      "col": 7,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_3_11",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 3,
+      "col": 11,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_3_14",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 3,
+      "col": 14,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_3_16",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 3,
+      "col": 16,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_4_8",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 4,
+      "col": 8,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_4_10",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 4,
+      "col": 10,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_4_13",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 4,
+      "col": 13,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_4_18",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 4,
+      "col": 18,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_4_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 4,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_5_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 5,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_5_3",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 5,
+      "col": 3,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_5_5",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 5,
+      "col": 5,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_5_15",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 5,
+      "col": 15,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_6_8",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 6,
+      "col": 8,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_6_10",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 6,
+      "col": 10,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_6_13",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 6,
+      "col": 13,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_7_4",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 7,
+      "col": 4,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_7_18",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 7,
+      "col": 18,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_7_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 7,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_8_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 8,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_8_3",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 8,
+      "col": 3,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_8_6",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 8,
+      "col": 6,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_8_15",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 8,
+      "col": 15,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_8_17",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 8,
+      "col": 17,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_10_4",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 10,
+      "col": 4,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_10_15",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 10,
+      "col": 15,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_10_18",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 10,
+      "col": 18,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_10_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 10,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_11_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 11,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_11_3",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 11,
+      "col": 3,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_11_6",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 11,
+      "col": 6,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_11_17",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 11,
+      "col": 17,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_13_4",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 13,
+      "col": 4,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_13_6",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 13,
+      "col": 6,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_13_15",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 13,
+      "col": 15,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_13_18",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 13,
+      "col": 18,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_13_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 13,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_14_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 14,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_14_3",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 14,
+      "col": 3,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_15_8",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 15,
+      "col": 8,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_15_11",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 15,
+      "col": 11,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "F4_15_13",
+      "code": "F4",
+      "type": "Factory",
+      "level": 4,
+      "row": 15,
+      "col": 13,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_16_6",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 16,
+      "col": 6,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_16_16",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 16,
+      "col": 16,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_16_18",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 16,
+      "col": 18,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_16_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 16,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_17_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 17,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_17_3",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 17,
+      "col": 3,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_17_8",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 17,
+      "col": 8,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_17_11",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 17,
+      "col": 11,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "MN3_17_13",
+      "code": "MN3",
+      "type": "Manor",
+      "level": 3,
+      "row": 17,
+      "col": 13,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_18_5",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 18,
+      "col": 5,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_18_7",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 18,
+      "col": 7,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_18_10",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 18,
+      "col": 10,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_18_14",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 18,
+      "col": 14,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "C2_18_16",
+      "code": "C2",
+      "type": "City",
+      "level": 2,
+      "row": 18,
+      "col": 16,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_1",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 1,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_5",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 5,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_7",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 7,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_10",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 10,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_14",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 14,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_16",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 16,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "V1_20_20",
+      "code": "V1",
+      "type": "Village",
+      "level": 1,
+      "row": 20,
+      "col": 20,
+      "rows": 1,
+      "cols": 1,
+      "source": "cell"
+    },
+    {
+      "id": "T5_8_8",
+      "code": "T5",
+      "type": "Town",
+      "level": 5,
+      "row": 8,
+      "col": 8,
+      "rows": 1,
+      "cols": 2,
+      "excelRange": "I10:J10",
+      "source": "merged"
+    },
+    {
+      "id": "T5_8_13",
+      "code": "T5",
+      "type": "Town",
+      "level": 5,
+      "row": 8,
+      "col": 13,
+      "rows": 2,
+      "cols": 1,
+      "excelRange": "N10:N11",
+      "source": "merged"
+    },
+    {
+      "id": "MP6_9_10",
+      "code": "MP6",
+      "type": "Metropolis",
+      "level": 6,
+      "row": 9,
+      "col": 10,
+      "rows": 1,
+      "cols": 2,
+      "excelRange": "K11:L11",
+      "source": "merged"
+    },
+    {
+      "id": "MP6_10_9",
+      "code": "MP6",
+      "type": "Metropolis",
+      "level": 6,
+      "row": 10,
+      "col": 9,
+      "rows": 2,
+      "cols": 1,
+      "excelRange": "J12:J13",
+      "source": "merged"
+    },
+    {
+      "id": "RC7_10_10",
+      "code": "RC7",
+      "type": "Royal City",
+      "level": 7,
+      "row": 10,
+      "col": 10,
+      "rows": 2,
+      "cols": 2,
+      "excelRange": "K12:L13",
+      "source": "merged"
+    },
+    {
+      "id": "MP6_10_12",
+      "code": "MP6",
+      "type": "Metropolis",
+      "level": 6,
+      "row": 10,
+      "col": 12,
+      "rows": 2,
+      "cols": 1,
+      "excelRange": "M12:M13",
+      "source": "merged"
+    },
+    {
+      "id": "T5_12_8",
+      "code": "T5",
+      "type": "Town",
+      "level": 5,
+      "row": 12,
+      "col": 8,
+      "rows": 2,
+      "cols": 1,
+      "excelRange": "I14:I15",
+      "source": "merged"
+    },
+    {
+      "id": "MP6_12_10",
+      "code": "MP6",
+      "type": "Metropolis",
+      "level": 6,
+      "row": 12,
+      "col": 10,
+      "rows": 1,
+      "cols": 2,
+      "excelRange": "K14:L14",
+      "source": "merged"
+    },
+    {
+      "id": "T5_13_12",
+      "code": "T5",
+      "type": "Town",
+      "level": 5,
+      "row": 13,
+      "col": 12,
+      "rows": 1,
+      "cols": 2,
+      "excelRange": "M15:N15",
+      "source": "merged"
+    }
+  ]
+}
