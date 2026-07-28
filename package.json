@@ -8,6 +8,7 @@
   "start": "electron .",
   "build": "electron-builder",
   "test:application-bootstrap": "node tests/application-bootstrap.test.js",
+  "test:persistence-storage": "node tests/persistence-storage.test.js",
   "test:persistence-service": "node tests/persistence-service.test.js",
   "test:persistence-state": "node tests/persistence-state-serializer.test.js",
   "test:server-state": "node tests/server-state-service.test.js",
