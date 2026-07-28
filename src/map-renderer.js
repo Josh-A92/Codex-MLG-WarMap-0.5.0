@@ -7,6 +7,7 @@ let appServerConfig = null;
 let appUnionConfig = null;
 let appWorkspace = null;
 let ownershipServiceFactory = null;
+let serverStateServiceFactory = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -93,6 +94,7 @@ const activePointers = new Map();
 let pinchZoomState = null;
 let loadedMapData = null;
 let ownershipService = null;
+let serverStateService = null;
 let applicationStarted = false;
 const appState = {
   gameRulesEngine: null,
@@ -100,7 +102,6 @@ const appState = {
   seasonMetadata: {},
   unionRegistry: [],
   ownershipService: null,
-  seasonServerState: null,
   servers: [],
   activeWorkspace: null,
   activeServer: null
@@ -389,18 +390,6 @@ function getActiveServerState() {
   return getServerById(appState.activeServer);
 }
 
-function getServerOwnershipStore(serverState) {
-  if (!serverState || typeof serverState !== "object") {
-    return null;
-  }
-
-  if (!serverState.ownership || typeof serverState.ownership !== "object") {
-    serverState.ownership = {};
-  }
-
-  return serverState.ownership;
-}
-
 function getTilePositionKey(tile) {
   if (!tile || typeof tile !== "object") {
     return null;
@@ -422,14 +411,12 @@ function getServerTileOwner(tile) {
     return null;
   }
 
-  const serverState = getActiveServerState();
-  const ownership = getServerOwnershipStore(serverState);
-
-  if (ownership && Object.prototype.hasOwnProperty.call(ownership, tileKey)) {
-    return ownership[tileKey] == null ? null : ownership[tileKey];
+  if (!serverStateService || !appState.activeServer) {
+    return tile.ownerId == null ? null : tile.ownerId;
   }
 
-  return tile.ownerId == null ? null : tile.ownerId;
+  const fallbackOwnerId = tile.ownerId == null ? null : tile.ownerId;
+  return serverStateService.getTerritoryOwner(appState.activeServer, tileKey, fallbackOwnerId);
 }
 
 function setServerTileOwner(tile, ownerId) {
@@ -438,16 +425,12 @@ function setServerTileOwner(tile, ownerId) {
     return null;
   }
 
-  const serverState = getActiveServerState();
-  const ownership = getServerOwnershipStore(serverState);
-
-  if (!ownership) {
+  if (!serverStateService || !appState.activeServer) {
     return getServerTileOwner(tile);
   }
 
   const normalizedOwnerId = ownerId == null ? null : ownerId;
-  ownership[tileKey] = normalizedOwnerId;
-  return normalizedOwnerId;
+  return serverStateService.setTerritoryOwner(appState.activeServer, tileKey, normalizedOwnerId);
 }
 
 function refreshOwnershipView() {
@@ -1683,26 +1666,7 @@ function initializeCamera(data) {
 }
 
 function ensureTileOwnerIds(data) {
-  if (!data || !Array.isArray(data.tiles)) {
-    return data;
-  }
-
-  data.tiles.forEach((row) => {
-    if (!Array.isArray(row)) {
-      return;
-    }
-
-    row.forEach((tile) => {
-      if (!tile || typeof tile !== "object") {
-        return;
-      }
-
-      if (!Object.prototype.hasOwnProperty.call(tile, "ownerId")) {
-        tile.ownerId = null;
-      }
-    });
-  });
-
+  // Map data is treated as shared immutable fallback data; ownership overrides live in server state service.
   return data;
 }
 
@@ -1739,27 +1703,22 @@ function loadSeasonServerState() {
         throw new Error("Failed to load Season 1 server state");
       }
       return response.json();
-    })
-    .then((data) => {
-      const servers = Array.isArray(data.servers) ? data.servers : [];
-      servers.forEach((server) => {
-        if (!server || typeof server !== "object") {
-          return;
-        }
-
-        if (!server.ownership || typeof server.ownership !== "object") {
-          server.ownership = {};
-        }
-      });
-      appState.seasonServerState = data;
-      appState.servers = servers;
-      return data;
     });
+}
+
+function initializeServerStateService(seasonServerState) {
+  if (typeof serverStateServiceFactory !== "function") {
+    throw new Error("Renderer requires a server state service factory.");
+  }
+
+  serverStateService = serverStateServiceFactory(seasonServerState);
+  appState.servers = serverStateService.listServers();
 }
 
 function initializeMap() {
   Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
-    .then(([mapData]) => {
+    .then(([mapData, _unionRegistry, seasonServerState]) => {
+      initializeServerStateService(seasonServerState);
       loadedMapData = mapData;
       initializeOwnershipService();
       renderWorkspaceNavigation();
@@ -1792,6 +1751,10 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires an ownership service factory.");
   }
 
+  if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
+    throw new Error("Renderer requires a server state service factory.");
+  }
+
   gameRulesEngine = bootstrapContext.gameRulesEngine;
   seasonIdentity = gameRulesEngine.getSeasonIdentity();
   seasonMetadata = gameRulesEngine.getSeasonMetadata();
@@ -1801,6 +1764,7 @@ function configureRenderer(bootstrapContext) {
   appUnionConfig = applicationConfig.union && typeof applicationConfig.union === "object" ? applicationConfig.union : null;
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
+  serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
 
   if (!appMapConfig || !appMapConfig.dataUrl) {
     throw new Error("Renderer requires a map data URL from bootstrap.");

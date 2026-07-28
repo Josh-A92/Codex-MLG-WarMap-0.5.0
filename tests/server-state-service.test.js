@@ -197,6 +197,29 @@ runTest("service source has no DOM filesystem network or season-specific assumpt
   assert.ok(!/season-1|season1-map|server-366|map-renderer|rows|columns/.test(source));
 });
 
+runTest("renderer uses server state service ownership boundary APIs", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.ok(/serverStateService\.listServers\(/.test(rendererSource));
+  assert.ok(/serverStateService\.getTerritoryOwner\(/.test(rendererSource));
+  assert.ok(/serverStateService\.setTerritoryOwner\(/.test(rendererSource));
+});
+
+runTest("renderer no longer directly initializes or mutates server ownership", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+  const tileOwnerAssignmentPattern = /tile\.ownerId\s*=\s*[^=]/;
+
+  assert.strictEqual(tileOwnerAssignmentPattern.test("tile.ownerId = value;"), true);
+  assert.strictEqual(tileOwnerAssignmentPattern.test("tile.ownerId == null"), false);
+  assert.strictEqual(tileOwnerAssignmentPattern.test("tile.ownerId === null"), false);
+
+  assert.ok(!/server\.ownership\s*=\s*\{\}/.test(rendererSource));
+  assert.ok(!/\.ownership\[[^\]]+\]\s*=/.test(rendererSource));
+  assert.ok(!tileOwnerAssignmentPattern.test(rendererSource));
+});
+
 async function executeTests() {
   for (const test of runTest.tests) {
     try {

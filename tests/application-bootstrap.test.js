@@ -80,6 +80,10 @@ function createValidScope(options) {
       callLog.push("createOwnershipService");
       return {};
     }),
+    createServerStateService: dependencyOverrides.createServerStateService || (() => {
+      callLog.push("createServerStateService");
+      return {};
+    }),
     initializeMapRenderer: dependencyOverrides.initializeMapRenderer || ((context) => {
       callLog.push("initializeMapRenderer");
       rendererCalls.push(context);
@@ -169,6 +173,16 @@ runTest("renderer receives exact existing applicationConfig translation", async 
   });
 });
 
+runTest("renderer context receives exact server state service factory", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await bootstrap.bootstrapApplication();
+
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(rendererCalls[0].serverStateServiceFactory, scope.createServerStateService);
+});
+
 runTest("legacy SEASON_1_DEFINITION is not used", async () => {
   const { scope, rendererCalls } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
@@ -209,6 +223,20 @@ runTest("missing required dependency prevents renderer initialization", async ()
   await assert.rejects(
     () => bootstrap.resolveBootstrapContext(),
     /createOwnershipService/
+  );
+
+  assert.strictEqual(rendererCalls.length, 0);
+});
+
+runTest("missing server state service factory prevents renderer initialization", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  delete scope.createServerStateService;
+
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await assert.rejects(
+    () => bootstrap.resolveBootstrapContext(),
+    /createServerStateService/
   );
 
   assert.strictEqual(rendererCalls.length, 0);
@@ -294,6 +322,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/seasons/season1-package.js"',
     'src="src/services/game-rules-engine.js"',
     'src="src/services/ownership-service.js"',
+    'src="src/services/server-state-service.js"',
     'src="src/map-renderer.js"',
     'src="src/app/application-bootstrap.js"'
   ];

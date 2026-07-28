@@ -88,6 +88,7 @@
       const validateSeasonPackage = requireFunction(safeScope.validateSeasonPackage, "validateSeasonPackage");
       const createGameRulesEngine = requireFunction(safeScope.createGameRulesEngine, "createGameRulesEngine");
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
+      const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
 
       const bundledSeasonPackage = resolveBundledSeasonPackage(safeScope);
       const requestedSeasonId = resolveRequestedSeasonId(bundledSeasonPackage);
@@ -108,7 +109,8 @@
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
-        ownershipServiceFactory: createOwnershipService
+        ownershipServiceFactory: createOwnershipService,
+        serverStateServiceFactory: createServerStateService
       };
     }
 
