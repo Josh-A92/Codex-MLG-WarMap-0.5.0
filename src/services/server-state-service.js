@@ -1,6 +1,11 @@
 (function initializeServerStateServiceFactory(globalScope) {
   function isPlainObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      return false;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
   }
 
   function deepClone(value) {
@@ -166,6 +171,70 @@
       return normalizedOwnerId;
     }
 
+    function removeTerritoryOwnerOverride(serverId, territoryKey) {
+      const server = requireServer(serverId);
+      const normalizedTerritoryKey = requireTerritoryKey(territoryKey);
+      const ownership = server.ownership || {};
+
+      if (!Object.prototype.hasOwnProperty.call(ownership, normalizedTerritoryKey)) {
+        return false;
+      }
+
+      delete ownership[normalizedTerritoryKey];
+      server.ownership = ownership;
+      return true;
+    }
+
+    function validateAndCloneOwnershipObject(ownershipSource, fieldName) {
+      if (!isPlainObject(ownershipSource)) {
+        throw new Error(`Server State Service requires ${fieldName} to be an object.`);
+      }
+
+      const ownership = {};
+      Object.keys(ownershipSource).forEach((territoryKey) => {
+        const normalizedTerritoryKey = requireNonEmptyString(territoryKey, `${fieldName} key '${territoryKey}'`);
+        ownership[normalizedTerritoryKey] = normalizeOwnerId(
+          ownershipSource[territoryKey],
+          `${fieldName}['${normalizedTerritoryKey}']`,
+          false
+        );
+      });
+
+      return ownership;
+    }
+
+    function replaceTerritoryOwnership(ownershipByServerId) {
+      if (!isPlainObject(ownershipByServerId)) {
+        throw new Error("Server State Service requires ownershipByServerId to be an object.");
+      }
+
+      const replacementByServerId = new Map();
+
+      Object.keys(ownershipByServerId).forEach((serverIdKey) => {
+        const normalizedServerId = requireNonEmptyString(serverIdKey, `ownershipByServerId key '${serverIdKey}'`);
+        if (!state.serversById.has(normalizedServerId)) {
+          throw new Error(`Server State Service could not find server '${normalizedServerId}'.`);
+        }
+
+        const ownership = validateAndCloneOwnershipObject(
+          ownershipByServerId[serverIdKey],
+          `ownershipByServerId['${normalizedServerId}']`
+        );
+        replacementByServerId.set(normalizedServerId, ownership);
+      });
+
+      state.serverIds.forEach((serverId) => {
+        if (!replacementByServerId.has(serverId)) {
+          replacementByServerId.set(serverId, {});
+        }
+      });
+
+      state.serverIds.forEach((serverId) => {
+        const server = state.serversById.get(serverId);
+        server.ownership = replacementByServerId.get(serverId);
+      });
+    }
+
     return {
       getSeasonId,
       getBaseMapId,
@@ -174,7 +243,9 @@
       hasServer,
       getTerritoryOwnership,
       getTerritoryOwner,
-      setTerritoryOwner
+      setTerritoryOwner,
+      removeTerritoryOwnerOverride,
+      replaceTerritoryOwnership
     };
   }
 

@@ -111,6 +111,257 @@ runTest("setting and clearing ownership", () => {
   assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0003"), null);
 });
 
+runTest("removing a string owner restores fallback behavior", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0003");
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0002"), "union-0003");
+
+  assert.strictEqual(service.removeTerritoryOwnerOverride("server-366", "10-11"), true);
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0002"), "union-0002");
+});
+
+runTest("removing an explicit null override restores fallback behavior", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", null);
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0002"), null);
+
+  assert.strictEqual(service.removeTerritoryOwnerOverride("server-366", "10-11"), true);
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0002"), "union-0002");
+});
+
+runTest("removing a missing override returns false", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  assert.strictEqual(service.removeTerritoryOwnerOverride("server-366", "10-11"), false);
+});
+
+runTest("replacement updates supplied servers", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.replaceTerritoryOwnership({
+    "server-366": {
+      "10-11": "union-0001"
+    },
+    "server-367": {
+      "5-5": "union-0002"
+    }
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0001");
+  assert.strictEqual(service.getTerritoryOwner("server-367", "5-5", null), "union-0002");
+});
+
+runTest("replacement clears omitted active servers", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  service.replaceTerritoryOwnership({
+    "server-366": {
+      "10-11": "union-0003"
+    }
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0003");
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), {});
+});
+
+runTest("replacement preserves explicit null", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.replaceTerritoryOwnership({
+    "server-366": {
+      "10-11": null
+    }
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0001"), null);
+});
+
+runTest("replacement does not merge old keys", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-366", "10-12", "union-0002");
+
+  service.replaceTerritoryOwnership({
+    "server-366": {
+      "10-12": "union-0003"
+    },
+    "server-367": {}
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", "union-0009"), "union-0009");
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-12", null), "union-0003");
+});
+
+runTest("replacement does not retain input references", () => {
+  const service = createServerStateService(createValidSeasonState());
+  const replacementInput = {
+    "server-366": {
+      "10-11": "union-0001"
+    },
+    "server-367": {}
+  };
+
+  service.replaceTerritoryOwnership(replacementInput);
+  replacementInput["server-366"]["10-11"] = "union-9999";
+  replacementInput["server-366"]["10-12"] = "union-9998";
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0001");
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-12", null), null);
+});
+
+runTest("replaceTerritoryOwnership rejects Date as top-level replacement before mutation", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  const before366 = service.getTerritoryOwnership("server-366");
+  const before367 = service.getTerritoryOwnership("server-367");
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership(new Date("2026-07-28T12:00:00.000Z"));
+  }, /ownershipByServerId to be an object/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+});
+
+runTest("replaceTerritoryOwnership rejects Date as server ownership value before mutation", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  const before366 = service.getTerritoryOwnership("server-366");
+  const before367 = service.getTerritoryOwnership("server-367");
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership({
+      "server-366": new Date("2026-07-28T12:00:00.000Z"),
+      "server-367": {}
+    });
+  }, /ownershipByServerId\['server-366'\] to be an object/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+});
+
+runTest("replaceTerritoryOwnership rejects class instance as server ownership value before mutation", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  const before366 = service.getTerritoryOwnership("server-366");
+  const before367 = service.getTerritoryOwnership("server-367");
+
+  class OwnershipContainer {
+    constructor() {
+      this["10-11"] = "union-0003";
+    }
+  }
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership({
+      "server-366": new OwnershipContainer(),
+      "server-367": {}
+    });
+  }, /ownershipByServerId\['server-366'\] to be an object/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+});
+
+runTest("replaceTerritoryOwnership accepts normal object and updates ownership", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.replaceTerritoryOwnership({
+    "server-366": {
+      "10-11": "union-0003"
+    },
+    "server-367": {}
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0003");
+});
+
+runTest("replaceTerritoryOwnership accepts null-prototype ownership dictionaries", () => {
+  const service = createServerStateService(createValidSeasonState());
+  const nullPrototypeOwnership = Object.create(null);
+  nullPrototypeOwnership["10-11"] = "union-0004";
+
+  service.replaceTerritoryOwnership({
+    "server-366": nullPrototypeOwnership,
+    "server-367": {}
+  });
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0004");
+});
+
+runTest("unknown servers are rejected without changing any server", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  const before366 = service.getTerritoryOwnership("server-366");
+  const before367 = service.getTerritoryOwnership("server-367");
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership({
+      "server-366": {
+        "10-11": "union-0003"
+      },
+      "server-999": {
+        "8-8": "union-0004"
+      }
+    });
+  }, /could not find server/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+});
+
+runTest("invalid territory keys or ownership values are rejected without partial mutation", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  service.setTerritoryOwner("server-367", "5-5", "union-0002");
+
+  const before366 = service.getTerritoryOwnership("server-366");
+  const before367 = service.getTerritoryOwnership("server-367");
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership({
+      "server-366": {
+        "   ": "union-0003"
+      },
+      "server-367": {}
+    });
+  }, /ownershipByServerId\['server-366'\] key '   '/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+
+  assert.throws(() => {
+    service.replaceTerritoryOwnership({
+      "server-366": {
+        "10-11": "   "
+      },
+      "server-367": {}
+    });
+  }, /ownershipByServerId\['server-366'\]\['10-11'\]/);
+
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-366"), before366);
+  assert.deepStrictEqual(service.getTerritoryOwnership("server-367"), before367);
+});
+
 runTest("invalid owner ids are rejected", () => {
   const service = createServerStateService(createValidSeasonState());
 
