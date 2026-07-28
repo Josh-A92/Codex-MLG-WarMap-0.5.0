@@ -471,6 +471,81 @@ runTest("renderer no longer directly initializes or mutates server ownership", (
   assert.ok(!tileOwnerAssignmentPattern.test(rendererSource));
 });
 
+runTest("renderer requires persistence controller initialize and requestSave", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.ok(/serverStatePersistenceController/.test(rendererSource));
+  assert.ok(/serverStatePersistenceController\.initialize/.test(rendererSource));
+  assert.ok(/serverStatePersistenceController\.requestSave/.test(rendererSource));
+});
+
+runTest("renderer restores ownership before workspace and map initialization flow", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  const initializeIndex = rendererSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
+  const listServersIndex = rendererSource.indexOf("appState.servers = serverStateService.listServers();");
+  const renderWorkspaceNavigationIndex = rendererSource.indexOf("renderWorkspaceNavigation();");
+  const renderMapIndex = rendererSource.indexOf("renderMap(mapData);");
+  const initializeCameraIndex = rendererSource.indexOf("initializeCamera(mapData);");
+  const attachSelectionPanelHandlersIndex = rendererSource.indexOf("attachSelectionPanelHandlers();");
+  const setActiveWorkspaceIndex = rendererSource.indexOf("setActiveWorkspace(workspaceHome);");
+
+  [
+    initializeIndex,
+    listServersIndex,
+    renderWorkspaceNavigationIndex,
+    renderMapIndex,
+    initializeCameraIndex,
+    attachSelectionPanelHandlersIndex,
+    setActiveWorkspaceIndex
+  ].forEach((index) => {
+    assert.ok(index > -1);
+  });
+
+  assert.ok(initializeIndex < listServersIndex);
+  assert.ok(initializeIndex < renderWorkspaceNavigationIndex);
+  assert.ok(initializeIndex < renderMapIndex);
+  assert.ok(initializeIndex < initializeCameraIndex);
+  assert.ok(initializeIndex < attachSelectionPanelHandlersIndex);
+  assert.ok(initializeIndex < setActiveWorkspaceIndex);
+});
+
+runTest("renderer requests exactly one save after completed ownership edit", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  const changeHandlerMatch = rendererSource.match(/function handleSelectionPanelChange\(event\) \{[\s\S]*?\n\}/);
+  assert.ok(changeHandlerMatch);
+
+  const changeHandlerSource = changeHandlerMatch[0];
+  const requestSaveMatches = changeHandlerSource.match(/requestSave\(/g) || [];
+
+  assert.strictEqual(requestSaveMatches.length, 1);
+  assert.ok(/refreshOwnershipView\(\);[\s\S]*requestSave\(\)/.test(changeHandlerSource));
+  assert.ok(/requestSave\(\)\.catch\(\(error\) => \{[\s\S]*console\.error/.test(changeHandlerSource));
+
+  const footprintMatch = rendererSource.match(/function applyStructureFootprintOwner\(structure, ownerId\) \{[\s\S]*?\n\}/);
+  assert.ok(footprintMatch);
+  assert.strictEqual(/requestSave\(/.test(footprintMatch[0]), false);
+
+  const tileSetterMatch = rendererSource.match(/function setServerTileOwner\(tile, ownerId\) \{[\s\S]*?\n\}/);
+  assert.ok(tileSetterMatch);
+  assert.strictEqual(/requestSave\(/.test(tileSetterMatch[0]), false);
+});
+
+runTest("renderer source preserves persistence boundary and excludes storage bridge and filesystem APIs", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.strictEqual(/warMapPersistenceStorage/.test(rendererSource), false);
+  assert.strictEqual(/createElectronFileStorageAdapter/.test(rendererSource), false);
+  assert.strictEqual(/localStorage/.test(rendererSource), false);
+  assert.strictEqual(/ipcRenderer|ipcMain|electron/i.test(rendererSource), false);
+  assert.strictEqual(/require\(['\"]fs['\"]\)|\bfs\./.test(rendererSource), false);
+});
+
 async function executeTests() {
   for (const test of runTest.tests) {
     try {

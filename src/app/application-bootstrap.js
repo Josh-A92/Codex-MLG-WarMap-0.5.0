@@ -7,6 +7,16 @@
     return value;
   }
 
+  function requireBridge(value, fieldPath) {
+    if (!value || typeof value !== "object") {
+      throw new Error(`Application Bootstrap requires ${fieldPath}.`);
+    }
+
+    requireFunction(value.loadEnvelope, `${fieldPath}.loadEnvelope`);
+    requireFunction(value.saveEnvelope, `${fieldPath}.saveEnvelope`);
+    return value;
+  }
+
   function requireConfigValue(value, fieldPath) {
     if (typeof value !== "string" || value.trim() === "") {
       throw new Error(`Application Bootstrap requires ${fieldPath}.`);
@@ -89,6 +99,24 @@
       const createGameRulesEngine = requireFunction(safeScope.createGameRulesEngine, "createGameRulesEngine");
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
+      const serializeServerState = requireFunction(safeScope.serializeServerState, "serializeServerState");
+      const deserializePersistenceEnvelope = requireFunction(
+        safeScope.deserializePersistenceEnvelope,
+        "deserializePersistenceEnvelope"
+      );
+      const createPersistenceService = requireFunction(safeScope.createPersistenceService, "createPersistenceService");
+      const createElectronFileStorageAdapter = requireFunction(
+        safeScope.createElectronFileStorageAdapter,
+        "createElectronFileStorageAdapter"
+      );
+      const createServerStatePersistenceController = requireFunction(
+        safeScope.createServerStatePersistenceController,
+        "createServerStatePersistenceController"
+      );
+      const warMapPersistenceStorage = requireBridge(
+        safeScope.warMapPersistenceStorage,
+        "warMapPersistenceStorage"
+      );
 
       const bundledSeasonPackage = resolveBundledSeasonPackage(safeScope);
       const requestedSeasonId = resolveRequestedSeasonId(bundledSeasonPackage);
@@ -106,17 +134,31 @@
         throw new Error("Application Bootstrap requires rulesDefinition on the loaded season package.");
       }
 
+      const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
+
+      const persistenceService = createPersistenceService({
+        storageAdapter,
+        serializeServerState,
+        deserializePersistenceEnvelope,
+        clock: () => new Date()
+      });
+
+      const serverStatePersistenceController = createServerStatePersistenceController({
+        persistenceService
+      });
+
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
         ownershipServiceFactory: createOwnershipService,
-        serverStateServiceFactory: createServerStateService
+        serverStateServiceFactory: createServerStateService,
+        serverStatePersistenceController
       };
     }
 
     function startApplication(bootstrapContext) {
       const initializeMapRenderer = requireFunction(safeScope.initializeMapRenderer, "initializeMapRenderer");
-      initializeMapRenderer(bootstrapContext);
+      return Promise.resolve(initializeMapRenderer(bootstrapContext));
     }
 
     async function bootstrapApplication() {
@@ -126,16 +168,14 @@
 
         if (documentRef && documentRef.readyState === "loading") {
           documentRef.addEventListener("DOMContentLoaded", () => {
-            try {
-              startApplication(bootstrapContext);
-            } catch (error) {
+            startApplication(bootstrapContext).catch((error) => {
               console.error("Unable to start application bootstrap.", error);
-            }
+            });
           }, { once: true });
           return;
         }
 
-        startApplication(bootstrapContext);
+        await startApplication(bootstrapContext);
       } catch (error) {
         console.error("Unable to start application bootstrap.", error);
       }

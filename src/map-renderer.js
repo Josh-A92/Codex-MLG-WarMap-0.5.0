@@ -8,6 +8,7 @@ let appUnionConfig = null;
 let appWorkspace = null;
 let ownershipServiceFactory = null;
 let serverStateServiceFactory = null;
+let serverStatePersistenceController = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -1232,6 +1233,10 @@ function handleSelectionPanelChange(event) {
   }
 
   refreshOwnershipView();
+
+  serverStatePersistenceController.requestSave().catch((error) => {
+    console.error("Unable to persist updated server ownership state", error);
+  });
 }
 
 function attachSelectionPanelHandlers() {
@@ -1712,25 +1717,24 @@ function initializeServerStateService(seasonServerState) {
   }
 
   serverStateService = serverStateServiceFactory(seasonServerState);
-  appState.servers = serverStateService.listServers();
 }
 
 function initializeMap() {
-  Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
-    .then(([mapData, _unionRegistry, seasonServerState]) => {
+  return Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
+    .then(async ([mapData, _unionRegistry, seasonServerState]) => {
       initializeServerStateService(seasonServerState);
+      await serverStatePersistenceController.initialize(serverStateService);
+      appState.servers = serverStateService.listServers();
       loadedMapData = mapData;
       initializeOwnershipService();
       renderWorkspaceNavigation();
       renderMap(mapData);
       initializeCamera(mapData);
+      attachWorkspaceShellHandlers();
       attachCameraInputHandlers();
       attachCameraToolbarHandlers();
       attachSelectionPanelHandlers();
       setActiveWorkspace(workspaceHome);
-    })
-    .catch((error) => {
-      console.error("Unable to load application data", error);
     });
 }
 
@@ -1755,6 +1759,13 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a server state service factory.");
   }
 
+  if (!bootstrapContext.serverStatePersistenceController
+      || typeof bootstrapContext.serverStatePersistenceController !== "object"
+      || typeof bootstrapContext.serverStatePersistenceController.initialize !== "function"
+      || typeof bootstrapContext.serverStatePersistenceController.requestSave !== "function") {
+    throw new Error("Renderer requires a server state persistence controller.");
+  }
+
   gameRulesEngine = bootstrapContext.gameRulesEngine;
   seasonIdentity = gameRulesEngine.getSeasonIdentity();
   seasonMetadata = gameRulesEngine.getSeasonMetadata();
@@ -1765,6 +1776,7 @@ function configureRenderer(bootstrapContext) {
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
+  serverStatePersistenceController = bootstrapContext.serverStatePersistenceController;
 
   if (!appMapConfig || !appMapConfig.dataUrl) {
     throw new Error("Renderer requires a map data URL from bootstrap.");
@@ -1796,13 +1808,14 @@ function configureRenderer(bootstrapContext) {
 
 function initializeMapRenderer(bootstrapContext) {
   if (applicationStarted) {
-    return;
+    return Promise.resolve();
   }
 
   configureRenderer(bootstrapContext);
   applicationStarted = true;
-  attachWorkspaceShellHandlers();
-  initializeMap();
+  return initializeMap().catch((error) => {
+    console.error("Unable to load application data", error);
+  });
 }
 
 window.initializeMapRenderer = initializeMapRenderer;

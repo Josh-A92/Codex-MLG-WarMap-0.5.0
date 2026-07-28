@@ -314,9 +314,12 @@ runTest("preload source exposes only restricted bridge", async () => {
   let exposedName = null;
   let exposedApi = null;
   const invoked = [];
+  const requiredModules = [];
 
   const sandbox = {
     require(moduleName) {
+      requiredModules.push(moduleName);
+
       if (moduleName === "electron") {
         return {
           contextBridge: {
@@ -331,12 +334,6 @@ runTest("preload source exposes only restricted bridge", async () => {
               return Promise.resolve({ channel, args });
             }
           }
-        };
-      }
-
-      if (moduleName === "./src/shared/persistence-ipc-channels.js") {
-        return {
-          PERSISTENCE_IPC_CHANNELS
         };
       }
 
@@ -360,13 +357,14 @@ runTest("preload source exposes only restricted bridge", async () => {
   await exposedApi.loadEnvelope(identity);
   await exposedApi.saveEnvelope(identity, envelope);
 
+  assert.deepStrictEqual(requiredModules, ["electron"]);
   assert.deepStrictEqual(invoked, [
     {
-      channel: PERSISTENCE_IPC_CHANNELS.LOAD_ENVELOPE,
+      channel: "persistence:load-envelope",
       args: [identity]
     },
     {
-      channel: PERSISTENCE_IPC_CHANNELS.SAVE_ENVELOPE,
+      channel: "persistence:save-envelope",
       args: [identity, envelope]
     }
   ]);
@@ -390,7 +388,7 @@ runTest("main source uses preload security settings fixed handlers and user-data
   assert.match(source, /PERSISTENCE_IPC_CHANNELS\.SAVE_ENVELOPE/);
 });
 
-runTest("shared channel constants are used by both main and preload", async () => {
+runTest("main uses shared channel constants while preload is self-contained", async () => {
   const sharedSource = await fs.promises.readFile(path.join(workspaceRoot, "src/shared/persistence-ipc-channels.js"), "utf8");
   const mainSource = await fs.promises.readFile(path.join(workspaceRoot, "main.js"), "utf8");
   const preloadSource = await fs.promises.readFile(path.join(workspaceRoot, "preload.js"), "utf8");
@@ -398,11 +396,11 @@ runTest("shared channel constants are used by both main and preload", async () =
   assert.match(sharedSource, /LOAD_ENVELOPE/);
   assert.match(sharedSource, /SAVE_ENVELOPE/);
   assert.match(mainSource, /require\("\.\/src\/shared\/persistence-ipc-channels\.js"\)/);
-  assert.match(preloadSource, /require\("\.\/src\/shared\/persistence-ipc-channels\.js"\)/);
   assert.match(mainSource, /PERSISTENCE_IPC_CHANNELS\.LOAD_ENVELOPE/);
   assert.match(mainSource, /PERSISTENCE_IPC_CHANNELS\.SAVE_ENVELOPE/);
-  assert.match(preloadSource, /PERSISTENCE_IPC_CHANNELS\.LOAD_ENVELOPE/);
-  assert.match(preloadSource, /PERSISTENCE_IPC_CHANNELS\.SAVE_ENVELOPE/);
+  assert.doesNotMatch(preloadSource, /require\("\.\/src\/shared\/persistence-ipc-channels\.js"\)/);
+  assert.match(preloadSource, /"persistence:load-envelope"/);
+  assert.match(preloadSource, /"persistence:save-envelope"/);
 });
 
 runTest("renderer adapter source has no prohibited dependencies", async () => {

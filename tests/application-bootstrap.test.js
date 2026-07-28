@@ -30,6 +30,65 @@ function createValidScope(options) {
   const seasonPackage = values.seasonPackage || SEASON_1_PACKAGE;
   const documentStub = values.document || createDocumentStub("complete");
   const dependencyOverrides = values.dependencies || {};
+  const persistenceBridge = values.warMapPersistenceStorage || {
+    async loadEnvelope() {
+      return null;
+    },
+    async saveEnvelope() {
+      return undefined;
+    }
+  };
+
+  const createElectronFileStorageAdapter = dependencyOverrides.createElectronFileStorageAdapter || ((bridge) => {
+    callLog.push("createElectronFileStorageAdapter");
+    return {
+      async loadEnvelope(identity) {
+        return bridge.loadEnvelope(identity);
+      },
+      async saveEnvelope(identity, envelope) {
+        return bridge.saveEnvelope(identity, envelope);
+      }
+    };
+  });
+
+  const createPersistenceService = dependencyOverrides.createPersistenceService || ((dependencies) => {
+    callLog.push("createPersistenceService");
+    return {
+      async load(serverStateService) {
+        return dependencies.storageAdapter.loadEnvelope({
+          seasonId: serverStateService.getSeasonId(),
+          baseMapId: serverStateService.getBaseMapId()
+        });
+      },
+      async save(serverStateService) {
+        return dependencies.storageAdapter.saveEnvelope(
+          {
+            seasonId: serverStateService.getSeasonId(),
+            baseMapId: serverStateService.getBaseMapId()
+          },
+          dependencies.serializeServerState(serverStateService, dependencies.clock().toISOString())
+        );
+      }
+    };
+  });
+
+  const createServerStatePersistenceController = dependencyOverrides.createServerStatePersistenceController || (({ persistenceService }) => {
+    callLog.push("createServerStatePersistenceController");
+    return {
+      async initialize(serverStateService) {
+        return persistenceService.load(serverStateService);
+      },
+      requestSave() {
+        return Promise.resolve();
+      },
+      flush() {
+        return Promise.resolve();
+      },
+      isInitialized() {
+        return true;
+      }
+    };
+  });
 
   const scope = {
     document: documentStub,
@@ -84,6 +143,24 @@ function createValidScope(options) {
       callLog.push("createServerStateService");
       return {};
     }),
+    serializeServerState: dependencyOverrides.serializeServerState || (() => {
+      callLog.push("serializeServerState");
+      return {
+        schemaVersion: 1,
+        seasonId: "season-1",
+        baseMapId: "season1-map",
+        savedAt: "2026-07-29T00:00:00.000Z",
+        servers: []
+      };
+    }),
+    deserializePersistenceEnvelope: dependencyOverrides.deserializePersistenceEnvelope || ((candidate) => {
+      callLog.push("deserializePersistenceEnvelope");
+      return candidate;
+    }),
+    createPersistenceService,
+    createElectronFileStorageAdapter,
+    createServerStatePersistenceController,
+    warMapPersistenceStorage: persistenceBridge,
     initializeMapRenderer: dependencyOverrides.initializeMapRenderer || ((context) => {
       callLog.push("initializeMapRenderer");
       rendererCalls.push(context);
@@ -183,6 +260,81 @@ runTest("renderer context receives exact server state service factory", async ()
   assert.strictEqual(rendererCalls[0].serverStateServiceFactory, scope.createServerStateService);
 });
 
+runTest("bootstrap composes persistence adapter service and controller in order", async () => {
+  const bridge = {
+    async loadEnvelope() {
+      return null;
+    },
+    async saveEnvelope() {
+      return undefined;
+    }
+  };
+  const observed = {
+    adapterBridge: null,
+    persistenceArgs: null,
+    controllerArg: null,
+    clockValue: null,
+    controllerInstance: null
+  };
+
+  const { scope, rendererCalls } = createValidScope({
+    warMapPersistenceStorage: bridge,
+    dependencies: {
+      createElectronFileStorageAdapter(inputBridge) {
+        observed.adapterBridge = inputBridge;
+        return {
+          async loadEnvelope() {
+            return null;
+          },
+          async saveEnvelope() {
+            return undefined;
+          }
+        };
+      },
+      createPersistenceService(args) {
+        observed.persistenceArgs = args;
+        observed.clockValue = args.clock();
+        return {
+          async load() {
+            return { status: "missing" };
+          },
+          async save() {
+            return { status: "saved" };
+          }
+        };
+      },
+      createServerStatePersistenceController({ persistenceService }) {
+        observed.controllerArg = persistenceService;
+        observed.controllerInstance = {
+          initialize() {
+            return Promise.resolve({ status: "missing" });
+          },
+          requestSave() {
+            return Promise.resolve();
+          }
+        };
+        return observed.controllerInstance;
+      }
+    }
+  });
+
+  const bootstrap = createApplicationBootstrap(scope);
+  await bootstrap.bootstrapApplication();
+
+  assert.strictEqual(observed.adapterBridge, bridge);
+  assert.strictEqual(observed.persistenceArgs.storageAdapter.loadEnvelope instanceof Function, true);
+  assert.strictEqual(observed.persistenceArgs.storageAdapter.saveEnvelope instanceof Function, true);
+  assert.strictEqual(observed.persistenceArgs.serializeServerState, scope.serializeServerState);
+  assert.strictEqual(observed.persistenceArgs.deserializePersistenceEnvelope, scope.deserializePersistenceEnvelope);
+  assert.ok(observed.clockValue instanceof Date);
+  assert.strictEqual(Number.isNaN(observed.clockValue.getTime()), false);
+  assert.ok(observed.controllerArg);
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(rendererCalls[0].serverStatePersistenceController, observed.controllerInstance);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "warMapPersistenceStorage"), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "storageAdapter"), false);
+});
+
 runTest("legacy SEASON_1_DEFINITION is not used", async () => {
   const { scope, rendererCalls } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
@@ -240,6 +392,26 @@ runTest("missing server state service factory prevents renderer initialization",
   );
 
   assert.strictEqual(rendererCalls.length, 0);
+});
+
+runTest("missing persistence dependencies and bridge prevent renderer initialization", async () => {
+  const requiredFields = [
+    "serializeServerState",
+    "deserializePersistenceEnvelope",
+    "createPersistenceService",
+    "createElectronFileStorageAdapter",
+    "createServerStatePersistenceController",
+    "warMapPersistenceStorage"
+  ];
+
+  for (const field of requiredFields) {
+    const { scope, rendererCalls } = createValidScope();
+    delete scope[field];
+
+    const bootstrap = createApplicationBootstrap(scope);
+    await assert.rejects(() => bootstrap.resolveBootstrapContext(), new RegExp(field));
+    assert.strictEqual(rendererCalls.length, 0);
+  }
 });
 
 runTest("missing SEASON_1_PACKAGE prevents renderer initialization", async () => {
@@ -323,6 +495,10 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/game-rules-engine.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
+    'src="src/services/persistence-state-serializer.js"',
+    'src="src/services/persistence-service.js"',
+    'src="src/services/electron-file-storage-adapter.js"',
+    'src="src/app/server-state-persistence-controller.js"',
     'src="src/map-renderer.js"',
     'src="src/app/application-bootstrap.js"'
   ];
