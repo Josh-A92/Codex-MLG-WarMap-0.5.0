@@ -363,8 +363,10 @@ Evaluator input contract:
   - `null` or the current confirmed non-superseded `ActiveUnionStatus` for the exact `unionId + serverId + seasonId` scope
 3. `confirmedPresenceFacts`
   - array of confirmed positive-ownership facts
-  - each fact contains `factId`, `unionId`, `serverId`, `seasonId`, `observedAt`, `ownershipRecordId`, `snapshotId` (nullable)
-  - partial updates may provide these facts because one confirmed owned target is sufficient to prove presence
+  - each fact contains `factId`, `unionId`, `serverId`, `seasonId`, `observedAt`, `ownershipRecordId`, `snapshotId`
+  - `snapshotId` is a required non-empty non-whitespace string
+  - one confirmed owned target is sufficient to prove presence
+  - a partial update used as confirmed presence must first be incorporated into a confirmed snapshot and reference that snapshot's ID
 4. `qualifyingFullMapConfirmations`
   - array of already-resolved qualifying snapshots
   - each item contains `snapshotId`, `unionId`, `serverId`, `seasonId`, `fullConfirmationAt`, `ownedTerritoryCount` (non-negative integer)
