@@ -7,6 +7,7 @@ let appServerConfig = null;
 let appUnionConfig = null;
 let appWorkspace = null;
 let appSummaryConfig = null;
+let unionRegistryServiceFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
@@ -104,6 +105,7 @@ const appState = {
   gameRulesEngine: null,
   seasonIdentity: {},
   seasonMetadata: {},
+  unionRegistryService: null,
   unionRegistry: [],
   ownershipService: null,
   servers: [],
@@ -547,7 +549,7 @@ function getStructureOwnerLabel(structure) {
 
   if (result.state === "owned") {
     const union = ownershipService.getUnionById(result.ownerId);
-    return union ? union.shortName || union.displayName || result.ownerId : result.ownerId;
+    return union ? union.tag || union.displayName || union.unionId : result.ownerId;
   }
 
   if (result.state === "contested") {
@@ -1174,9 +1176,9 @@ function attachCameraToolbarHandlers() {
 
 function buildOwnerOption(union, selectedOwnerId) {
   const option = document.createElement("option");
-  option.value = union.id;
-  option.textContent = union.shortName || union.displayName || union.id;
-  option.selected = union.id === selectedOwnerId;
+  option.value = union.unionId;
+  option.textContent = union.tag || union.displayName || union.unionId;
+  option.selected = union.unionId === selectedOwnerId;
   return option;
 }
 
@@ -1260,7 +1262,7 @@ function buildTerritoryEditor(item) {
   ownerSelect.appendChild(unassignedOption);
 
   appState.unionRegistry.forEach((union) => {
-    if (!union || !union.id) {
+    if (!union || !union.unionId || union.registryStatus !== "current") {
       return;
     }
 
@@ -1460,7 +1462,7 @@ function applyStructureOwnershipOverlays(markers) {
     }
 
     const union = ownershipService.getUnionById(owner.ownerId);
-    const ownerColor = union && union.color ? union.color : null;
+    const ownerColor = union && union.defaultColor ? union.defaultColor : null;
     if (!ownerColor) {
       return;
     }
@@ -1777,7 +1779,18 @@ function loadUnionRegistry() {
       return response.json();
     })
     .then((data) => {
-      const unions = Array.isArray(data.unions) ? data.unions : [];
+      if (!data || !Array.isArray(data.unions)) {
+        throw new Error("Failed to load union registry");
+      }
+
+      if (typeof unionRegistryServiceFactory !== "function") {
+        throw new Error("Renderer requires a union registry service factory.");
+      }
+
+      const unionRegistryService = unionRegistryServiceFactory(data.unions);
+      const unions = unionRegistryService.listUnionIdentities();
+
+      appState.unionRegistryService = unionRegistryService;
       appState.unionRegistry = unions;
       return unions;
     });
@@ -1842,6 +1855,10 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a summary service factory.");
   }
 
+  if (typeof bootstrapContext.unionRegistryServiceFactory !== "function") {
+    throw new Error("Renderer requires a union registry service factory.");
+  }
+
   if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
     throw new Error("Renderer requires a server state service factory.");
   }
@@ -1862,6 +1879,7 @@ function configureRenderer(bootstrapContext) {
   appUnionConfig = applicationConfig.union && typeof applicationConfig.union === "object" ? applicationConfig.union : null;
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
+  unionRegistryServiceFactory = bootstrapContext.unionRegistryServiceFactory;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;

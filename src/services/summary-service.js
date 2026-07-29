@@ -191,12 +191,12 @@
         return unionId;
       }
 
-      const union = unions.find((entry) => entry && entry.id === unionId);
+      const union = unions.find((entry) => entry && entry.unionId === unionId);
       if (!union) {
         return unionId;
       }
 
-      return union.shortName || union.displayName || union.id;
+      return union.tag || union.displayName || union.unionId;
     }
 
     function getScoringDisplay(server) {

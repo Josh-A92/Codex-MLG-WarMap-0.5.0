@@ -1,103 +1,136 @@
 {
   "unions": [
     {
-      "id": "union-0001",
-      "shortName": "MLG",
+      "unionId": "union-0001",
       "displayName": "Moonlight Guillotine",
-      "color": "#8FCEFF",
-      "emblem": "crescent-blade",
-      "notes": "Primary active test union using a clearer pastel sky blue for ownership readability.",
-      "active": true
+      "tag": "MLG",
+      "aliases": [],
+      "defaultColor": "#8FCEFF",
+      "presentationMetadata": {
+        "emblem": "crescent-blade",
+        "notes": "Primary active test union using a clearer pastel sky blue for ownership readability."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0002",
-      "shortName": "ACA",
+      "unionId": "union-0002",
       "displayName": "Aurora Crest Accord",
-      "color": "#AEECCB",
-      "emblem": "aurora-spire",
-      "notes": "Inactive registry sample for mint green territory contrast.",
-      "active": false
+      "tag": "ACA",
+      "aliases": [],
+      "defaultColor": "#AEECCB",
+      "presentationMetadata": {
+        "emblem": "aurora-spire",
+        "notes": "Inactive registry sample for mint green territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0003",
-      "shortName": "RAV",
+      "unionId": "union-0003",
       "displayName": "Ravenwatch Compact",
-      "color": "#CFB9FF",
-      "emblem": "raven-gate",
-      "notes": "Inactive registry sample for lavender territory contrast.",
-      "active": false
+      "tag": "RAV",
+      "aliases": [],
+      "defaultColor": "#CFB9FF",
+      "presentationMetadata": {
+        "emblem": "raven-gate",
+        "notes": "Inactive registry sample for lavender territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0004",
-      "shortName": "DRG",
+      "unionId": "union-0004",
       "displayName": "Dragonrise Guild",
-      "color": "#F7B2C3",
-      "emblem": "ember-dragon",
-      "notes": "Inactive registry sample for rose territory contrast.",
-      "active": false
+      "tag": "DRG",
+      "aliases": [],
+      "defaultColor": "#F7B2C3",
+      "presentationMetadata": {
+        "emblem": "ember-dragon",
+        "notes": "Inactive registry sample for rose territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0005",
-      "shortName": "SUN",
+      "unionId": "union-0005",
       "displayName": "Sunward Dominion",
-      "color": "#F8E89D",
-      "emblem": "solar-standard",
-      "notes": "Inactive registry sample for warm yellow territory contrast.",
-      "active": false
+      "tag": "SUN",
+      "aliases": [],
+      "defaultColor": "#F8E89D",
+      "presentationMetadata": {
+        "emblem": "solar-standard",
+        "notes": "Inactive registry sample for warm yellow territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0006",
-      "shortName": "WLD",
+      "unionId": "union-0006",
       "displayName": "Wildmere League",
-      "color": "#F6C8A1",
-      "emblem": "wind-branch",
-      "notes": "Inactive registry sample for peach territory contrast.",
-      "active": false
+      "tag": "WLD",
+      "aliases": [],
+      "defaultColor": "#F6C8A1",
+      "presentationMetadata": {
+        "emblem": "wind-branch",
+        "notes": "Inactive registry sample for peach territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0007",
-      "shortName": "PHX",
+      "unionId": "union-0007",
       "displayName": "Phoenix Banner",
-      "color": "#F6A8A1",
-      "emblem": "phoenix-plume",
-      "notes": "Inactive registry sample for coral territory contrast.",
-      "active": false
+      "tag": "PHX",
+      "aliases": [],
+      "defaultColor": "#F6A8A1",
+      "presentationMetadata": {
+        "emblem": "phoenix-plume",
+        "notes": "Inactive registry sample for coral territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0008",
-      "shortName": "OBL",
+      "unionId": "union-0008",
       "displayName": "Obelisk Tide",
-      "color": "#A8E7E2",
-      "emblem": "tidal-obelisk",
-      "notes": "Inactive registry sample for aqua territory contrast.",
-      "active": false
+      "tag": "OBL",
+      "aliases": [],
+      "defaultColor": "#A8E7E2",
+      "presentationMetadata": {
+        "emblem": "tidal-obelisk",
+        "notes": "Inactive registry sample for aqua territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0009",
-      "shortName": "BRN",
+      "unionId": "union-0009",
       "displayName": "Bronzewarden Ring",
-      "color": "#DCC3A8",
-      "emblem": "stone-ward",
-      "notes": "Inactive registry sample for sandstone territory contrast.",
-      "active": false
+      "tag": "BRN",
+      "aliases": [],
+      "defaultColor": "#DCC3A8",
+      "presentationMetadata": {
+        "emblem": "stone-ward",
+        "notes": "Inactive registry sample for sandstone territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0010",
-      "shortName": "VLT",
+      "unionId": "union-0010",
       "displayName": "Violet Lattice Tribunal",
-      "color": "#DDBEF2",
-      "emblem": "violet-lattice",
-      "notes": "Inactive registry sample for lilac territory contrast.",
-      "active": false
+      "tag": "VLT",
+      "aliases": [],
+      "defaultColor": "#DDBEF2",
+      "presentationMetadata": {
+        "emblem": "violet-lattice",
+        "notes": "Inactive registry sample for lilac territory contrast."
+      },
+      "registryStatus": "current"
     },
     {
-      "id": "union-0011",
-      "shortName": "FRO",
+      "unionId": "union-0011",
       "displayName": "Frostbound Order",
-      "color": "#B8E4FF",
-      "emblem": "frost-crown",
-      "notes": "Inactive registry sample for ice-blue territory contrast.",
-      "active": false
+      "tag": "FRO",
+      "aliases": [],
+      "defaultColor": "#B8E4FF",
+      "presentationMetadata": {
+        "emblem": "frost-crown",
+        "notes": "Inactive registry sample for ice-blue territory contrast."
+      },
+      "registryStatus": "current"
     }
   ]
 }

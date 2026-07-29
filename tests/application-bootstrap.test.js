@@ -139,6 +139,10 @@ function createValidScope(options) {
       callLog.push("createOwnershipService");
       return {};
     }),
+    createUnionRegistryService: dependencyOverrides.createUnionRegistryService || (() => {
+      callLog.push("createUnionRegistryService");
+      return {};
+    }),
     createSummaryService: dependencyOverrides.createSummaryService || (() => {
       callLog.push("createSummaryService");
       return {};
@@ -255,6 +259,24 @@ runTest("renderer receives exact existing applicationConfig translation", async 
       designatedUnionId: "union-0001"
     }
   });
+});
+
+runTest("renderer receives exact union registry service factory", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await bootstrap.bootstrapApplication();
+
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(rendererCalls[0].unionRegistryServiceFactory, scope.createUnionRegistryService);
+});
+
+runTest("bootstrap fails clearly when union registry factory is missing", async () => {
+  const { scope } = createValidScope();
+  delete scope.createUnionRegistryService;
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await assert.rejects(() => bootstrap.resolveBootstrapContext(), /createUnionRegistryService/);
 });
 
 runTest("renderer receives designated union summary config with null when omitted", async () => {
@@ -538,6 +560,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/season-loader.js"',
     'src="src/seasons/season1-package.js"',
     'src="src/services/game-rules-engine.js"',
+    'src="src/services/union-registry-service.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',

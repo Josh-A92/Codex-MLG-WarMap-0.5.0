@@ -28,7 +28,7 @@
         return null;
       }
 
-      return registry.find((union) => union.id === unionId) || null;
+      return registry.find((union) => union.unionId === unionId) || null;
     }
 
     function getTileOwner(tile) {
@@ -51,7 +51,7 @@
       }
 
       const union = getUnionById(ownerId);
-      return union ? union.shortName || union.displayName || ownerId : ownerId;
+      return union ? union.tag || union.displayName || union.unionId : ownerId;
     }
 
     function getTileOwnerColor(tile) {
@@ -62,7 +62,7 @@
       }
 
       const union = getUnionById(ownerId);
-      return union && union.color ? union.color : null;
+      return union && union.defaultColor ? union.defaultColor : null;
     }
 
     function setTileOwner(tile, ownerId) {

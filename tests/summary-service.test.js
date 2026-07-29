@@ -97,7 +97,15 @@ runTest("empty map returns zero summary values", () => {
       "server-1": "union-mlg"
     },
     unionRegistry: [
-      { id: "union-mlg", shortName: "MLG" }
+      {
+        unionId: "union-mlg",
+        displayName: "Moonlight Guillotine",
+        tag: "MLG",
+        aliases: [],
+        defaultColor: "#8FCEFF",
+        presentationMetadata: {},
+        registryStatus: "current"
+      }
     ]
   });
 
@@ -267,7 +275,18 @@ runTest("different servers produce different ownership results", () => {
     designatedByServerId: {
       "server-a": "union-a",
       "server-b": "union-a"
-    }
+    },
+    unionRegistry: [
+      {
+        unionId: "union-a",
+        displayName: "Alpha Union",
+        tag: "Alpha",
+        aliases: [],
+        defaultColor: "#AABBCC",
+        presentationMetadata: {},
+        registryStatus: "current"
+      }
+    ]
   });
 
   const summaryA = fixture.service.getServerSummary({ id: "server-a", label: "Server A" });
@@ -355,7 +374,15 @@ runTest("designated union label is resolved from registry", () => {
       structures: []
     },
     unionRegistry: [
-      { id: "union-a", shortName: "Alpha" }
+      {
+        unionId: "union-a",
+        displayName: "Alpha Union",
+        tag: "Alpha",
+        aliases: [],
+        defaultColor: "#AABBCC",
+        presentationMetadata: {},
+        registryStatus: "current"
+      }
     ],
     designatedByServerId: {
       "server-1": "union-a"
@@ -515,7 +542,15 @@ runTest("inputs are not mutated", () => {
     ]
   };
   const unionRegistry = [
-    { id: "union-a", shortName: "Alpha" }
+    {
+      unionId: "union-a",
+      displayName: "Alpha Union",
+      tag: "Alpha",
+      aliases: [],
+      defaultColor: "#AABBCC",
+      presentationMetadata: {},
+      registryStatus: "current"
+    }
   ];
 
   const serverBefore = clone(server);
@@ -552,6 +587,19 @@ runTest("browser-global and CommonJS exports are available", () => {
   vm.runInContext(source, sandbox);
 
   assert.strictEqual(typeof sandbox.globalThis.createSummaryService, "function");
+});
+
+runTest("summary service uses canonical union fields only", () => {
+  const sourcePath = path.join(__dirname, "..", "src", "services", "summary-service.js");
+  const source = fs.readFileSync(sourcePath, "utf8");
+
+  assert.ok(!/entry\.id/.test(source));
+  assert.ok(!/entry\.shortName/.test(source));
+  assert.ok(!/union\.id/.test(source));
+  assert.ok(!/shortName/.test(source));
+  assert.ok(!/union\.color/.test(source));
+  assert.ok(/union\.unionId/.test(source));
+  assert.ok(/union\.tag/.test(source));
 });
 
 async function executeTests() {

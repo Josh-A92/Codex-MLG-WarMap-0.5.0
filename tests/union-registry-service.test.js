@@ -38,6 +38,29 @@ function createValidInitialIdentities() {
   ];
 }
 
+runTest("canonical data fixture has migrated union identity fields", () => {
+  const sourcePath = path.join(__dirname, "..", "data", "unions.json");
+  const source = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+
+  assert.ok(Array.isArray(source.unions));
+  assert.strictEqual(source.unions.length > 0, true);
+
+  source.unions.forEach((union, index) => {
+    assert.ok(union && typeof union === "object");
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "unionId"), `union ${index} missing unionId`);
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "displayName"), `union ${index} missing displayName`);
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "tag"), `union ${index} missing tag`);
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "aliases"), `union ${index} missing aliases`);
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "defaultColor"), `union ${index} missing defaultColor`);
+    assert.ok(Object.prototype.hasOwnProperty.call(union, "presentationMetadata"), `union ${index} missing presentationMetadata`);
+    assert.strictEqual(union.registryStatus, "current");
+    assert.ok(!Object.prototype.hasOwnProperty.call(union, "id"));
+    assert.ok(!Object.prototype.hasOwnProperty.call(union, "shortName"));
+    assert.ok(!Object.prototype.hasOwnProperty.call(union, "color"));
+    assert.ok(!Object.prototype.hasOwnProperty.call(union, "active"));
+  });
+});
+
 function assertErrorCode(fn, code, messagePattern) {
   assert.throws(fn, (error) => {
     assert.ok(error instanceof UnionRegistryServiceError);

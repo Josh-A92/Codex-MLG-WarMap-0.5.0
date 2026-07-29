@@ -104,6 +104,10 @@
       const createSeasonLoader = requireFunction(safeScope.createSeasonLoader, "createSeasonLoader");
       const validateSeasonPackage = requireFunction(safeScope.validateSeasonPackage, "validateSeasonPackage");
       const createGameRulesEngine = requireFunction(safeScope.createGameRulesEngine, "createGameRulesEngine");
+      const createUnionRegistryService = requireFunction(
+        safeScope.createUnionRegistryService,
+        "createUnionRegistryService"
+      );
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
@@ -158,6 +162,7 @@
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
+        unionRegistryServiceFactory: createUnionRegistryService,
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,
         serverStateServiceFactory: createServerStateService,

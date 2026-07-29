@@ -457,6 +457,18 @@ runTest("renderer uses server state service ownership boundary APIs", () => {
   assert.ok(/serverStateService\.setTerritoryOwner\(/.test(rendererSource));
 });
 
+runTest("renderer uses canonical union registry fields only", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.ok(/union\.unionId/.test(rendererSource));
+  assert.ok(/union\.tag/.test(rendererSource));
+  assert.ok(/union\.defaultColor/.test(rendererSource));
+  assert.ok(!/union\.id/.test(rendererSource));
+  assert.ok(!/shortName/.test(rendererSource));
+  assert.ok(!/union\.color/.test(rendererSource));
+});
+
 runTest("renderer no longer directly initializes or mutates server ownership", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
