@@ -1,73 +1,84 @@
 # Server State Data Model
 
 ## 1. Purpose and Scope
-This document defines the season-neutral authoritative model for mutable, server-specific state in MLG WarMap.
+This document defines the season-neutral target model for mutable, server-specific state in MLG WarMap.
 
 It covers:
 - server definition
 - current server state
-- territory ownership
-- structures
+- ownership records
+- target verification records
 - confirmed snapshots
-- data completeness
-- server observations
-- proposed changes
-- derived values
+- derived freshness and qualification projections
+- observations and proposals
+- validation boundaries
 - mapping from the current schema
 
-The model is descriptive, not prescriptive. It records and relates mutable facts about one server in one season. It does not recommend actions, assign priority, or encode strategic judgments.
+The model is descriptive and storage-neutral. It records and relates facts about one server in one season. It does not recommend actions, assign priority, or encode strategic judgments.
 
 Out of scope:
 - shared base-map definitions
-- union identity
-- season rules themselves
+- union identity registry
+- season rule policy
 - UI styling
-- application implementation details
+- implementation details
 - prescriptive or AI-generated conclusions
 
 ## 2. Design Principles
 1. Keep shared base maps immutable.
 2. Isolate mutable state by server and season.
-3. Treat proposed changes as reviewable, not authoritative.
-4. Preserve historical confirmed snapshots.
-5. Distinguish unknown from confirmed unclaimed.
-6. Derive summaries from authoritative records rather than storing opaque totals.
+3. Treat proposals as reviewable, not authoritative.
+4. Preserve immutable history for confirmed records.
+5. Distinguish ownership facts from verification facts.
+6. Distinguish unknown from confirmed unclaimed.
 7. Keep evidence references valid when records are superseded.
-8. Avoid MLG-specific assumptions in shared state fields.
+8. Derive freshness and qualification from authoritative records.
 9. Keep the model persistence-implementation neutral.
 10. Do not mutate shared base-map objects to store server ownership.
-11. Confirmed records are immutable and replaced by versioned successors rather than edited in place.
-12. Current state may reference immutable records, but it must not become a second competing authority.
+11. Replace confirmed facts with versioned successors rather than editing in place.
+12. Current state may reference immutable records but must not become a second competing authority.
 
-## 3. Entity Overview
-The model is organized around seven core entities.
+## 3. Core Distinction: Ownership vs Verification
+Ownership records answer: Who owns this target?
+
+Verification records answer: When was that ownership last observed and confirmed?
+
+Rules:
+- Confirming unchanged ownership creates a new verification record, not a false ownership-change record.
+- Confirming changed ownership creates the appropriate new ownership record plus a verification record.
+- Partial updates refresh only the affected targets.
+- Carried-forward ownership remains visible as last-known state but does not become freshly verified.
+- Freshness uses verification observation time, not upload or audit confirmation time.
+
+## 4. Entity Overview
+The model uses eight core entities.
 
 | Entity | Purpose | Primary key | Notes |
 | --- | --- | --- | --- |
-| ServerDefinition | Stable server identity and static configuration | `serverId` | Does not contain calculated dashboard totals |
-| CurrentServerState | Operational aggregate for one server and season | `serverStateId` | Points to the authoritative confirmed snapshot and tracks drafts and observations |
-| TerritoryOwnershipRecord | Immutable, versioned ownership fact for a normal map cell | `ownershipRecordId` | Separates owned, unclaimed, and unknown/not yet verified |
-| StructureOwnershipRecord | Ownership fact for a logical structure | `structureOwnershipId` | Projected to footprint cells for rendering and area calculations |
-| ConfirmedServerSnapshot | Immutable confirmed snapshot of server state | `snapshotId` | Drives dashboards and comparisons |
-| ServerObservation | Short factual server note or observation | `observationId` | Descriptive only |
-| ProposedChange | Reviewable proposed update from extraction or import | `proposalId` | Never becomes confirmed without review |
+| ServerDefinition | Stable server identity and static configuration | serverId | No calculated dashboard totals |
+| CurrentServerState | Operational aggregate for one server and season | serverStateId | References current confirmed snapshot and operational pointers |
+| TerritoryOwnershipRecord | Immutable ownership fact for one normal capturable cell | ownershipRecordId | Fact value only |
+| StructureOwnershipRecord | Immutable ownership fact for one logical structure | structureOwnershipId | Projected to structure footprint |
+| TargetVerificationRecord | Immutable verification fact for one canonical target | verificationId | Observation and confirmation provenance |
+| ConfirmedServerSnapshot | Immutable selected confirmed-state set | snapshotId | May be partial freshness |
+| ServerObservation | Short descriptive server note | observationId | Not ownership authority |
+| ProposedChange | Reviewable proposed update | proposalId | Never authoritative until confirmed |
 
-## 4. Server Definition
+## 5. Server Definition
 ServerDefinition describes stable and mostly static server identity.
 
 ### Fields
-- `serverId` - stable server identifier
-- `displayNumber` - human-visible server number
-- `seasonId` - season identifier
-- `baseMapRef` - reference to the shared base map definition
-- `staticConfig` - static per-server configuration
+- serverId
+- displayNumber
+- seasonId
+- baseMapRef
+- staticConfig
 
 ### Rules
-- ServerDefinition must not contain calculated dashboard totals.
-- ServerDefinition must not contain mutable ownership state.
-- ServerDefinition must not contain confirmed snapshot history.
-- ServerDefinition may reference static configuration such as workspace labels or registry flags.
-- Shared base-map objects remain immutable definitions.
+- Must not contain calculated dashboard totals.
+- Must not contain mutable ownership state.
+- Must not contain snapshot history.
+- May reference static configuration such as workspace labels.
 
 ### Example
 ```json
@@ -82,30 +93,26 @@ ServerDefinition describes stable and mostly static server identity.
 }
 ```
 
-## 5. Current Server State
-CurrentServerState is the operational aggregate for a server and season. Its `currentConfirmedSnapshotId` points to the authoritative confirmed truth.
+## 6. Current Server State
+CurrentServerState is the operational aggregate for a server and season. currentConfirmedSnapshotId points to the authoritative current confirmed state.
 
 ### Fields
-- `serverStateId`
-- `serverId`
-- `seasonId`
-- `schemaVersion`
-- `currentConfirmedSnapshotId`
-- `relationIds`
-- `observationIds`
-- `draftProposalIds`
-- `operationalTimestamps`
+- serverStateId
+- serverId
+- seasonId
+- schemaVersion
+- currentConfirmedSnapshotId
+- relationIds
+- observationIds
+- draftProposalIds
+- operationalTimestamps
 
 ### Rules
-- CurrentServerState remains separate from the shared base map and the Game Rules Engine.
-- CurrentServerState stores references, not a duplicate of the shared map definition.
-- Operational timestamps do not replace snapshot, observation, or evidence timestamps.
-- Draft edits and proposed screenshot changes must not alter the current confirmed snapshot until approved.
-- A single snapshot is current for a server/season.
-- Earlier snapshots remain historical.
-- `currentConfirmedSnapshotId` is the authoritative pointer for confirmed server truth.
-- CurrentServerState may reference draft proposals, observations, union relationships, and operational metadata.
-- CurrentServerState must not contain a second competing authoritative ownership collection.
+- Stores references, not a duplicate of shared map definitions.
+- A single snapshot is current for one server and season.
+- Earlier snapshots remain historical and immutable.
+- Drafts/proposals must not alter current confirmed snapshot authority until reviewed and confirmed.
+- Operational timestamps do not replace observation or verification timestamps.
 
 ### Example
 ```json
@@ -124,47 +131,57 @@ CurrentServerState is the operational aggregate for a server and season. Its `cu
 }
 ```
 
-## 6. Ownership Model
-Territory ownership records represent the authoritative state for map-cell ownership.
+## 7. Ownership Model
+Ownership records define fact values for authoritative ownership state.
 
 ### Ownership states
-- `owned`
-- `unclaimed`
-- `unknown`
+- owned
+- unclaimed
+- unknown
 
 ### Review states
-- `proposed`
-- `confirmed`
-- `rejected`
-- `superseded`
+- proposed
+- confirmed
+- rejected
+- superseded
 
-### Fields
-- `ownershipRecordId`
-- `serverId`
-- `seasonId`
-- `territoryRef`
-- `ownerUnionId`
-- `ownershipState`
-- `reviewState`
-- `effectiveAt`
-- `evidenceIds`
-- `actorId`
-- `reviewerId`
-- `supersedesOwnershipRecordId`
+### TerritoryOwnershipRecord fields
+- ownershipRecordId
+- serverId
+- seasonId
+- territoryRef
+- ownerUnionId
+- ownershipState
+- reviewState
+- effectiveAt
+- evidenceIds
+- actorId
+- reviewerId
+- supersedesOwnershipRecordId
+
+### StructureOwnershipRecord fields
+- structureOwnershipId
+- serverId
+- seasonId
+- structureId
+- ownerUnionId
+- ownershipState
+- reviewState
+- effectiveAt
+- evidenceIds
+- actorId
+- reviewerId
+- supersedesStructureOwnershipRecordId
 
 ### Rules
-- Unknown territory is not the same as confirmed unclaimed territory.
-- Each territory ownership fact identifies one normal, non-structure map cell.
-- Owner union ID is present where the territory is owned.
-- Ownership state and review state are separate concepts.
-- The shared base map must never be mutated to store server ownership.
-- Proposed changes remain proposal records until confirmed.
-- Confirming a proposal creates a new immutable ownership record and a new immutable snapshot.
+- Unknown is not the same as confirmed unclaimed.
+- TerritoryOwnershipRecord identifies one normal capturable non-structure cell.
+- StructureOwnershipRecord identifies one logical structure.
+- Ownership and review states are separate dimensions.
 - Confirmed ownership records are immutable.
-- Historical ownership records remain historically traceable.
-- A replacement record should point backward using `supersedesOwnershipRecordId`.
+- Replacements are represented by new records with supersession links.
 
-### Example
+### Territory ownership example
 ```json
 {
   "ownershipRecordId": "own-9001",
@@ -186,37 +203,7 @@ Territory ownership records represent the authoritative state for map-cell owner
 }
 ```
 
-## 7. Structure-Ownership Boundary
-Structure ownership relates to individual map cells, multi-cell structure footprints, and logical structure identity.
-
-### Boundary rules
-- Logical structure identity is the authoritative source for structure ownership.
-- A structure has one owner state per server/season at a given effective time.
-- Its multi-cell footprint is defined by the immutable active-season map definition.
-- Footprint-cell ownership is projected from the logical structure owner for rendering and territory-area calculations.
-- Structure footprint cells must not also hold independently editable ownership records.
-- Normal non-structure map cells continue to use territory ownership records.
-- A structure ownership change applies consistently to its full footprint.
-- Structure ownership and ordinary cell ownership must never compete for authority over the same footprint cell.
-
-### Authority note
-Logical structure identity is the confirmed target authority. The current runtime ownership flow remains a compatibility implementation until migration to this model.
-
-### Structure record fields
-- `structureOwnershipId`
-- `serverId`
-- `seasonId`
-- `structureId`
-- `ownerUnionId`
-- `ownershipState`
-- `reviewState`
-- `effectiveAt`
-- `evidenceIds`
-- `actorId`
-- `reviewerId`
-- `supersedesStructureOwnershipRecordId`
-
-### Example
+### Structure ownership example
 ```json
 {
   "structureOwnershipId": "structure-own-201",
@@ -234,53 +221,238 @@ Logical structure identity is the confirmed target authority. The current runtim
 }
 ```
 
-## 8. Confirmed Snapshot Model
-A confirmed snapshot is an immutable authoritative record of server state at a point in time.
+## 8. Canonical Verification Target
+A verification target is exactly one of:
 
-### Fields
-- `snapshotId`
-- `serverId`
-- `seasonId`
-- `snapshotTimestamp`
-- `ownershipRecordIds`
-- `structureOwnershipRecordIds`
-- `unionStatusRecordIds`
-- `evidenceIds`
-- `creatorId`
-- `reviewerId`
-- `reviewState`
-- `completenessRecordIds`
-- `previousConfirmedSnapshotId`
+```text
+normal_map_cell
+logical_structure
+```
+
+Rules:
+- Normal capturable cells are verified individually.
+- A logical structure is verified once by stable structureId.
+- Its footprint inherits the logical structure verification.
+- Structure footprint cells must not become separate competing verification targets.
+- Required verification targets come from the immutable active-season map definition.
+
+Canonical targetRef examples:
+
+```json
+{
+  "type": "normal_map_cell",
+  "row": 5,
+  "col": 8
+}
+```
+
+```json
+{
+  "type": "logical_structure",
+  "structureId": "structure-royal-city-1"
+}
+```
+
+## 9. Target Verification Record
+TargetVerificationRecord captures immutable verification history for one canonical verification target.
+
+### Canonical fields
+- verificationId
+- serverId
+- seasonId
+- targetRef
+- verifiedOwnershipRef
+- observedAt
+- confirmedAt
+- sourceType
+- evidenceIds
+- actorId
+- reviewerId
+- reviewState
+- supersededBy
+
+### Source type values
+Use existing canonical source-type values:
+- manual_entry
+- screenshot_extraction
+- imported_data
+- api_integration
+- bot_integration
 
 ### Rules
-- Confirmed snapshots are immutable.
-- The latest confirmed snapshot drives Command Centre ownership statistics.
-- The latest confirmed snapshot drives “Last updated”.
-- The latest confirmed snapshot drives comparison with the previous confirmed snapshot.
-- The latest confirmed snapshot drives territory-change calculations.
-- Draft edits and proposed screenshot changes must not alter the latest confirmed snapshot until approved.
-- Confirming reviewed changes creates immutable confirmed records and a new immutable snapshot.
-- Evidence included in the snapshot must remain referenceable after supersession.
-- Confirmed snapshots must reference immutable confirmed normal-cell ownership records.
-- Confirmed snapshots must reference immutable confirmed logical-structure ownership records.
-- Confirmed snapshots must reference the exact confirmed union relationship/status records effective at that time.
-- Confirmed snapshots must reference the preceding confirmed snapshot.
-- Historical snapshots must continue resolving to the exact facts confirmed at creation.
+- targetRef uses type, not targetType.
+- verifiedOwnershipRef is a typed object and identifies the immutable ownership record whose value was checked.
+- verifiedOwnershipRef must be exactly one of:
+
+```json
+{
+  "type": "territory_ownership_record",
+  "recordId": "own-9001"
+}
+```
+
+```json
+{
+  "type": "structure_ownership_record",
+  "recordId": "structure-own-9001"
+}
+```
+
+- targetRef and verifiedOwnershipRef correspondence is required.
+- normal_map_cell targetRef must reference territory_ownership_record for the same serverId, seasonId, row, and col.
+- logical_structure targetRef must reference structure_ownership_record for the same serverId, seasonId, and structureId.
+- Mismatched targetRef and verifiedOwnershipRef types are invalid.
+- All IDs are non-empty, non-whitespace strings.
+- evidenceIds contains unique non-empty IDs.
+- observedAt and confirmedAt are real UTC ISO-8601 timestamps ending in Z with zero to three fractional digits.
+- confirmedAt must not be earlier than observedAt.
+- reviewState is exactly confirmed or superseded.
+- confirmed reviewState requires supersededBy null.
+- superseded reviewState requires supersededBy to reference its correcting verification.
+- The correcting verification must concern the same serverId, seasonId, and canonical targetRef.
+- Supersession chains must be cycle-free.
+- Verification records are immutable.
+- observedAt is when the game state was actually seen.
+- confirmedAt is when an authorised reviewer accepted it into WarMap.
+- Freshness calculations use observedAt, never upload time and never confirmedAt.
+- confirmedAt and reviewer fields are audit information.
+- A user may supply relative observation input such as two hours ago; it must be normalized to an exact UTC timestamp before storage.
+- Evidence is optional for permitted manual confirmation and required according to existing proposal/evidence policy for non-manual sources.
+- Ordinary later verification does not erase earlier verification history.
+- Correction of an erroneous verification is represented by supersession.
+- Routine later verification is historical confirmation, not supersession.
 
 ### Example
 ```json
 {
-  "snapshotId": "snapshot-2026-07-25-a",
+  "verificationId": "verify-366-0007",
   "serverId": "server-366",
   "seasonId": "season-1",
-  "snapshotTimestamp": "2026-07-25T09:15:00Z",
+  "targetRef": {
+    "type": "normal_map_cell",
+    "row": 5,
+    "col": 8
+  },
+  "verifiedOwnershipRef": {
+    "type": "territory_ownership_record",
+    "recordId": "own-9001"
+  },
+  "observedAt": "2026-07-29T07:00:00Z",
+  "confirmedAt": "2026-07-29T07:08:00Z",
+  "sourceType": "manual_entry",
+  "evidenceIds": [],
+  "actorId": "user-01",
+  "reviewerId": "user-01",
+  "reviewState": "confirmed",
+  "supersededBy": null
+}
+```
+
+## 10. Per-Target Freshness
+Per-target freshness is derived from verification history per required target.
+
+Terminology:
+- partial update means an input event where only a subset of targets receives new observations or confirmations.
+- current confirmed snapshot means the complete resolved selection of available current confirmed facts.
+- incomplete coverage means one or more required targets have never been validly confirmed.
+- qualifying full-map confirmation means complete required-target coverage within the 24-hour observation window.
+
+Rules:
+- Select the latest non-superseded confirmed verification by observedAt.
+- Display that observedAt as the target Last confirmed value.
+- UI may render relative or absolute form, but the exact UTC timestamp remains authoritative.
+- If no confirmed verification exists for a required target, that target is unverified.
+- confirmedAt must not replace observedAt for freshness.
+- For one serverId, seasonId, and canonical targetRef, multiple routine confirmed records are allowed when observedAt values differ.
+- For one serverId, seasonId, and canonical targetRef, two non-superseded confirmed records with identical parsed observedAt are invalid.
+- Equivalent timestamp forms such as .1Z and .100Z represent the same parsed instant.
+- A correcting supersession must resolve same-instant conflicts.
+- The current freshness record is the unique non-superseded confirmed record with the greatest parsed observedAt.
+- A partial update refreshes observedAt only for affected targets.
+- Unaffected targets retain their previous selected confirmed observedAt.
+
+Example display strings:
+
+```text
+Royal City - Last confirmed 2 hours ago
+Town - Last confirmed 28 Jul 2026, 23:00
+```
+
+## 11. Map Freshness Projection
+Map freshness is derived data, not independent stored authority.
+
+From the latest confirmed verification for every required target:
+
+```text
+oldestTargetObservedAt = minimum observedAt
+newestTargetObservedAt = maximum observedAt
+mapDataConfirmedThrough = oldestTargetObservedAt
+latestPartialConfirmationAt = newestTargetObservedAt
+```
+
+Rules:
+- mapDataConfirmedThrough is the minimum observedAt across all required targets selected as current confirmed verifications.
+- If any required target has no valid confirmed verification, mapDataConfirmedThrough is null and map freshness is unverified.
+- Updating one target changes only that target freshness and may update newestTargetObservedAt.
+- The map must never display the newest partial update as if all targets were refreshed.
+- User-facing overall label is Map data confirmed through.
+- If one corner is three days old while everything else is newer, the map is confirmed through three days ago.
+- These values are reproducible from verification history.
+
+## 12. Confirmed Snapshot Model
+A ConfirmedServerSnapshot is an immutable selected set of confirmed facts for one server and season.
+
+### Canonical fields
+- snapshotId
+- serverId
+- seasonId
+- createdAt
+- ownershipRecordIds
+- structureOwnershipRecordIds
+- verificationRecordIds
+- unionStatusRecordIds
+- evidenceIds
+- creatorId
+- reviewerId
+- completenessRecordIds
+- previousConfirmedSnapshotId
+
+### Rules
+- Snapshots are immutable.
+- A snapshot captures exact ownership and verification record references selected at confirmation.
+- A snapshot may contain partial freshness.
+- A snapshot can update current authoritative state without necessarily qualifying as a full-map activity confirmation.
+- A snapshot preserves previousConfirmedSnapshotId and provenance.
+- createdAt is audit creation time.
+- Observation and freshness time come from referenced verification records, not createdAt.
+- Ambiguous snapshotTimestamp wording is replaced by createdAt.
+- Every reference array contains unique IDs.
+- All referenced records belong to the snapshot serverId and seasonId.
+- At most one verificationRecordId may be selected per canonical targetRef.
+- Each selected verification must resolve to the ownership record selected for that same target.
+- createdAt must not be earlier than confirmedAt of any selected verification.
+- previousConfirmedSnapshotId, when present, references an earlier snapshot for the same server and season.
+- Snapshot chains are acyclic and createdAt is strictly increasing along the chain.
+- The current confirmed snapshot selects the latest valid non-superseded confirmed verification for every required target that has ever been validly confirmed.
+- Newly confirmed verifications from the latest update are selected for affected targets.
+- Previously selected current verifications are carried forward for unaffected targets.
+- A required target lacks a selected verification only when no valid confirmed verification has ever existed for it, or when prior verification was invalidated without a confirmed replacement.
+- Partial update events do not erase, invalidate, or omit selected current verifications for unaffected targets.
+
+### Example
+```json
+{
+  "snapshotId": "snapshot-2026-07-29-a",
+  "serverId": "server-366",
+  "seasonId": "season-1",
+  "createdAt": "2026-07-29T07:10:00Z",
   "ownershipRecordIds": ["own-9001", "own-9002"],
   "structureOwnershipRecordIds": ["structure-own-201"],
+  "verificationRecordIds": ["verify-366-0007", "verify-366-0011", "verify-366-0012"],
   "unionStatusRecordIds": ["native-assign-0142", "active-status-0281"],
   "evidenceIds": ["evidence-9001", "evidence-9002"],
   "creatorId": "user-01",
   "reviewerId": "user-01",
-  "reviewState": "confirmed",
   "completenessRecordIds": [
     "complete-366-territory",
     "complete-366-structure",
@@ -289,12 +461,47 @@ A confirmed snapshot is an immutable authoritative record of server state at a p
     "complete-366-combat",
     "complete-366-review"
   ],
-  "previousConfirmedSnapshotId": "snapshot-2026-07-20-b"
+  "previousConfirmedSnapshotId": "snapshot-2026-07-25-a"
 }
 ```
 
-## 9. Data-Completeness Model
-Data completeness is expressed through separate categories rather than a single opaque confidence percentage.
+## 13. Qualifying Full-Map Confirmation
+A confirmed snapshot qualifies for Active-Status inactivity evaluation only when all of the following are true:
+
+- Every required normal-map-cell and logical-structure target has a selected confirmed verification.
+- Every selected verification matches the snapshot serverId and seasonId.
+- Every selected verification resolves to ownership represented by the snapshot.
+- At qualification time, the snapshot contains exactly one valid selected verification for every required normal_map_cell and logical_structure target.
+- The difference between oldest and newest selected observedAt values is no more than 24 full hours.
+- No carried-forward verification older than that 24-hour window is counted.
+- The snapshot establishes complete ownership coverage needed to test zero-territory status for unions.
+
+Derived values:
+
+```text
+observationWindowStartedAt = oldest selected observedAt
+observationWindowEndedAt = newest selected observedAt
+fullConfirmationAt = observationWindowStartedAt
+```
+
+Rules:
+- fullConfirmationAt is conservative and uses the oldest selected observedAt.
+- fullConfirmationAt is the timestamp used for five-confirmation spacing, five-day gap, and fourteen-day inactivity evaluation.
+- A snapshot produced after a partial update may still qualify when complete resolved target coverage exists and the selected observedAt window is within 24 hours.
+- Qualification depends on resolved selected verification coverage and timestamps, not on whether information arrived in one upload or across multiple partial updates.
+- A snapshot does not qualify when a required target has no selected valid verification.
+- A snapshot does not qualify when carried-forward verification makes the oldest-to-newest selected observedAt span exceed 24 hours.
+- Several screenshots or manual checks may contribute to one snapshot.
+- Partial source images do not qualify independently; combined confirmed target coverage may qualify.
+- One qualifying snapshot may support independent activity evaluation for multiple unions.
+- Qualification must be reproducible from referenced records and map requirements, not stored as an unexplained boolean.
+
+Distinct user-facing concepts:
+- Map data confirmed through: freshness floor across latest target confirmations.
+- Last qualifying full-map confirmation: most recent immutable snapshot satisfying complete coverage and 24-hour qualification.
+
+## 14. Data-Completeness Model
+Data completeness remains represented by derived categories rather than one opaque score.
 
 ### Categories
 - verified territory coverage
@@ -305,278 +512,49 @@ Data completeness is expressed through separate categories rather than a single 
 - evidence awaiting review
 
 ### Fields
-- `completenessId`
-- `serverId`
-- `seasonId`
-- `snapshotId`
-- `category`
-- `value`
-- `basis`
-- `reviewState`
-- `updatedAt`
-- `evidenceIds`
+- completenessId
+- serverId
+- seasonId
+- snapshotId
+- category
+- value
+- basis
+- reviewState
+- updatedAt
+- evidenceIds
 
 ### Rules
-- Completeness is represented as immutable snapshot-bound derived records.
-- A snapshot references completeness records by ID rather than duplicating the same values inline.
-- Completeness records remain reproducible from confirmed snapshot state and evidence/review state.
+- Completeness records are derived and snapshot-bound.
+- A snapshot references completeness records by ID rather than duplicating values inline.
+- Completeness remains reproducible from referenced authoritative records.
 
-### Reporting categories
-- verified territory coverage
-- structure verification
-- native-union verification
-- active-union information
-- combat-strength coverage
-- evidence awaiting review
+## 15. Server Observation and Proposal Models
+Server observations and proposals remain non-authoritative support entities.
 
-### Example
-```json
-{
-  "completenessId": "complete-366-territory",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "snapshotId": "snapshot-2026-07-25-a",
-  "category": "verified_territory_coverage",
-  "value": "376 / 400",
-  "basis": "confirmed_snapshot",
-  "reviewState": "confirmed",
-  "updatedAt": "2026-07-25T09:15:00Z",
-  "evidenceIds": ["evidence-9002"]
-}
-```
+### Observation rules
+- Observations are short, factual, and descriptive.
+- Observation notes do not create verification freshness.
+- Observation timestamps are separate from verification observedAt and snapshot createdAt.
 
-## 10. Server-Observation Model
-Server observations are short factual notes with provenance.
+### Proposal workflow rules
+1. Capture proposed value and source asset.
+2. Store proposal linked to evidence.
+3. Mark proposal review state.
+4. Require review transition before any authoritative record is added.
+5. Preserve proposal history after supersession.
 
-### Fields
-- `observationId`
-- `serverId`
-- `seasonId`
-- `text`
-- `authorId`
-- `observedAt`
-- `evidenceIds`
-- `reviewState`
-- `archivedState`
-
-### Rules
-- Observations must be short, factual, and descriptive.
-- Observations exclude objectives, recommendations, priorities, and suggested actions.
-- Observations may be archived or superseded.
-- Observation timestamps are separate from snapshot timestamps.
-- Notes do not make the map appear freshly verified.
-- Factual notes may be short and reviewable, but they do not become snapshot authority.
-
-### Example
-```json
-{
-  "observationId": "obs-501",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "text": "Confirmed native union updated after screenshot review.",
-  "authorId": "user-01",
-  "observedAt": "2026-07-25T09:40:00Z",
-  "evidenceIds": ["evidence-9001"],
-  "reviewState": "confirmed",
-  "archivedState": "active"
-}
-```
-
-## 11. Proposed-Change Workflow
-Screenshot extraction and imports must create reviewable proposals rather than directly changing confirmed state.
-
-### Supported proposal types
-- proposed ownership change
-- proposed union presence
-- proposed native assignment
-- proposed combat-strength observation
-- ambiguous extraction requiring review
-
-### Workflow
-1. Capture the proposed value and raw source asset.
-2. Store it as a proposal linked to evidence.
-3. Mark it proposed or ambiguous.
-4. Require confirmation, rejection, or supersession before it becomes authoritative.
-5. Preserve the historical proposal after supersession.
-
-### Example
+### Proposal example
 ```json
 {
   "proposalId": "proposal-44",
   "serverId": "server-366",
   "seasonId": "season-1",
   "proposalType": "proposed_ownership_change",
-  "targetRef": { "type": "map_cell", "row": 5, "col": 8 },
-  "proposedValue": {
-    "ownershipState": "owned",
-    "ownerUnionId": "union-0001"
-  },
-  "reviewState": "proposed",
-  "sourceType": "screenshot_extraction",
-  "sourceAssetRef": "shot-2026-07-25-a",
-  "evidenceIds": ["evidence-9002"],
-  "reviewerId": null,
-  "supersedesProposalId": null
-}
-```
-
-## 12. Derived-Value Rules
-These values are calculated, not stored as independent authoritative totals.
-
-### Derived values
-- controlled-territory percentage
-- designated-player-union percentage
-- resource value or production
-- structure ownership totals
-- active-union counts
-- changes since the previous confirmed snapshot
-
-### Rules
-- Derived values must be reproducible from confirmed state and active-season rules.
-- Calculated summaries must not become authoritative state in their own right.
-- If the confirmed snapshot changes, derived values should be recomputable from that snapshot.
-- Unknown territory must not be folded into confirmed unclaimed totals.
-- Resource value or production remains derived from active-season rules and confirmed state.
-
-## 13. Data Invariants
-- Shared base maps remain immutable definitions.
-- Mutable state is isolated by server and season.
-- Unknown and confirmed unclaimed are different states.
-- Proposed changes never silently become confirmed state.
-- Historical confirmed snapshots are immutable.
-- Calculated summaries are reproducible from confirmed state and active-season rules.
-- Only one snapshot is current for a server/season, while earlier snapshots remain historical.
-- Evidence references remain valid when state records are superseded.
-- No MLG-specific behaviour is hard-coded into the shared model.
-- The model remains persistence-implementation neutral.
-- Review state never substitutes for the value of the fact being reviewed.
-- Derived relation summaries must be reproducible from authoritative records.
-- Automated extraction cannot create a confirmed record without an explicit trusted-source policy.
-- Union identities are archived rather than destructively deleted when historical records reference them.
-- Historical effective periods cannot overlap for the same status type and relationship.
-- Logical structure identity is authoritative for structure ownership.
-- Structure footprint cells cannot have an independent ownership authority.
-
-## 14. Example JSON Records
-### Server definition
-```json
-{
-  "serverId": "server-366",
-  "displayNumber": 366,
-  "seasonId": "season-1",
-  "baseMapRef": "season1-map",
-  "staticConfig": {
-    "displayLabel": "Server 366"
-  }
-}
-```
-
-### Current server state
-```json
-{
-  "serverStateId": "server-state-366-season-1",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "schemaVersion": 1,
-  "currentConfirmedSnapshotId": "snapshot-2026-07-25-a",
-  "relationIds": ["relation-366-mlg"],
-  "observationIds": ["obs-501", "obs-777"],
-  "draftProposalIds": ["proposal-44"],
-  "operationalTimestamps": {
-    "lastReviewAt": "2026-07-25T09:40:00Z"
-  }
-}
-```
-
-### Ownership record
-```json
-{
-  "ownershipRecordId": "own-9001",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "territoryRef": {
-    "type": "map_cell",
+  "targetRef": {
+    "type": "normal_map_cell",
     "row": 5,
     "col": 8
   },
-  "ownerUnionId": "union-0001",
-  "ownershipState": "owned",
-  "reviewState": "confirmed",
-  "effectiveAt": "2026-07-25T09:15:00Z",
-  "evidenceIds": ["evidence-9002"],
-  "actorId": "user-01",
-  "reviewerId": "user-01",
-  "supersedesOwnershipRecordId": null
-}
-```
-
-### Structure ownership record
-```json
-{
-  "structureOwnershipId": "structure-own-201",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "structureId": "structure-frost-mine-2",
-  "ownerUnionId": "union-0001",
-  "ownershipState": "owned",
-  "reviewState": "confirmed",
-  "effectiveAt": "2026-07-25T09:15:00Z",
-  "evidenceIds": ["evidence-9002"],
-  "actorId": "user-01",
-  "reviewerId": "user-01",
-  "supersedesStructureOwnershipRecordId": null
-}
-```
-
-### Snapshot
-```json
-{
-  "snapshotId": "snapshot-2026-07-25-a",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "snapshotTimestamp": "2026-07-25T09:15:00Z",
-  "ownershipRecordIds": ["own-9001", "own-9002"],
-  "structureOwnershipRecordIds": ["structure-own-201"],
-  "unionStatusRecordIds": ["native-assign-0142", "active-status-0281"],
-  "evidenceIds": ["evidence-9001", "evidence-9002"],
-  "creatorId": "user-01",
-  "reviewerId": "user-01",
-  "reviewState": "confirmed",
-  "completenessRecordIds": [
-    "complete-366-territory",
-    "complete-366-structure",
-    "complete-366-native",
-    "complete-366-active",
-    "complete-366-combat",
-    "complete-366-review"
-  ],
-  "previousConfirmedSnapshotId": "snapshot-2026-07-20-b"
-}
-```
-
-### Observation
-```json
-{
-  "observationId": "obs-501",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "text": "Confirmed native union updated after screenshot review.",
-  "authorId": "user-01",
-  "observedAt": "2026-07-25T09:40:00Z",
-  "evidenceIds": ["evidence-9001"],
-  "reviewState": "confirmed",
-  "archivedState": "active"
-}
-```
-
-### Proposal
-```json
-{
-  "proposalId": "proposal-44",
-  "serverId": "server-366",
-  "seasonId": "season-1",
-  "proposalType": "proposed_ownership_change",
-  "targetRef": { "type": "map_cell", "row": 5, "col": 8 },
   "proposedValue": {
     "ownershipState": "owned",
     "ownerUnionId": "union-0001"
@@ -590,58 +568,86 @@ These values are calculated, not stored as independent authoritative totals.
 }
 ```
 
-## 15. Mapping From the Current Schema
-### Current `data/season1-servers.json`
-The current server file maps to a mix of server definition, current server state, and legacy workspace fields.
+## 16. Validation Boundaries
+Validation is layered in three boundaries.
+
+1. Record validation
+- Verification and snapshot field shape.
+- Required IDs and canonical enums.
+- Timestamp format and nullability.
+- targetRef shape and canonical target type.
+- verifiedOwnershipRef typed shape and targetRef correspondence.
+
+2. History and reference validation
+- Record ID uniqueness.
+- Supersession correctness for verification corrections.
+- Correction stays within the same target identity.
+- Supersession chains are cycle-free.
+- previousConfirmedSnapshotId chain validity.
+- Snapshot chain ordering by strictly increasing createdAt.
+- Immutable reference integrity.
+
+3. Resolved qualification validation
+- Resolve active-season required verification targets.
+- Resolve ownership and verification references.
+- Resolve the current confirmed snapshot as a complete carried-forward plus newly-confirmed selection.
+- Compute per-target freshness from observedAt.
+- Determine full coverage and 24-hour qualification.
+- Calculate conservative fullConfirmationAt.
+- Provide qualifying snapshots to Active-Status evaluation.
+
+## 17. Data Invariants
+- Shared base maps remain immutable definitions.
+- Mutable state is isolated by server and season.
+- Ownership records and verification records are separate authorities.
+- Unknown and confirmed unclaimed remain distinct states.
+- Proposed changes never silently become confirmed state.
+- Confirmed snapshots are immutable historical records.
+- Derived values are reproducible from authoritative references.
+- Only one snapshot is current for a server and season.
+- Evidence references remain valid after supersession.
+- Review state never substitutes for the fact value itself.
+- Structure identity is authoritative for structure targets and verification.
+- Structure footprint cells do not become separate competing verification targets.
+- Map data confirmed through is derived from oldest latest-target observedAt.
+- Last qualifying full-map confirmation is derived from immutable snapshot references and required target coverage.
+
+## 18. Mapping From Current Schema and Runtime Boundary
+### Current data mapping notes
+Observed fields in data/season1-servers.json still map across definition, current state, and legacy workspace concerns.
 
 Observed fields:
-- `id` maps to `serverId`
-- `label` maps to the server display number and display label context
-- `baseMapId` maps to `baseMapRef`
-- `activeUnionId` is a legacy server workspace shortcut whose current meaning must be verified before reuse
-- `ownership` is the current per-server ownership store used by runtime editing
-- `notes` maps to server observations or observation-adjacent content
-- `objectives` is legacy and does not belong to the authoritative server-state model
-- `history` is legacy and may overlap with confirmed snapshots, proposals, and observations depending on migration strategy
-- `lastUpdated` is a server record timestamp and should not be treated as a complete authoritative snapshot timestamp without verification
+- id maps to serverId
+- label maps to server display context
+- baseMapId maps to baseMapRef
+- activeUnionId remains a legacy workspace shortcut
+- ownership is the current runtime per-server ownership store
+- notes map to observation-adjacent content
+- objectives remain outside authoritative server-state model
+- history remains legacy migration input
+- lastUpdated is operational metadata, not verification freshness authority
 
-### Current `data/season1-map.json`
-The current base map maps to the immutable shared base-map definition.
+### Current runtime persistence boundary
+- Current runtime persistence stores current ownership state per server.
+- Current runtime does not yet implement target verification history.
+- Current runtime does not yet implement immutable confirmed snapshot history per this target model.
+- This document defines the target contract and does not claim current full implementation.
 
-Observed fields:
-- `kingdomNumber` maps to a season/map identity field
-- `seasonName` maps to a season label
-- `gridSize` maps to base-map dimensions
-- `tiles` map to immutable shared base-map cells
-- `ownerId` exists in the shared tile schema as a base-definition/fallback field; normal runtime editing does not mutate it
-- `structures` map to base-map structure definitions and footprints
+### Storage neutrality and transport scope
+- The model remains storage-neutral and suitable for a future hosted backend.
+- No import/export requirement is introduced by this reconciliation.
 
-### Current runtime behavior to preserve cautiously
-- Ownership editing is isolated per server.
-- Runtime edits are routed to the active server’s ownership state.
-- Switching servers displays the appropriate server-specific ownership.
-- The shared base map is no longer mutated by normal ownership editing.
-- Base-map ownership may remain a fallback concept, but current default ownership seeds have been cleared.
-- Structure ownership is currently resolved through the existing runtime ownership flow.
-- Summary calculations should be based on confirmed server state, not the shared base map.
-
-### Schema implications
-- The proposed model introduces authoritative server-scoped ownership, snapshots, proposals, and observations.
-- Shared base-map objects remain immutable definitions during normal runtime editing.
-- Legacy fields must be preserved until migration strategy decides otherwise.
-- The target model makes logical structure identity authoritative for structure ownership.
-
-## 16. Explicit Exclusions
-The following are intentionally excluded from this model:
-- Objectives
-- Alerts
-- Server priority or status ratings
-- Recommended actions
-- Suggested targets
-- Estimated enemy-strength labels
+## 19. Explicit Exclusions
+The following remain intentionally excluded:
+- objectives
+- alerts
+- server priority or status ratings
+- recommended actions
+- suggested targets
+- estimated enemy-strength labels
 - AI-generated strategic judgments
-- Prescriptive server rankings
-- Shared base-map mutation as authoritative server state
+- prescriptive server rankings
+- shared base-map mutation as authoritative server state
 
-## 17. Genuine Unresolved Questions
-No unresolved questions remain after the recorded decisions above.
+## 20. Genuine Unresolved Questions
+No unresolved model questions remain in this document scope. Migration sequencing and runtime implementation order are delivery planning concerns rather than data-model ambiguities.
