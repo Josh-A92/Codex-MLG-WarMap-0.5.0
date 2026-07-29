@@ -134,6 +134,8 @@ CurrentServerState is the operational aggregate for a server and season. current
 ## 7. Ownership Model
 Ownership records define fact values for authoritative ownership state.
 
+All fields listed below are required, including nullable fields.
+
 ### Ownership states
 - owned
 - unclaimed
@@ -154,10 +156,12 @@ Ownership records define fact values for authoritative ownership state.
 - ownershipState
 - reviewState
 - effectiveAt
+- sourceType
 - evidenceIds
 - actorId
 - reviewerId
-- supersedesOwnershipRecordId
+- reviewedAt
+- supersededBy
 
 ### StructureOwnershipRecord fields
 - structureOwnershipId
@@ -168,18 +172,140 @@ Ownership records define fact values for authoritative ownership state.
 - ownershipState
 - reviewState
 - effectiveAt
+- sourceType
 - evidenceIds
 - actorId
 - reviewerId
-- supersedesStructureOwnershipRecordId
+- reviewedAt
+- supersededBy
+
+### Territory target identity
+Territory ownership targetRef uses exactly:
+
+```json
+{
+  "type": "normal_map_cell",
+  "row": 5,
+  "col": 8
+}
+```
+
+Rules:
+- type is exactly normal_map_cell.
+- row and col are positive integers.
+- Structure footprint cells are not independent territory ownership targets.
+- Structure ownership uses stable non-empty structureId.
 
 ### Rules
 - Unknown is not the same as confirmed unclaimed.
 - TerritoryOwnershipRecord identifies one normal capturable non-structure cell.
 - StructureOwnershipRecord identifies one logical structure.
 - Ownership and review states are separate dimensions.
-- Confirmed ownership records are immutable.
-- Replacements are represented by new records with supersession links.
+- Territory and structure records are scoped to one exact server and season.
+
+### Ownership fact rules
+- ownershipState is exactly owned, unclaimed, or unknown.
+- owned requires ownerUnionId to be a non-empty, non-whitespace union ID.
+- unclaimed requires ownerUnionId to be null.
+- unknown requires ownerUnionId to be null.
+- Unknown and confirmed unclaimed remain distinct facts.
+
+### Source and evidence rules
+sourceType is exactly one of:
+- manual_entry
+- screenshot_extraction
+- imported_data
+- api_integration
+- bot_integration
+
+Rules:
+- evidenceIds is an array of unique non-empty, non-whitespace IDs.
+- manual_entry may use an empty evidenceIds array.
+- Every non-manual source requires at least one evidence ID.
+- actorId is always a non-empty, non-whitespace ID.
+
+### Timestamp meanings
+- effectiveAt is when the ownership fact applies to the observed game state.
+- reviewedAt is audit time when an authorised reviewer confirmed or rejected the record.
+- effectiveAt and reviewedAt use real UTC ISO-8601 timestamps ending in Z with zero to three fractional digits.
+- When reviewedAt is non-null, reviewedAt must not be earlier than effectiveAt.
+- Upload time is not ownership fact time.
+
+### Review lifecycle
+reviewState is exactly:
+- proposed
+- confirmed
+- rejected
+- superseded
+
+Proposed:
+- reviewerId is null.
+- reviewedAt is null.
+- supersededBy is null.
+
+Confirmed:
+- reviewerId is a non-empty ID.
+- reviewedAt is a valid timestamp.
+- supersededBy is null.
+
+Rejected:
+- reviewerId is a non-empty ID.
+- reviewedAt is a valid timestamp.
+- supersededBy is null.
+- Rejected records never become current ownership authority.
+
+Superseded:
+- reviewerId and reviewedAt remain populated.
+- When a confirmed ownership record transitions to superseded, its existing reviewerId and reviewedAt remain unchanged.
+- reviewerId and reviewedAt on the superseded record continue to identify the reviewer and time of the original confirmation.
+- Superseded record reviewerId and reviewedAt must not be overwritten with replacement reviewer or replacement confirmation time.
+- Supersession audit reviewer and audit time are derived from the replacement record referenced by supersededBy.
+- Replacement reviewerId and reviewedAt identify who confirmed the replacement and when.
+- No separate supersededAt field is required in this contract version.
+- supersededBy is a non-empty ownership-record ID identifying the replacement.
+- The replacement is the same record type and belongs to the same server, season, and canonical target.
+- The replacement may be confirmed or may itself later be superseded.
+- Supersession chains are cycle-free.
+- A record cannot supersede itself.
+- Superseded record reviewedAt must still be greater than or equal to its own effectiveAt.
+- Replacement effectiveAt must not be earlier than the superseded record effectiveAt.
+- Replacement reviewedAt must not be earlier than the superseded record reviewedAt.
+- Equivalent timestamp representations compare by parsed instant.
+
+### Immutability clarification
+Immutable factual fields:
+- record identity
+- serverId
+- seasonId
+- territoryRef or structureId
+- ownerUnionId
+- ownershipState
+- effectiveAt
+- sourceType
+- evidenceIds
+- actorId
+
+Review metadata transitions are limited to:
+- proposed to confirmed
+- proposed to rejected
+- confirmed to superseded
+
+No other transition is valid. Supersession changes review metadata but must never rewrite the historical ownership fact.
+
+When a confirmed record becomes superseded, reviewerId and reviewedAt on that superseded record remain the original confirmation audit fields and are not rewritten.
+Supersession audit attribution comes from the replacement record identified by supersededBy, whose reviewerId and reviewedAt record the replacement confirmation.
+
+### History invariants
+For each exact server, season, and canonical target:
+- Record IDs are globally unique within their record collection.
+- Proposed and rejected records do not participate in current-state selection.
+- At most one non-superseded confirmed record is current.
+- Historical superseded records are preserved.
+- The current ownership record is the unique confirmed record with supersededBy null.
+- Different servers, seasons, cells, and structures remain independent.
+- Grouping uses collision-safe tuple identity, not delimiter joining.
+- Individually invalid records do not participate in cross-record history resolution.
+- A history may contain no current confirmed record when it contains only proposed or rejected records.
 
 ### Territory ownership example
 ```json
@@ -188,7 +314,7 @@ Ownership records define fact values for authoritative ownership state.
   "serverId": "server-366",
   "seasonId": "season-1",
   "territoryRef": {
-    "type": "map_cell",
+    "type": "normal_map_cell",
     "row": 5,
     "col": 8
   },
@@ -196,10 +322,12 @@ Ownership records define fact values for authoritative ownership state.
   "ownershipState": "owned",
   "reviewState": "confirmed",
   "effectiveAt": "2026-07-25T09:15:00Z",
+  "sourceType": "manual_entry",
   "evidenceIds": ["evidence-9002"],
   "actorId": "user-01",
   "reviewerId": "user-01",
-  "supersedesOwnershipRecordId": null
+  "reviewedAt": "2026-07-25T09:20:00Z",
+  "supersededBy": null
 }
 ```
 
@@ -209,15 +337,17 @@ Ownership records define fact values for authoritative ownership state.
   "structureOwnershipId": "structure-own-201",
   "serverId": "server-366",
   "seasonId": "season-1",
-  "structureId": "structure-frost-mine-2",
-  "ownerUnionId": "union-0001",
-  "ownershipState": "owned",
+  "structureId": "structure-royal-city-1",
+  "ownerUnionId": null,
+  "ownershipState": "unclaimed",
   "reviewState": "confirmed",
   "effectiveAt": "2026-07-25T09:15:00Z",
+  "sourceType": "screenshot_extraction",
   "evidenceIds": ["evidence-9002"],
   "actorId": "user-01",
   "reviewerId": "user-01",
-  "supersedesStructureOwnershipRecordId": null
+  "reviewedAt": "2026-07-25T09:20:00Z",
+  "supersededBy": null
 }
 ```
 
@@ -438,6 +568,11 @@ A ConfirmedServerSnapshot is an immutable selected set of confirmed facts for on
 - Previously selected current verifications are carried forward for unaffected targets.
 - A required target lacks a selected verification only when no valid confirmed verification has ever existed for it, or when prior verification was invalidated without a confirmed replacement.
 - Partial update events do not erase, invalidate, or omit selected current verifications for unaffected targets.
+- ownershipRecordIds selects territory ownership records.
+- structureOwnershipRecordIds selects structure ownership records.
+- A confirmed snapshot may reference only confirmed, non-superseded ownership records.
+- Ownership target and server/season correspondence with verification records is resolved later by the snapshot/reference validator.
+- This documentation milestone does not claim runtime implementation of that snapshot/reference resolution.
 
 ### Example
 ```json
@@ -572,6 +707,10 @@ Server observations and proposals remain non-authoritative support entities.
 Validation is layered in three boundaries.
 
 1. Record validation
+- Individual ownership-record field shape for TerritoryOwnershipRecord and StructureOwnershipRecord.
+- Ownership IDs, enums, nullability, sourceType/evidence, and timestamp semantics.
+- Ownership target identity shape for territoryRef and structureId.
+- Ownership review lifecycle field constraints.
 - Verification and snapshot field shape.
 - Required IDs and canonical enums.
 - Timestamp format and nullability.
@@ -579,6 +718,11 @@ Validation is layered in three boundaries.
 - verifiedOwnershipRef typed shape and targetRef correspondence.
 
 2. History and reference validation
+- Ownership history and supersession validation per server, season, and canonical target.
+- Ownership current-state selection constraints and cycle-free supersession chains.
+- Ownership grouping by collision-safe tuple identity.
+- Invalid ownership records excluded from cross-record resolution.
+- Ownership supersession audit ordering by parsed instant, including replacement reviewedAt greater than or equal to superseded reviewedAt.
 - Record ID uniqueness.
 - Supersession correctness for verification corrections.
 - Correction stays within the same target identity.
@@ -588,6 +732,7 @@ Validation is layered in three boundaries.
 - Immutable reference integrity.
 
 3. Resolved qualification validation
+- Snapshot/reference resolution between ownershipRecordIds, structureOwnershipRecordIds, and verificationRecordIds.
 - Resolve active-season required verification targets.
 - Resolve ownership and verification references.
 - Resolve the current confirmed snapshot as a complete carried-forward plus newly-confirmed selection.
