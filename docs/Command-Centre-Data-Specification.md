@@ -24,7 +24,7 @@ The Command Centre provides a compact factual summary for each server.
 | --- | --- | --- | --- | --- | --- | --- |
 | Server number | Server card header | Human-readable server identity | Server metadata | Stored | Must match the server record used by the active workspace | Required |
 | Native unions | Server card body | Unions native to the server | Season/server identity data, manual entry, or confirmed evidence | Stored | Native assignment must identify whether it is confirmed or proposed | Required |
-| Active unions | Server card body | Unions currently active on the server | Confirmed ownership, recorded presence, or manual correction | Stored | Active status must carry provenance and confirmation state when available | Required |
+| Active unions | Server card body | Known unions currently active under the confirmed ownership and fourteen-day inactivity rule | Confirmed ownership history and verified zero-territory periods | Stored | Active status must carry provenance, effective time, and the ownership history used to derive it | Required |
 | Recorded combat strength for active unions, where available | Server card body | Latest confirmed combat strength tied to an active union | Time-stamped observation linked to union/server/season | Observed | Must preserve timestamp, source, and confirmation state; do not replace with qualitative ratings | Required |
 | Percentage of all capturable territory currently controlled | Server card body | Share of capturable territory controlled on the server | Calculated from confirmed territory ownership and the active season map definition | Calculated | Must be derived from confirmed underlying state, not stored as an independent total | Required |
 | Percentage of all capturable territory controlled by the designated player union | Server card body | Share of capturable territory controlled by the designated player union | Calculated from confirmed ownership and the designated union assignment | Calculated | Must be derived from confirmed underlying state, not stored as an independent total | Required |
@@ -44,7 +44,7 @@ The Server Overview provides the detailed factual view for one server.
 | Union comparison | Overview comparison section | Side-by-side factual presentation of unions on the server composed of stored, observed, and calculated fields | Union records, ownership state, combat observations, and territory calculations | Stored, observed, calculated | Comparison content must remain factual and non-prescriptive | Required |
 | Union identity | Union comparison row | Union name or identifier | Union registry or confirmed union record | Stored | Identity should preserve the source record used to identify the union | Required |
 | Native status | Union comparison row | Whether the union is native to the server | Native-union assignment record | Stored | Must preserve confirmation/proposal state where applicable | Required |
-| Active status | Union comparison row | Whether the union is currently active on the server | Confirmed ownership, recorded presence, or manual correction | Stored | Must preserve provenance and allow correction when evidence changes | Required |
+| Active status | Union comparison row | Whether a known union is currently active under the ownership and fourteen-day inactivity rule | Confirmed ownership history and verified zero-territory periods | Stored | Must preserve provenance and allow correction of the underlying confirmed history when evidence changes | Required |
 | Latest confirmed combat strength | Union comparison row | Most recent confirmed combat strength observation for the union | Time-stamped combat-strength observation | Observed | Must preserve timestamp, source, and confirmation state; no qualitative rating substitute | Required |
 | Territory count and percentage | Union comparison row | Number of territories controlled and share of capturable territory | Confirmed territory ownership and the active season map definition | Calculated | Must be derived from confirmed underlying state | Required |
 | Changes since the previous confirmed server snapshot | Overview change section | Difference between the current confirmed state and the previous confirmed snapshot | Current confirmed snapshot plus previous confirmed snapshot baseline | Calculated | The initial baseline is the previous confirmed server snapshot; changes must identify that baseline explicitly | Required |
@@ -59,7 +59,7 @@ The Server Overview provides the detailed factual view for one server.
 | Territory coverage | Overview evidence or status panel | Confirmed territory coverage shown as a verified count and/or ratio | Latest confirmed server-map snapshot | Calculated | Must use the same confirmed snapshot as the displayed ownership statistics | Required |
 | Structure verification | Overview evidence or status panel | Verified coverage of structure ownership data | Confirmed structure records and evidence | Calculated | Must show what is confirmed, pending, or unverified | Required |
 | Native-union verification | Overview evidence or status panel | Verified coverage of native-union assignments | Native-union records and evidence | Calculated | Must show confirmed and proposed assignments separately where relevant | Required |
-| Active-union information | Overview evidence or status panel | Verified coverage of active-union status information | Confirmed ownership, confirmed presence, and manual corrections | Calculated | Must distinguish confirmed, proposed, stale, and unknown states where applicable | Required |
+| Active-union information | Overview evidence or status panel | Verified coverage of activity information for known unions | Confirmed ownership history, zero-territory periods, and verification coverage | Calculated | Must distinguish active, inactive, stale, and unknown states where applicable | Required |
 | Combat-strength coverage | Overview evidence or status panel | Verified coverage of combat-strength observations | Time-stamped combat-strength observations and evidence | Calculated | Must preserve individual observation timestamps and provenance | Required |
 | Evidence awaiting review | Overview evidence or status panel | Evidence items that still need confirmation or review | Screenshot records, extracted observations, and review metadata | Stored | Must surface pending review without collapsing it into a vague score | Required |
 
@@ -90,9 +90,15 @@ The Server Overview provides the detailed factual view for one server.
 - Current territory statistics and comparison breakdowns must be derived from confirmed ownership state plus the active season map definition.
 - Capturable denominator includes every valid map cell that can be captured at any point during the season, including temporarily locked cells.
 - Capturable denominator excludes out-of-map, decorative, permanently blocked, and non-playable cells.
-- Active-union status is confirmed when a union owns confirmed territory or has confirmed evidence of presence.
+- A union being known on a server is separate from being active.
+- A known union with no confirmed ownership history is inactive.
+- Confirmed ownership of at least one territory makes a union active.
+- Losing the final territory starts a fourteen-day verified zero-territory period during which the union remains active.
+- A confirmed recapture cancels that period; a later final-territory loss starts a new period.
+- After fourteen full verified days without ownership, the union becomes inactive.
+- Missing or stale verification prevents automatic inactivity and makes the activity evidence stale or unverified.
 - Confirmed ownership remains valid until superseded.
-- Presence-only observations may become stale or unknown, but they must not automatically become inactive.
+- Presence-only evidence may establish that a union is known on the server, but it does not independently make that union active.
 - Manual corrections override automated proposals.
 - Combat strength is a time-stamped observation attached to a union/server/season relationship.
 - Territory-change comparisons must identify their baseline snapshot, with the previous confirmed server snapshot as the initial baseline.
@@ -109,7 +115,7 @@ The Server Overview provides the detailed factual view for one server.
 - Confidence and provenance belong to individual observations and evidence, not to a vague aggregate score.
 - Manual corrections override automated proposals.
 - Confirmed state is the basis for calculated percentages, resource totals, and change comparisons.
-- Presence-only observations may become stale or unknown, but they must not automatically become inactive.
+- Presence-only observations contribute to known-union evidence, not active status without confirmed ownership.
 - Evidence history should preserve the source, timestamp, and review outcome for each observation where available.
 - User-facing data health should distinguish freshness, completeness, and pending review.
 

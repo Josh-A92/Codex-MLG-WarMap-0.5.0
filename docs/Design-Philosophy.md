@@ -191,7 +191,7 @@ If it tells the player what to do, it falls outside WarMap's core purpose unless
 |---|---|
 | Server number | Identifies the server being described. |
 | Native unions | Records an important server relationship. |
-| Active unions | Describes current participation, based on confirmed presence or ownership. |
+| Active unions | Describes activity derived from confirmed ownership history and the verified fourteen-day inactivity rule; known association alone is separate. |
 | Union combat strength | Preserves measured game data with observation time and source. |
 | Total controlled territory | Calculates how much of the capturable map currently has an owner. |
 | Player-union territory percentage | Calculates the player's share of the complete capturable map. |

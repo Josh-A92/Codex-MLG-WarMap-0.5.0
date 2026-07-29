@@ -82,3 +82,49 @@ Decision:
 
 Reason:
 - Preserves server-state authority while keeping storage format, application orchestration, and Electron file access separated.
+
+## ADR-010: Season setup is complete, validated, initialized, and locked
+
+Decision:
+- Operational use begins only after the complete season configuration validates.
+- Participating server definitions, the shared map, structures, values, resources, scoring, phases, unlocks, capture rules, and buffs become locked season setup.
+- Union involvement, ownership, combat strength, observations, evidence, and completeness remain mutable operational intelligence.
+- A verified correction creates a new immutable configuration version rather than editing the active version in place.
+
+Reason:
+- Season rules are expected to be known before tracking begins, while server intelligence continues changing throughout the season.
+
+## ADR-011: Hosted authorization uses backend-enforced scoped capabilities
+
+Decision:
+- The hosted backend authorizes every state-changing operation.
+- Roles bundle explicit capabilities that may be scoped to selected seasons or servers.
+- Client-side control visibility is not a security boundary.
+- The desktop application remains a temporary single-trusted-user environment.
+
+Reason:
+- Supports safe multi-user hosting without coupling domain services to hard-coded administrator checks.
+
+## ADR-012: Screenshot interpretation produces reviewable proposals
+
+Decision:
+- Screenshot extraction is a replaceable supporting service behind a source-neutral evidence-ingestion boundary.
+- Direct upload, Discord, bots, and future APIs submit evidence through the same core path.
+- Extraction may combine map-specific geometry, computer vision, OCR, cloud models, or future specialised models.
+- Extracted results cannot directly mutate confirmed state and must remain linked to preserved evidence for human review.
+
+Reason:
+- Real screenshots vary in zoom, crop, overlays, colour meaning, label visibility, and completeness; no single model or colour mapping is sufficiently authoritative.
+
+## ADR-013: Active-union status derives from confirmed ownership history
+
+Decision:
+- Known server association and active status are separate.
+- Confirmed ownership activates a union.
+- Losing the final territory starts a fourteen-day verified zero-territory period while the union remains active.
+- Recapture cancels the period; a later final-territory loss restarts it.
+- Fourteen full verified days produce inactivity.
+- Missing verification produces stale or unverified activity evidence rather than automatic inactivity.
+
+Reason:
+- Represents observed participation without treating a known union as active prematurely or declaring inactivity from missing data.

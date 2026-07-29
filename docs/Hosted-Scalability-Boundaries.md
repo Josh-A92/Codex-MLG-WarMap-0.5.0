@@ -64,7 +64,7 @@ Clients display state and submit explicit operations. They do not directly modif
 
 ## 5. State Categories
 
-### Published season configuration
+### Locked season configuration
 
 Examples:
 
@@ -75,7 +75,7 @@ Examples:
 - phase and unlock definitions
 - map references
 
-This state is versioned and published deliberately. Ordinary server updates must not silently change it.
+This state is validated, initialized, locked, and versioned deliberately. Ordinary server updates must not silently change it.
 
 ### Shared registry data
 
@@ -138,11 +138,12 @@ SetStructureOwner
 CreateUnionIdentity
 UpdateUnionIdentity
 AssignNativeUnion
-RecordActiveUnionPresence
+RecordUnionServerAssociation
 RecordCombatStrengthObservation
 CreateServerObservation
 ConfirmProposedChange
-PublishSeasonConfiguration
+InitializeSeasonConfiguration
+CorrectLockedSeasonConfiguration
 ```
 
 Each operation should:
@@ -416,14 +417,14 @@ The Data Management workspace must submit domain operations, not edit JSON files
 
 It should eventually provide:
 
-- Season Setup for validated draft and published season configuration
+- Season Setup for complete validation, initialization, locking, and exceptional correction
 - Union Registry management
 - Server Intelligence entry for native unions, activity, strength, and observations
 - Evidence Review for proposed extracted data
 
 The UI should distinguish:
 
-- published configuration
+- locked season configuration
 - confirmed shared facts
 - proposed changes
 - historical observations

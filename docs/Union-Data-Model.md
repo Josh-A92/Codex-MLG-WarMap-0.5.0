@@ -183,11 +183,17 @@ Native-union assignment records whether a union is native to a server for a seas
 Active-union status records whether a union is active within a server and season context.
 
 ### Active-state rules
-- A union is active when it owns confirmed territory or has confirmed evidence of presence.
+- A union being known on a server is separate from its activity state.
+- A known union with no confirmed ownership history is inactive.
+- A union becomes active when it owns confirmed territory.
+- Losing the final territory begins a fourteen-day verified zero-territory period while the union remains active.
+- Confirmed recapture cancels the period.
+- Losing the final territory again begins a new period.
+- Fourteen full verified days without ownership changes the union to inactive.
+- Missing or stale verification prevents automatic inactivity and produces stale or unverified activity evidence.
+- Presence-only evidence can establish a known server association but cannot independently make a union active.
 - Confirmed ownership remains valid until superseded.
-- Presence-only observations may become stale or unknown.
-- Presence-only observations must not automatically become inactive just because time passes.
-- Manual correction takes precedence over automated proposals.
+- Manual correction of the confirmed ownership or evidence timeline takes precedence over automated proposals and causes activity to be derived again.
 - A union/server/season relationship may preserve historical active-status records while keeping only one effective current active-status record.
 
 ### Fact values
@@ -208,6 +214,8 @@ Active-union status records whether a union is active within a server and season
 - `evidenceId`
 - `firstConfirmedPresenceAt`
 - `mostRecentConfirmedPresenceAt`
+- `zeroTerritorySince`
+- `verificationThrough`
 - `effectiveFrom`
 - `effectiveTo`
 - `manualOverride`
@@ -218,6 +226,8 @@ Active-union status records whether a union is active within a server and season
 - Effective time ranges must not overlap.
 - Presence timestamps and evidence references should be derived from confirmed observations or status records wherever practical.
 - Cached summary fields such as `firstConfirmedPresenceAt` and `mostRecentConfirmedPresenceAt` are non-authoritative and must be reproducible from underlying records.
+- `zeroTerritorySince` records the confirmed loss of the final territory when a zero-territory period exists.
+- `verificationThrough` records how far the zero-territory period is supported by confirmed server observations.
 
 ### Example
 ```json
@@ -471,11 +481,13 @@ Screenshot-extracted names or tags must be matched against the union registry wi
     "seasonId": "season-1",
     "activityState": "stale",
     "reviewState": "superseded",
-    "derivedFrom": "confirmed_presence",
+    "derivedFrom": "ownership_verification_gap",
     "sourceType": "manual_entry",
     "evidenceId": "evidence-9003",
     "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
     "mostRecentConfirmedPresenceAt": "2026-07-20T09:00:00Z",
+    "zeroTerritorySince": "2026-07-20T09:00:00Z",
+    "verificationThrough": "2026-07-22T09:00:00Z",
     "effectiveFrom": "2026-07-10T18:42:00Z",
     "effectiveTo": "2026-07-25T09:14:59Z",
     "manualOverride": null
@@ -492,6 +504,8 @@ Screenshot-extracted names or tags must be matched against the union registry wi
     "evidenceId": "evidence-9004",
     "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
     "mostRecentConfirmedPresenceAt": "2026-07-25T09:15:00Z",
+    "zeroTerritorySince": null,
+    "verificationThrough": "2026-07-25T09:15:00Z",
     "effectiveFrom": "2026-07-25T09:15:00Z",
     "effectiveTo": null,
     "manualOverride": null

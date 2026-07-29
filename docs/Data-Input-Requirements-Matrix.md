@@ -151,7 +151,7 @@ These facts belong to a particular union on a particular server in a particular 
 | Data point | Manual entry/correction | Assisted proposal | Confirmation rule | System-managed context | Calculated or displayed from |
 | --- | --- | --- | --- | --- | --- |
 | Native-union assignment | Required capability | Screenshot extraction may propose | Proposed assignments remain reviewable until confirmed; native state and review state stay separate | Assignment ID, union/server/season IDs, effective period, source, evidence, actor/reviewer | Current confirmed native assignment |
-| Active-union status | Required capability for evidence-based correction | Ownership and screenshot evidence may propose or support status | Confirmed ownership or confirmed presence establishes active status; presence-only data must not silently become inactive when stale | Status ID, effective period, source, evidence, actor/reviewer, derivation | Current effective confirmed status |
+| Active-union status | Correction applies to underlying ownership/evidence history | Ownership screenshots may propose or support status | Confirmed ownership establishes activity; fourteen verified zero-territory days establish inactivity; missing verification produces stale/unverified evidence | Status ID, effective period, zero-territory start, verification coverage, source, evidence, actor/reviewer, derivation | Current effective derived status |
 | Combat-strength observation | Required capability | Screenshot extraction, bot, import, or future API may propose | Preserve numeric/explicit recorded value, timestamp, source, and review state | Observation ID, union/server/season IDs, unit, observed time, evidence, actor/reviewer | Latest confirmed observation for display; all observations remain historical |
 | Manual relationship override | Required capability where automated proposals are wrong | Not applicable | Manual correction overrides an automated proposal but must retain provenance | Actor, timestamp, reason/evidence where supplied | Current confirmed relationship state |
 | Presence timestamps | No direct total-entry requirement | Derived from confirmed observations/status records | Must be reproducible from authoritative records | First and most recent confirmed-presence timestamps may be cached | Confirmed relationship history |
@@ -384,7 +384,7 @@ The following are calculated from confirmed facts and season rules. They must no
 | --- | --- |
 | Server number | Server definition |
 | Native unions | Union identities plus confirmed native assignments |
-| Active unions | Union identities plus confirmed ownership/presence or manual correction |
+| Active unions | Known union relationships plus confirmed ownership history and the verified fourteen-day inactivity rule |
 | Combat strength | Confirmed time-stamped combat-strength observations |
 | Territory controlled | Confirmed territory and logical structure ownership |
 | Designated-union territory | Confirmed ownership plus designated union configuration |

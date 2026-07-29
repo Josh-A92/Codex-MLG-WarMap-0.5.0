@@ -11,6 +11,8 @@
 - Cards refresh immediately after ownership edits and reflect restored ownership on startup.
 - Scoring remains intentionally unconfigured until verified season rules and calculations are available.
 - Reconciled current-state documentation with the verified ownership, persistence, and summary runtime.
+- Defined hosted scalability, operator-input, authorization, locked season-setup, and screenshot-intelligence boundaries.
+- Defined active-union status from confirmed ownership history with a fourteen-day verified zero-territory inactivity rule.
 
 ## v0.5.0
 - Documentation reconciliation across core project docs to match repository-authoritative behavior.
