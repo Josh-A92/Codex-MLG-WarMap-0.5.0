@@ -102,6 +102,7 @@ A relation records how a union appears within a specific server and season conte
 - Historical native and active-status records are preserved.
 - Only one effective current native-status record and one effective current active-status record may exist for a given union/server/season relationship.
 - `currentNativeStatusId` points only to the current effective confirmed native assignment.
+- `currentActiveStatusId` is a non-authoritative cache/reference to the current active-status record.
 - Historical records remain closed or superseded.
 - Effective time ranges must not overlap.
 - The relation may reference the current records.
@@ -204,74 +205,358 @@ Native-union assignment records whether a union is native to a server for a seas
 ```
 
 ## 7. Active-Status Model
-Active-union status records whether a union is active within a server and season context.
+Active-union status records authoritative activity facts for one exact relationship key: `unionId + serverId + seasonId`.
 
-### Active-state rules
-- A union being known on a server is separate from its activity state.
-- A known union with no confirmed ownership history is inactive.
-- A union becomes active when it owns confirmed territory.
-- Losing the final territory begins a fourteen-day verified zero-territory period while the union remains active.
-- Confirmed recapture cancels the period.
-- Losing the final territory again begins a new period.
-- Fourteen full verified days without ownership changes the union to inactive.
-- Missing or stale verification prevents automatic inactivity and produces stale or unverified activity evidence.
-- Presence-only evidence can establish a known server association but cannot independently make a union active.
-- Confirmed ownership remains valid until superseded.
-- Manual correction of the confirmed ownership or evidence timeline takes precedence over automated proposals and causes activity to be derived again.
-- A union/server/season relationship may preserve historical active-status records while keeping only one effective current active-status record.
+### Scope and activity authority
+- Activity is scoped independently by exact `unionId + serverId + seasonId`.
+- Activity on one server never affects the same union on another server.
+- A new season has independent activity history.
+- A known union with no confirmed ownership history is considered inactive.
+- Confirmed ownership of at least one territory makes the union active.
+- Losing its final territory starts a verified zero-territory process while the union remains active.
+- Confirmed recapture cancels that process.
+- A later final loss starts a new process.
 
-### Fact values
-- `activityState`: `active`, `inactive`, `unknown`, or `stale`
+### Authoritative activity state values
+- `activityState`:
+  - `active`
+  - `inactive`
 
 ### Review states
-- `reviewState`: `proposed`, `confirmed`, `rejected`, or `superseded`
+- `reviewState`:
+  - `confirmed`
+  - `superseded`
 
-### Fields
-- `statusId`
-- `unionId`
-- `serverId`
-- `seasonId`
-- `activityState`
-- `reviewState`
-- `derivedFrom`
-- `sourceType`
-- `evidenceId`
-- `firstConfirmedPresenceAt`
-- `mostRecentConfirmedPresenceAt`
-- `zeroTerritorySince`
-- `verificationThrough`
-- `effectiveFrom`
-- `effectiveTo`
-- `manualOverride`
+### Derivation source values
+- `derivedFrom`:
+  - `known_relation_without_confirmed_ownership`
+  - `confirmed_ownership`
+  - `verified_zero_territory_period`
 
-### Rules
-- The relation may reference the current record.
-- Historical records remain closed or superseded.
-- Effective time ranges must not overlap.
-- Presence timestamps and evidence references should be derived from confirmed observations or status records wherever practical.
-- Cached summary fields such as `firstConfirmedPresenceAt` and `mostRecentConfirmedPresenceAt` are non-authoritative and must be reproducible from underlying records.
-- `zeroTerritorySince` records the confirmed loss of the final territory when a zero-territory period exists.
-- `verificationThrough` records how far the zero-territory period is supported by confirmed server observations.
+### Derived verification health (read-model only)
+`verificationHealth` is not stored as the authoritative status fact. It is a derived read-model concern that may change over time without rewriting historical authoritative records.
 
-### Example
+- `verificationHealth`:
+  - `current`
+  - `monitoring`
+  - `stale`
+  - `unverified`
+- Meanings:
+  - `current`: the recorded active or inactive state has sufficiently recent confirmed support.
+  - `monitoring`: an active union is inside a valid zero-territory verification window that has not completed.
+  - `stale`: previously supported activity information is no longer sufficiently current, or an open verification window exceeded its permitted gap.
+  - `unverified`: a status exists by the known-union default but has no qualifying confirmed ownership/map evidence.
+- These meanings apply to both active and inactive records where appropriate.
+- `verificationHealth` is calculated using an evaluation time and is not stored in the authoritative record.
+
+Deterministic calculation using `evaluatedAt`:
+1. `derivedFrom = known_relation_without_confirmed_ownership` -> `unverified`.
+2. For every other derivation, missing `verificationThrough` is invalid record state.
+3. If `evaluatedAt` precedes `verificationThrough`, evaluation fails as invalid input.
+4. If more than five full 24-hour periods have elapsed since `verificationThrough`, health is `stale`.
+5. Otherwise, an active `verified_zero_territory_period` record whose window is incomplete is `monitoring`.
+6. Otherwise, health is `current`.
+
+Exactly five full days remains valid; it becomes stale only when the gap exceeds five full days.
+
+### Canonical fields, types, and nullability
+All IDs are non-empty, non-whitespace strings.
+
+| Field | Type | Nullability | Notes |
+| --- | --- | --- | --- |
+| `statusId` | string | non-null | stable status record identity |
+| `unionId` | string | non-null | canonical union identity |
+| `serverId` | string | non-null | server scope |
+| `seasonId` | string | non-null | season scope |
+| `activityState` | enum | non-null | `active` or `inactive` |
+| `reviewState` | enum | non-null | `confirmed` or `superseded` |
+| `derivedFrom` | enum | non-null | one of the canonical derivation source values |
+| `firstConfirmedPresenceAt` | UTC ISO-8601 `Z` timestamp | nullable | confirmed territorial ownership start marker |
+| `mostRecentConfirmedPresenceAt` | UTC ISO-8601 `Z` timestamp | nullable | last confirmed time territory was owned |
+| `zeroTerritorySince` | UTC ISO-8601 `Z` timestamp | nullable | confirmed final-loss marker |
+| `verificationWindowStartedAt` | UTC ISO-8601 `Z` timestamp | nullable | start of current zero-territory verification window |
+| `verificationThrough` | UTC ISO-8601 `Z` timestamp | nullable | most recent counted qualifying confirmation in the current evaluation |
+| `verificationSnapshotIds` | string[] | non-null | unique non-empty snapshot IDs in chronological order |
+| `effectiveFrom` | UTC ISO-8601 `Z` timestamp | non-null | status period start |
+| `effectiveTo` | UTC ISO-8601 `Z` timestamp | state-dependent | null for current; non-null for superseded |
+| `supersededBy` | string | state-dependent | null for current; non-null for superseded |
+
+Timestamp format uses canonical UTC ISO-8601 `Z` timestamps with zero to three fractional-second digits.
+
+### Canonical rules
+- Active status is derived only from confirmed relationship/ownership/snapshot facts.
+- Screenshot or automated extraction proposes underlying ownership evidence; it does not directly propose an active-status record.
+- Direct manual activity overrides are not allowed.
+- Corrections must update the underlying confirmed ownership/evidence timeline and cause activity to be derived again.
+- `verificationSnapshotIds` contains the distinct confirmed full-map snapshots supporting the evaluated period.
+- Snapshot references provide indirect evidence provenance.
+- `firstConfirmedPresenceAt` and `mostRecentConfirmedPresenceAt` describe confirmed territorial ownership, not merely known relationship presence.
+- `firstConfirmedPresenceAt` and `mostRecentConfirmedPresenceAt` are both null when the union has never had confirmed ownership.
+- Once confirmed ownership history exists, both are non-null and `firstConfirmedPresenceAt <= mostRecentConfirmedPresenceAt`.
+- When `zeroTerritorySince` is non-null, `mostRecentConfirmedPresenceAt <= zeroTerritorySince`.
+- `verificationThrough` cannot precede `verificationWindowStartedAt`.
+
+### State-specific field matrix
+1. `known_relation_without_confirmed_ownership`
+   - `activityState: inactive`
+   - presence timestamps null
+  - `zeroTerritorySince: null`
+  - `verificationWindowStartedAt: null`
+  - `verificationThrough: null`
+   - `verificationSnapshotIds: []`
+   - derived verification health is `unverified`
+2. `confirmed_ownership`
+   - `activityState: active`
+   - presence timestamps non-null
+  - `zeroTerritorySince: null`
+  - `verificationWindowStartedAt: null`
+   - `verificationThrough` references the latest supporting confirmation time
+   - `verificationSnapshotIds` contains at least one confirmed supporting snapshot
+  - recapture discards prior zero-territory snapshot references and replaces them with the recapture-supporting confirmed snapshot reference(s); the replacement active record must not have an empty provenance list
+3. `verified_zero_territory_period` while monitoring
+   - `activityState: active`
+   - ownership history/presence timestamps non-null
+   - `zeroTerritorySince`, `verificationWindowStartedAt`, and `verificationThrough` non-null
+  - at least one qualifying snapshot ID
+  - snapshot list contains the qualifying confirmations accumulated in the current window
+4. `verified_zero_territory_period` after completion
+   - `activityState: inactive`
+   - the three zero-territory verification timestamps remain non-null
+   - at least five qualifying snapshot IDs
+   - all fourteen-day, spacing, coverage, and terminal-confirmation rules satisfied
+
+### Fourteen-day inactivity rule
+- Fourteen full 24-hour periods must elapse.
+- The verification window begins with the confirmed final-loss snapshot.
+- At least five qualifying full-map confirmations are required.
+- The initial final-loss confirmation and final confirmation may count.
+- Counted qualifying confirmations must be separated from the previously counted confirmation by at least 24 full hours.
+- No gap between qualifying confirmations may exceed five full days.
+- The final qualifying confirmation must occur at or after the fourteen-day threshold.
+- A qualifying snapshot must be a confirmed complete server-ownership snapshot covering all capturable territory needed to establish that the union owns zero territory on that server.
+- Partial screenshots may contribute to a combined confirmed snapshot, but cannot qualify independently unless the resulting confirmed snapshot provides complete required coverage.
+- All qualifying snapshots must match the same server and season.
+- A server snapshot may support the evaluation of multiple unions independently.
+- If a gap exceeds five full days, that verification window fails.
+- The union remains active.
+- The next qualifying full-map zero-territory confirmation starts a completely new verification window.
+- `verificationWindowStartedAt` becomes that new confirmation time.
+- `verificationSnapshotIds` resets to snapshots belonging to the new window.
+- The new window must independently satisfy:
+  - fourteen full 24-hour periods
+  - at least five counted confirmations
+  - no gap over five full days
+  - a final qualifying confirmation at or after its own fourteen-day threshold
+- `zeroTerritorySince` may retain the original confirmed final-loss timestamp provided no confirmed recapture occurred.
+- Any recapture clears the process entirely; a later final loss creates a new `zeroTerritorySince`.
+- Inactivity cannot be created until a complete qualifying window succeeds.
+- During an open zero-territory process, missing or incomplete verification leaves the union active and produces stale verification health.
+- A recapture clears `zeroTerritorySince`, `verificationWindowStartedAt`, `verificationThrough`, and the zero-territory verification references for the replacement active record.
+- Once inactive, a confirmed recapture immediately creates a replacement active record.
+
+### Timestamp and history invariants
+- `effectiveTo` cannot precede `effectiveFrom`.
+- `verificationWindowStartedAt` cannot precede `zeroTerritorySince`.
+- `verificationThrough` cannot precede `verificationWindowStartedAt`.
+- `verificationSnapshotIds` must not contain duplicates.
+- `statusId` must be unique across a history.
+- `supersededBy` must reference another active-status record in the same `unionId + serverId + seasonId` group.
+- The referenced replacement must be `confirmed` or `superseded`.
+- Supersession chains cannot contain cycles.
+- A superseded record cannot reference itself.
+- Supersession boundary equality compares parsed timestamp instants, so equivalent forms such as `.1Z` and `.100Z` are equal.
+- History grouping must use collision-safe tuple encoding for `seasonId`, `serverId`, and `unionId`.
+- At most one current confirmed record exists per group.
+
+### Validation layers
+1. Record-shape validation:
+  - canonical fields, enums, types, nullability, timestamp format
+  - local ordering constraints
+  - snapshot-ID uniqueness and state-dependent minimum counts
+2. History validation:
+  - unique status IDs
+  - grouping
+  - current-record uniqueness
+  - non-overlap
+  - supersession references
+  - exact parsed-time boundary alignment
+  - cycle detection
+3. Snapshot-resolved derivation/evaluation:
+  - resolve snapshot timestamps and identity
+  - verify complete map coverage and zero ownership
+  - enforce 24-hour counted-confirmation spacing
+  - enforce five-day maximum gaps
+  - enforce fourteen-day duration and final confirmation
+  - enforce restart behavior
+  - compute `verificationHealth`
+
+### Historical lifecycle
+- Exactly one current confirmed active-status record exists per `unionId + serverId + seasonId`.
+- Current record: non-null `effectiveFrom`, null `effectiveTo`, null `supersededBy`.
+- Superseded record: retained original `effectiveFrom`, non-null `effectiveTo`, and `supersededBy` referencing its replacement.
+- Effective periods are half-open intervals: `[effectiveFrom, effectiveTo)`.
+- Periods for the same `unionId + serverId + seasonId` cannot overlap.
+- Supersession boundary must align atomically: `previous.effectiveTo === replacement.effectiveFrom`.
+- `currentActiveStatusId` on the relationship is a non-authoritative cache/reference; the active-status history remains authoritative.
+
+### Examples
+#### 1. Known union with no confirmed ownership history
 ```json
 {
-  "statusId": "active-status-0281",
+  "statusId": "active-status-0999",
+  "unionId": "union-0009",
+  "serverId": "server-366",
+  "seasonId": "season-1",
+  "activityState": "inactive",
+  "reviewState": "confirmed",
+  "derivedFrom": "known_relation_without_confirmed_ownership",
+  "firstConfirmedPresenceAt": null,
+  "mostRecentConfirmedPresenceAt": null,
+  "zeroTerritorySince": null,
+  "verificationWindowStartedAt": null,
+  "verificationThrough": null,
+  "verificationSnapshotIds": [],
+  "effectiveFrom": "2026-07-01T00:00:00Z",
+  "effectiveTo": null,
+  "supersededBy": null
+}
+```
+Derived `verificationHealth` outcome at `evaluatedAt = 2026-07-04T00:00:00Z`: `unverified`.
+
+#### 2. Active with confirmed territory
+```json
+{
+  "statusId": "active-status-1001",
   "unionId": "union-0001",
   "serverId": "server-366",
   "seasonId": "season-1",
   "activityState": "active",
   "reviewState": "confirmed",
   "derivedFrom": "confirmed_ownership",
-  "sourceType": "manual_entry",
-  "evidenceId": "evidence-9004",
   "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
   "mostRecentConfirmedPresenceAt": "2026-07-25T09:15:00Z",
+  "zeroTerritorySince": null,
+  "verificationWindowStartedAt": null,
+  "verificationThrough": "2026-07-25T09:15:00Z",
+  "verificationSnapshotIds": [
+    "snapshot-366-2026-07-25"
+  ],
   "effectiveFrom": "2026-07-10T18:42:00Z",
   "effectiveTo": null,
-  "manualOverride": null
+  "supersededBy": null
 }
 ```
+Derived `verificationHealth` outcome at `evaluatedAt = 2026-07-28T09:15:00Z`: `current`.
+
+#### 3. Active while valid zero-territory window is monitoring
+```json
+{
+  "statusId": "active-status-1002",
+  "unionId": "union-0001",
+  "serverId": "server-366",
+  "seasonId": "season-1",
+  "activityState": "active",
+  "reviewState": "confirmed",
+  "derivedFrom": "verified_zero_territory_period",
+  "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+  "mostRecentConfirmedPresenceAt": "2026-07-30T09:00:00Z",
+  "zeroTerritorySince": "2026-07-30T09:00:00Z",
+  "verificationWindowStartedAt": "2026-07-30T09:00:00Z",
+  "verificationThrough": "2026-08-02T09:00:00Z",
+  "verificationSnapshotIds": [
+    "snapshot-366-2026-07-30",
+    "snapshot-366-2026-08-02"
+  ],
+  "effectiveFrom": "2026-07-30T09:00:00Z",
+  "effectiveTo": null,
+  "supersededBy": null
+}
+```
+Derived `verificationHealth` outcome at `evaluatedAt = 2026-08-02T20:00:00Z`: `monitoring`.
+
+#### 4. Inactive after completed fourteen-day/five-confirmation rule
+```json
+{
+  "statusId": "active-status-1003",
+  "unionId": "union-0001",
+  "serverId": "server-366",
+  "seasonId": "season-1",
+  "activityState": "inactive",
+  "reviewState": "confirmed",
+  "derivedFrom": "verified_zero_territory_period",
+  "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+  "mostRecentConfirmedPresenceAt": "2026-07-30T09:00:00Z",
+  "zeroTerritorySince": "2026-07-30T09:00:00Z",
+  "verificationWindowStartedAt": "2026-07-30T09:00:00Z",
+  "verificationThrough": "2026-08-13T10:00:00Z",
+  "verificationSnapshotIds": [
+    "snapshot-366-2026-07-30",
+    "snapshot-366-2026-08-02",
+    "snapshot-366-2026-08-05",
+    "snapshot-366-2026-08-09",
+    "snapshot-366-2026-08-13"
+  ],
+  "effectiveFrom": "2026-08-13T10:00:00Z",
+  "effectiveTo": null,
+  "supersededBy": null
+}
+```
+Derived `verificationHealth` outcome at `evaluatedAt = 2026-08-14T10:00:00Z`: `current`.
+The same record becomes `stale` only after more than five full days without a later qualifying confirmation.
+
+#### 5. Same union active on Server 367 while independently inactive on Server 366
+```json
+[
+  {
+    "statusId": "active-status-2001",
+    "unionId": "union-0001",
+    "serverId": "server-366",
+    "seasonId": "season-1",
+    "activityState": "inactive",
+    "reviewState": "confirmed",
+    "derivedFrom": "verified_zero_territory_period",
+    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-07-30T09:00:00Z",
+    "zeroTerritorySince": "2026-07-30T09:00:00Z",
+    "verificationWindowStartedAt": "2026-07-30T09:00:00Z",
+    "verificationThrough": "2026-08-13T10:00:00Z",
+    "verificationSnapshotIds": [
+      "snapshot-366-2026-07-30",
+      "snapshot-366-2026-08-02",
+      "snapshot-366-2026-08-05",
+      "snapshot-366-2026-08-09",
+      "snapshot-366-2026-08-13"
+    ],
+    "effectiveFrom": "2026-08-13T10:00:00Z",
+    "effectiveTo": null,
+    "supersededBy": null
+  },
+  {
+    "statusId": "active-status-2002",
+    "unionId": "union-0001",
+    "serverId": "server-367",
+    "seasonId": "season-1",
+    "activityState": "active",
+    "reviewState": "confirmed",
+    "derivedFrom": "confirmed_ownership",
+    "firstConfirmedPresenceAt": "2026-07-18T12:00:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-08-13T10:00:00Z",
+    "zeroTerritorySince": null,
+    "verificationWindowStartedAt": null,
+    "verificationThrough": "2026-08-13T10:00:00Z",
+    "verificationSnapshotIds": [
+      "snapshot-367-2026-08-13"
+    ],
+    "effectiveFrom": "2026-07-18T12:00:00Z",
+    "effectiveTo": null,
+    "supersededBy": null
+  }
+]
+```
+Derived `verificationHealth` outcomes at `evaluatedAt = 2026-08-14T10:00:00Z`:
+- Server 366 record: `current`.
+- Server 367 record: `current`.
+Without later qualifying confirmations, either record becomes `stale` only after the gap exceeds five full days from its `verificationThrough` value.
 
 ## 8. Combat-Strength Observation Model
 Combat strength is historical observed data attached to a union/server/season relationship.
@@ -505,40 +790,90 @@ Screenshot-extracted names or tags must be matched against the union registry wi
 ```json
 [
   {
-    "statusId": "active-status-0280",
-    "unionId": "union-0001",
-    "serverId": "server-366",
-    "seasonId": "season-1",
-    "activityState": "stale",
-    "reviewState": "superseded",
-    "derivedFrom": "ownership_verification_gap",
-    "sourceType": "manual_entry",
-    "evidenceId": "evidence-9003",
-    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
-    "mostRecentConfirmedPresenceAt": "2026-07-20T09:00:00Z",
-    "zeroTerritorySince": "2026-07-20T09:00:00Z",
-    "verificationThrough": "2026-07-22T09:00:00Z",
-    "effectiveFrom": "2026-07-10T18:42:00Z",
-    "effectiveTo": "2026-07-25T09:14:59Z",
-    "manualOverride": null
-  },
-  {
-    "statusId": "active-status-0281",
+    "statusId": "active-status-0282",
     "unionId": "union-0001",
     "serverId": "server-366",
     "seasonId": "season-1",
     "activityState": "active",
+    "reviewState": "superseded",
+    "derivedFrom": "verified_zero_territory_period",
+    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-07-30T09:00:00Z",
+    "zeroTerritorySince": "2026-07-30T09:00:00Z",
+    "verificationWindowStartedAt": "2026-07-30T09:00:00Z",
+    "verificationThrough": "2026-08-13T10:00:00Z",
+    "verificationSnapshotIds": [
+      "snapshot-366-2026-07-30",
+      "snapshot-366-2026-08-02",
+      "snapshot-366-2026-08-05",
+      "snapshot-366-2026-08-09",
+      "snapshot-366-2026-08-13"
+    ],
+    "effectiveFrom": "2026-07-30T09:00:00Z",
+    "effectiveTo": "2026-08-13T10:00:00Z",
+    "supersededBy": "active-status-0283"
+  },
+  {
+    "statusId": "active-status-0283",
+    "unionId": "union-0001",
+    "serverId": "server-366",
+    "seasonId": "season-1",
+    "activityState": "inactive",
+    "reviewState": "confirmed",
+    "derivedFrom": "verified_zero_territory_period",
+    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-07-30T09:00:00Z",
+    "zeroTerritorySince": "2026-07-30T09:00:00Z",
+    "verificationWindowStartedAt": "2026-07-30T09:00:00Z",
+    "verificationThrough": "2026-08-13T10:00:00Z",
+    "verificationSnapshotIds": [
+      "snapshot-366-2026-07-30",
+      "snapshot-366-2026-08-02",
+      "snapshot-366-2026-08-05",
+      "snapshot-366-2026-08-09",
+      "snapshot-366-2026-08-13"
+    ],
+    "effectiveFrom": "2026-08-13T10:00:00Z",
+    "effectiveTo": null,
+    "supersededBy": null
+  },
+  {
+    "statusId": "active-status-0301",
+    "unionId": "union-0001",
+    "serverId": "server-367",
+    "seasonId": "season-1",
+    "activityState": "active",
     "reviewState": "confirmed",
     "derivedFrom": "confirmed_ownership",
-    "sourceType": "manual_entry",
-    "evidenceId": "evidence-9004",
-    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
-    "mostRecentConfirmedPresenceAt": "2026-07-25T09:15:00Z",
+    "firstConfirmedPresenceAt": "2026-07-18T12:00:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-08-13T10:00:00Z",
     "zeroTerritorySince": null,
-    "verificationThrough": "2026-07-25T09:15:00Z",
-    "effectiveFrom": "2026-07-25T09:15:00Z",
+    "verificationWindowStartedAt": null,
+    "verificationThrough": "2026-08-13T10:00:00Z",
+    "verificationSnapshotIds": [
+      "snapshot-367-2026-08-13"
+    ],
+    "effectiveFrom": "2026-07-18T12:00:00Z",
     "effectiveTo": null,
-    "manualOverride": null
+    "supersededBy": null
+  },
+  {
+    "statusId": "active-status-0401",
+    "unionId": "union-0009",
+    "serverId": "server-366",
+    "seasonId": "season-1",
+    "activityState": "inactive",
+    "reviewState": "confirmed",
+    "derivedFrom": "known_relation_without_confirmed_ownership",
+    "firstConfirmedPresenceAt": null,
+    "mostRecentConfirmedPresenceAt": null,
+    "zeroTerritorySince": null,
+    "verificationWindowStartedAt": null,
+    "verificationThrough": null,
+    "verificationSnapshotIds": [],
+    "effectiveFrom": "2026-07-01T00:00:00Z",
+    "effectiveTo": null,
+    "supersededBy": null
   }
 ]
 ```
