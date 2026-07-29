@@ -14,6 +14,7 @@
   "test:persistence-state": "node tests/persistence-state-serializer.test.js",
   "test:summary-service": "node tests/summary-service.test.js",
   "test:server-state": "node tests/server-state-service.test.js",
+  "test:union-registry": "node tests/union-registry-service.test.js",
   "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
   "test:season-loader": "node tests/season-loader.test.js"
