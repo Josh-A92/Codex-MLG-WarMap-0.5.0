@@ -40,14 +40,25 @@ Status: Completed
 - Runtime ownership edits are isolated to the active server workspace
 - Shared base-map runtime objects are not mutated by ownership editing
 - Base-map tile ownerId is fallback-only when no server-specific ownership value exists
-- Runtime ownership remains session-only until persistence is implemented
+- Ownership changes are saved automatically and restored on startup
 
 ## Phase 4 - Persistence and Real Summaries
 
-Status: Pending
-- Persistence/save
-- Real scoring integration
-- Replace dashboard placeholders with computed values
+Status: Partial
+
+Completed:
+- Version 1 persistence contract for per-server territory ownership
+- Electron local-storage boundary
+- Automatic startup restoration and queued save behavior
+- Summary Service integration
+- Computed controlled-territory, designated-union territory, and structure values on Command Centre cards
+- Season-defined unconfigured scoring display
+
+Pending:
+- Verified scoring and resource-value calculations
+- Native-union and active-union runtime records
+- Combat-strength observations
+- Freshness, completeness, and evidence-backed data
 
 ## Phase 5 - History and Descriptive Notes
 

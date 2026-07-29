@@ -1,21 +1,16 @@
 ## Unreleased
-- Reconciled project documentation with completed Server State Service runtime integration.
-- Runtime now loads src/services/server-state-service.js in index.html and injects createServerStateService from application bootstrap into renderer startup context.
-- Server State Service now serves as runtime authority for mutable per-server territory ownership edits.
-- Renderer ownership reads and writes now route through serverStateService.getTerritoryOwner and serverStateService.setTerritoryOwner.
-- Confirmed ownership edits stay isolated per server workspace, shared base-map tile objects are not mutated during normal editing, and tile ownerId is fallback-only when no server override exists.
-- Confirmed structure ownership editing still applies across selected footprint tiles through the existing ownership flow.
-- Confirmed persistence remains pending; runtime ownership state is in-memory and lost when the application closes.
-- Confirmed summary-service remains unintegrated and Command Centre summaries remain placeholders.
-- Canonical Season 1 startup migration completed on current main following v0.5.0.
-- Application startup now resolves src/seasons/season1-package.js through src/services/season-loader.js with validation by src/services/season-package-validator.js.
-- Bootstrap now loads the season package asynchronously and passes only rulesDefinition to the Game Rules Engine.
-- index.html no longer loads the legacy startup definition path.
-- Removed src/seasons/season1-definition.js after canonical startup migration.
-- Runtime ownership editing is now isolated to the active server workspace and no longer leaks between server workspaces.
-- Shared base-map runtime objects remain immutable during ownership editing.
-- Fresh runtime maps begin unclaimed; persistence remains unimplemented and edits remain session-only.
-- Command Centre dashboard values remain placeholders and src/services/summary-service.js remains unintegrated.
+- Completed canonical Season 1 startup through package validation, Season Loader, Game Rules Engine, and asynchronous application bootstrap.
+- Removed the legacy Season 1 startup definition path.
+- Integrated Server State Service as the mutable authority for isolated per-server territory ownership.
+- Preserved shared base-map immutability and fallback-only base tile ownerId behavior.
+- Added the version 1 persistence contract, serializer, coordinator, controller, Electron adapter, preload bridge, and local file store.
+- Ownership changes now save automatically and restore before initial workspace, map, and summary rendering.
+- Added optional canonical applicationConfig.designatedUnionId and configured Season 1 to use union-0001.
+- Modernized and integrated Summary Service against authoritative server ownership.
+- Command Centre cards now calculate controlled territory, designated-union territory, structure totals, and season-defined scoring status.
+- Cards refresh immediately after ownership edits and reflect restored ownership on startup.
+- Scoring remains intentionally unconfigured until verified season rules and calculations are available.
+- Reconciled current-state documentation with the verified ownership, persistence, and summary runtime.
 
 ## v0.5.0
 - Documentation reconciliation across core project docs to match repository-authoritative behavior.

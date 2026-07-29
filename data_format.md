@@ -55,14 +55,33 @@ Fallback behavior:
 - Base-map tile ownerId is read only as a fallback value when a server-specific ownership value is missing.
 
 Current limits:
-- Ownership state is in-memory only and is lost when the application closes.
+- Version 1 persistence includes per-server ownership only.
+
+## Persisted Ownership Envelope
+
+The current persistence envelope contains:
+- schemaVersion
+- seasonId
+- baseMapId
+- savedAt
+- servers array with each record identified by stable server id
+- each server ownership map
+
+Behavior:
+- Missing ownership keys preserve base-map fallback behavior.
+- Explicit null values remain distinct from missing keys and suppress fallback.
+- Restoration validates the complete envelope before replacing runtime ownership.
+- Storage identity is the seasonId plus baseMapId pair.
 
 ## Dashboard Summary Data
 
 Current state:
-- Command Centre summary fields are placeholders.
-- src/services/summary-service.js exists but is not loaded/integrated.
+- Summary Service is loaded and integrated through bootstrap.
+- Territory totals, controlled percentage, designated-union totals and percentage, and structure ownership totals are calculated from effective server ownership.
+- applicationConfig.designatedUnionId selects the union used for designated-union summaries.
+- Calculated values are not stored as independent authority.
 
 Not implemented:
 - Real scoring calculations
 - Persistent summary snapshots
+- Native-union, active-union, combat-strength, freshness, completeness, and evidence runtime records

@@ -44,11 +44,14 @@ Reason:
 
 ## ADR-006: summary-service is not active runtime behavior
 
+Status:
+- Superseded by ADR-008.
+
 Decision:
-- src/services/summary-service.js is treated as inactive until loaded and integrated.
+- src/services/summary-service.js was treated as inactive until loaded and integrated.
 
 Reason:
-- Current runtime does not load or call this service; dashboard values remain placeholders.
+- At that point, runtime did not load or call the service and dashboard values were placeholders.
 
 ## ADR-007: Cross-server ownership leakage defect is resolved
 
@@ -60,3 +63,22 @@ Reason:
 
 Superseded history note:
 - The former leakage behavior remains recorded in changelog v0.5.0 as historical context.
+
+## ADR-008: Summary calculations consume authoritative state
+
+Decision:
+- Summary Service is an active, pure runtime calculation boundary.
+- It receives ownership through the Server State Service and receives rules, map data, union data, and designated-union configuration through injected dependencies.
+- It does not own mutable state or accept stored dashboard totals as authority.
+
+Reason:
+- Keeps calculated Command Centre values reproducible and prevents summary data from drifting away from map ownership.
+
+## ADR-009: Territory ownership persists through a storage-neutral service boundary
+
+Decision:
+- Per-server territory ownership is serialized in a versioned envelope, coordinated by the Persistence Service, and stored through an Electron adapter.
+- Restoration completes before initial workspace, map, and summary rendering.
+
+Reason:
+- Preserves server-state authority while keeping storage format, application orchestration, and Electron file access separated.

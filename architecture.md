@@ -13,16 +13,26 @@ This document reflects current main after v0.5.0.
 - src/seasons/season1-package.js is the canonical Season 1 package definition.
 - src/services/season-package-validator.js validates package shape and references.
 - src/services/season-loader.js resolves and loads validated season packages.
-- src/app/application-bootstrap.js asynchronously loads the season package, passes only rulesDefinition to the Game Rules Engine, and injects ownership and server-state service factories into the renderer bootstrap context.
+- src/app/application-bootstrap.js asynchronously loads the season package, passes only rulesDefinition to the Game Rules Engine, and composes the renderer, state, persistence, and summary dependencies.
 
 3. Rendering and interaction
-- src/map-renderer.js loads data, renders the 20x20 map, handles camera controls, workspace switching, selection, and in-memory ownership edits.
+- src/map-renderer.js loads data, renders the 20x20 map, handles camera controls, workspace switching, selection, ownership edits, and Command Centre presentation.
 
 4. Ownership logic
 - src/services/ownership-service.js provides tile/structure ownership lookup, label/color resolution, and owner mutation helpers.
 - src/services/server-state-service.js is the runtime authority for mutable per-server tile ownership state.
 
-5. Data
+5. Persistence
+- src/services/persistence-state-serializer.js validates and serializes the version 1 ownership envelope.
+- src/services/persistence-service.js coordinates atomic save and restoration against the Server State Service.
+- src/app/server-state-persistence-controller.js restores ownership during startup and queues runtime saves.
+- src/services/electron-file-storage-adapter.js and src/main/persistence-file-store.js provide the Electron storage boundary.
+
+6. Summaries
+- src/services/summary-service.js calculates controlled territory, designated-union territory, structure totals, and season-defined scoring status.
+- Summary calculations consume authoritative server ownership and do not own or persist mutable state.
+
+7. Data
 - data/season1-map.json stores shared map tiles and structures.
 - data/unions.json stores union metadata and colors.
 - data/season1-servers.json stores Season 1 server workspace records.
@@ -44,7 +54,7 @@ Verified runtime behavior:
 - Shared base-map runtime tile objects are not mutated by ownership editing.
 - Base-map tile ownerId is used only as fallback when no server-specific ownership value exists.
 - Structure ownership editing applies through the existing footprint tile flow across all tiles in the selected structure footprint.
-- Persistence is not implemented, so ownership edits remain session-only.
+- Ownership changes are saved automatically and restored before workspace navigation, map rendering, and summary calculation.
 
 ## Camera and Selection
 
@@ -63,23 +73,29 @@ Implemented:
 - Open Map actions and card click navigation
 
 Current behavior:
-- Dashboard metrics are static placeholders.
-- No real scoring calculations are wired into cards.
+- Territory, designated-union, and structure metrics are calculated from authoritative runtime state.
+- Cards refresh after completed ownership edits and reflect restored ownership on startup.
+- Resource/scoring presentation uses the active season definition without inventing values.
 - Scoring remains unconfigured in the canonical package.
 
 ## Summary Service Status
 
-- src/services/summary-service.js exists.
-- It is not loaded by index.html and is not integrated into map-renderer.js.
-- Runtime summaries therefore remain placeholder-only.
+- src/services/summary-service.js is loaded by index.html and injected through application bootstrap.
+- It resolves effective ownership through the Server State Service with base-map ownerId fallback.
+- It remains a pure calculation boundary and returns renderer-ready plain data.
 
 ## Persistence and Analytics Status
 
+Implemented:
+- Automatic local save and startup restoration of per-server territory ownership
+- Versioned persistence serialization and validation
+- Computed Command Centre territory and structure summaries
+
 Not implemented:
-- Persistence/save layer
 - Real scoring pipeline
 - History playback
 - Descriptive server notes integration
+- Native-union, active-union, combat-strength, freshness, completeness, and evidence workflows
 - Search and filters
 
 Design note:

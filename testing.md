@@ -14,7 +14,7 @@ Completed:
 - Camera controls work (zoom, pan, fit, reset, center-selection)
 - Tile and structure selection work
 - Ownership overlays render from tile ownership + union colors
-- Territory owner edits update overlays in memory
+- Territory owner edits update overlays and authoritative server state
 
 ## Workspaces
 
@@ -31,18 +31,28 @@ Completed:
 
 ## Dashboard Summaries
 
-Partial:
-- Static dashboard cards are present
-- Values are placeholders by design in current runtime
+Completed:
+- Summary Service is loaded and integrated
+- Controlled territory count and percentage are calculated
+- Designated-union territory count and percentage are calculated
+- Structure controlled/available totals are calculated
+- Cards refresh once after a completed ownership edit
+- Restored ownership is reflected in cards during initial rendering
+- Unconfigured scoring is displayed without invented values
 
 Pending:
 - Real scoring-backed values
-- Integrated computed summaries from a runtime summary service (summary-service remains unintegrated)
+- Native-union, active-union, combat-strength, freshness, completeness, and evidence fields
 
 ## Persistence and Strategic Workflows
 
+Completed:
+- Per-server territory ownership saves automatically
+- Saved ownership restores on application startup
+- Missing saves are handled as normal first-run state
+- Ownership remains isolated after save and restart
+
 Pending:
-- Persistence/save
 - History timeline/playback
 - Descriptive notes workflows
 - Search and filters
@@ -50,10 +60,20 @@ Pending:
 ## Current Regression Commands
 
 - npm run test:application-bootstrap
+- npm run test:server-state-persistence-controller
+- npm run test:persistence-storage
+- npm run test:persistence-service
+- npm run test:persistence-state
+- npm run test:summary-service
+- npm run test:server-state
 - npm run test:season1-package
 - npm run test:season-package
 - npm run test:season-loader
-- npm run test:server-state
+
+Manual regression:
+- Edit ownership on one server and confirm other servers remain unchanged
+- Close and reopen the application and confirm ownership restores
+- Confirm Command Centre totals match restored and newly edited map ownership
 
 ## Documentation Validation
 

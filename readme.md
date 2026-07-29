@@ -13,25 +13,30 @@ Completed:
 - Camera controls (zoom, pan, fit, reset, center-selection)
 - Tile and structure selection panel
 - Ownership overlays from union color + tile owner data
-- In-memory territory editing for tile and structure footprints
+- Territory editing for tiles and structure footprints
 - Command Centre workspace and eight server map workspaces (366-373)
 - Server dock and Command Centre cards generated from data/season1-servers.json
 - Canonical Season 1 startup path via season package, validator, loader, and asynchronous bootstrap
 - Per-server ownership isolation in runtime editing
 - Fresh unclaimed map behavior at runtime with no legacy seeded ownership defaults
 - Server State Service is loaded at runtime and used as the mutable per-server ownership authority
+- Automatic local persistence and restoration of per-server territory ownership
+- Runtime Summary Service integration for controlled territory, designated-union territory, structures, and season-defined scoring status
+- Designated-union selection from canonical season application configuration
 
 Pending:
-- Persistence/save
-- Real scoring and computed dashboard values
+- Verified season scoring and resource-value calculations
+- Native-union, active-union, and combat-strength runtime records
+- Data freshness, completeness, evidence, and observation workflows
 - History playback
 - Descriptive server notes integration
 - Search and filters
 
 ## Important Implementation Notes
 
-- src/services/summary-service.js exists but is not loaded in index.html and is not integrated into runtime workflows.
-- Command Centre dashboard values are currently static placeholders.
+- src/services/summary-service.js is loaded through the runtime bootstrap path and calculates Command Centre card data from the active map, rules, union registry, and authoritative Server State Service.
+- Command Centre territory and structure values are calculated at runtime and refresh after ownership edits.
+- Per-server ownership is saved automatically through the persistence controller and restored before initial map and summary rendering.
 - Scoring remains unconfigured in the canonical season package.
 - The repository implementation is authoritative over historical planning text.
 
@@ -49,4 +54,5 @@ Ownership fallback behavior:
 - Base-map tile ownerId is used only when no server-specific ownership override exists.
 
 Current limits:
-- State is runtime memory only and is lost when the application closes.
+- Version 1 persistence stores per-server territory ownership only.
+- Scoring values remain unavailable until verified season scoring rules and calculations are configured.

@@ -4,18 +4,14 @@ Version context: current main following v0.5.0
 
 ## Active
 
-1. Dashboard summaries are placeholders
-- Command Centre cards render static placeholder values.
-- Real scoring and computed strategic summaries are not yet integrated.
-
-2. Summary service is inactive
-- src/services/summary-service.js exists.
-- It is not loaded by index.html and not wired into runtime UI.
+- No confirmed active runtime defects are recorded after ownership persistence and Summary Service integration.
 
 ## Not Yet Implemented
 
-- Persistence/save
-- Real scoring rules pipeline
+- Verified scoring and resource-value calculations
+- Native-union and active-union runtime records
+- Combat-strength observations
+- Data freshness, completeness, evidence, and review workflows
 - History playback
 - Descriptive notes workflows
 - Search and filters
