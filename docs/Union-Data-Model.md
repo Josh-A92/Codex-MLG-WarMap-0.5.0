@@ -101,6 +101,7 @@ A relation records how a union appears within a specific server and season conte
 - Manual correction can override automated proposals at the relationship level.
 - Historical native and active-status records are preserved.
 - Only one effective current native-status record and one effective current active-status record may exist for a given union/server/season relationship.
+- `currentNativeStatusId` points only to the current effective confirmed native assignment.
 - Historical records remain closed or superseded.
 - Effective time ranges must not overlap.
 - The relation may reference the current records.
@@ -126,10 +127,10 @@ A relation records how a union appears within a specific server and season conte
 Native-union assignment records whether a union is native to a server for a season.
 
 ### Fact values
-- `nativeState`: `native`, `not_native`, or `unknown`
+- `nativeState`: `native`, `not_native`, `unknown`
 
 ### Review states
-- `reviewState`: `proposed`, `confirmed`, `rejected`, or `superseded`
+- `reviewState`: `proposed`, `confirmed`, `rejected`, `superseded`
 
 ### Fields
 - `assignmentId`
@@ -144,19 +145,40 @@ Native-union assignment records whether a union is native to a server for a seas
 - `confidence`
 - `evidenceId`
 - `observedAt`
+- `effectiveFrom`
+- `effectiveTo`
 - `reviewer`
 - `reviewedAt`
 - `supersededBy`
 
 ### Rules
-- Native assignments may be entered manually or proposed from screenshot evidence.
-- Screenshot-derived assignments remain proposed until confirmed where appropriate.
-- Superseded records remain for history and audit.
-- Review state never substitutes for the value of the fact being reviewed.
-- Automated extraction cannot create a confirmed record without an explicit trusted-source policy.
-- Historical effective periods cannot overlap for the same status type and relationship.
-- Reviewer or actor identity is required whenever a proposal is confirmed, rejected, or superseded.
-- A manual entry may be created and confirmed by the same actor.
+- Fact state and review state are separate dimensions.
+- `nativeState` records the fact value; `reviewState` records its lifecycle state.
+- Effective periods use half-open intervals: `[effectiveFrom, effectiveTo)`.
+- Proposed and rejected records are not effective: both `effectiveFrom` and `effectiveTo` are null.
+- A current confirmed record has non-null `effectiveFrom` and null `effectiveTo`.
+- A superseded record retains its original `effectiveFrom`, has non-null `effectiveTo`, and references its replacement through `supersededBy`.
+- `effectiveTo` must not precede `effectiveFrom`.
+- Only one effective current confirmed native assignment may exist per `unionId` + `serverId` + `seasonId` relationship.
+- Confirming a replacement must atomically supersede and close the previous current record.
+- The previous record's `effectiveTo` equals the replacement's `effectiveFrom`.
+- Effective periods for the same relationship must not overlap.
+- Rejecting a proposal does not change the current confirmed assignment.
+- Source types are `manual_entry`, `screenshot_extraction`, `imported_data`, `api_integration`, `bot_integration`.
+- An authorized manual entry may be created directly as confirmed.
+- Screenshot/import/API/bot extraction creates a proposed record unless a future explicit trusted-source policy says otherwise.
+- No trusted-source auto-confirmation policy exists currently.
+- `evidenceId` may be null for manual entry.
+- Non-manual proposals require a non-null `evidenceId`.
+- `rawExtractedValue` is nullable and preserves source text where applicable.
+- `normalizedValue` is nullable and contains the matched canonical union ID where applicable.
+- `confidence` is null for manual entry or a number from 0 to 1 for assisted extraction.
+- Confirmed, rejected, and superseded records require non-empty `reviewer` and non-null `reviewedAt`.
+- Proposed records have null `reviewer` and null `reviewedAt`.
+- `reviewedAt` cannot precede `observedAt`.
+- `supersededBy` is required only for superseded records.
+- `supersededBy` is null for proposed, confirmed, and rejected records.
+- Historical records are preserved and not destructively deleted.
 
 ### Example
 ```json
@@ -167,12 +189,14 @@ Native-union assignment records whether a union is native to a server for a seas
   "seasonId": "season-1",
   "nativeState": "native",
   "reviewState": "confirmed",
-  "sourceType": "screenshot_extraction",
-  "rawExtractedValue": "MLG",
+  "sourceType": "manual_entry",
+  "rawExtractedValue": null,
   "normalizedValue": "union-0001",
-  "confidence": 0.94,
-  "evidenceId": "evidence-9001",
+  "confidence": null,
+  "evidenceId": null,
   "observedAt": "2026-07-10T18:42:00Z",
+  "effectiveFrom": "2026-07-10T18:42:00Z",
+  "effectiveTo": null,
   "reviewer": "user-01",
   "reviewedAt": "2026-07-10T19:05:00Z",
   "supersededBy": null
@@ -444,10 +468,13 @@ Screenshot-extracted names or tags must be matched against the union registry wi
     "nativeState": "unknown",
     "reviewState": "superseded",
     "sourceType": "manual_entry",
-    "evidenceId": "evidence-8999",
+    "rawExtractedValue": null,
+    "normalizedValue": "union-0001",
+    "confidence": null,
+    "evidenceId": null,
     "observedAt": "2026-07-01T10:00:00Z",
     "effectiveFrom": "2026-07-01T10:00:00Z",
-    "effectiveTo": "2026-07-10T18:41:59Z",
+    "effectiveTo": "2026-07-10T18:42:00Z",
     "reviewer": "user-01",
     "reviewedAt": "2026-07-10T18:42:00Z",
     "supersededBy": "native-assign-0142"
@@ -460,6 +487,9 @@ Screenshot-extracted names or tags must be matched against the union registry wi
     "nativeState": "native",
     "reviewState": "confirmed",
     "sourceType": "screenshot_extraction",
+    "rawExtractedValue": "MLG",
+    "normalizedValue": "union-0001",
+    "confidence": 0.94,
     "evidenceId": "evidence-9001",
     "observedAt": "2026-07-10T18:42:00Z",
     "effectiveFrom": "2026-07-10T18:42:00Z",
