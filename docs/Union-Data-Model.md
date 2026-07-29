@@ -327,32 +327,221 @@ Timestamp format uses canonical UTC ISO-8601 `Z` timestamps with zero to three f
 
 ### Fourteen-day inactivity rule
 - Fourteen full 24-hour periods must elapse.
-- The verification window begins with the confirmed final-loss snapshot.
-- At least five qualifying full-map confirmations are required.
-- The initial final-loss confirmation and final confirmation may count.
+- The verification window begins with the counted confirmed final-loss confirmation.
+- At least five counted qualifying full-map zero confirmations are required.
+- The initial final-loss counted confirmation and the terminal counted confirmation may count.
 - Counted qualifying confirmations must be separated from the previously counted confirmation by at least 24 full hours.
-- No gap between qualifying confirmations may exceed five full days.
-- The final qualifying confirmation must occur at or after the fourteen-day threshold.
-- A qualifying snapshot must be a confirmed complete server-ownership snapshot covering all capturable territory needed to establish that the union owns zero territory on that server.
-- Partial screenshots may contribute to a combined confirmed snapshot, but cannot qualify independently unless the resulting confirmed snapshot provides complete required coverage.
-- All qualifying snapshots must match the same server and season.
-- A server snapshot may support the evaluation of multiple unions independently.
-- If a gap exceeds five full days, that verification window fails.
-- The union remains active.
-- The next qualifying full-map zero-territory confirmation starts a completely new verification window.
-- `verificationWindowStartedAt` becomes that new confirmation time.
-- `verificationSnapshotIds` resets to snapshots belonging to the new window.
-- The new window must independently satisfy:
-  - fourteen full 24-hour periods
-  - at least five counted confirmations
-  - no gap over five full days
-  - a final qualifying confirmation at or after its own fourteen-day threshold
-- `zeroTerritorySince` may retain the original confirmed final-loss timestamp provided no confirmed recapture occurred.
-- Any recapture clears the process entirely; a later final loss creates a new `zeroTerritorySince`.
+- A qualifying zero confirmation inside 24 hours is valid evidence but is not counted and does not replace the last counted confirmation.
+- No gap between consecutive counted confirmations may exceed five full days.
+- The terminal counted confirmation must occur at or after the fourteen-day threshold.
+- A qualifying confirmation must come from a confirmed complete server-ownership snapshot covering all capturable territory needed to establish zero ownership on that server.
+- Partial screenshots may contribute to confirmed facts and confirmed snapshots, but cannot independently prove inactivity.
+- All qualifying full-map confirmations must match the same union/server/season scope being evaluated.
+- If the gap from the last counted confirmation exceeds five full days, that verification window fails and the current zero confirmation starts a new window.
+- `verificationWindowStartedAt` becomes the restart confirmation time.
+- `verificationSnapshotIds` resets to confirmations counted in the new window.
+- The new window must independently satisfy fourteen days, at least five counted confirmations, no over-five-day counted gaps, and a terminal counted confirmation at or after its own fourteen-day threshold.
+- `zeroTerritorySince` may retain the original post-presence zero timestamp when no recapture occurred.
+- Any confirmed recapture clears the process; a later final loss starts a new process.
 - Inactivity cannot be created until a complete qualifying window succeeds.
-- During an open zero-territory process, missing or incomplete verification leaves the union active and produces stale verification health.
-- A recapture clears `zeroTerritorySince`, `verificationWindowStartedAt`, `verificationThrough`, and the zero-territory verification references for the replacement active record.
-- Once inactive, a confirmed recapture immediately creates a replacement active record.
+- During an open zero-territory process, the union remains active with `derivedFrom = verified_zero_territory_period`.
+
+### Snapshot-Resolved Active Status Evaluator Contract
+The Snapshot-Resolved Active Status Evaluator is a pure descriptive evaluator. It derives canonical active-status output from already-confirmed facts and never writes status history.
+
+Authoritative boundaries:
+- The evaluator does not mutate input objects or external state.
+- The evaluator does not accept direct manual activity overrides.
+- The evaluator does not accept raw screenshots, OCR proposals, unreviewed ownership, incomplete zero-territory claims, or other unconfirmed sources.
+- Positive presence proof and zero-territory proof are distinct inputs.
+- Runtime integration, persistence, screenshot extraction, status-ID allocation, and snapshot-resolution mechanics remain outside this evaluator contract.
+
+Evaluator input contract:
+1. `identity`
+  - `statusId`, `unionId`, `serverId`, `seasonId`, `evaluatedAt`
+2. `currentStatus`
+  - `null` or the current confirmed non-superseded `ActiveUnionStatus` for the exact `unionId + serverId + seasonId` scope
+3. `confirmedPresenceFacts`
+  - array of confirmed positive-ownership facts
+  - each fact contains `factId`, `unionId`, `serverId`, `seasonId`, `observedAt`, `ownershipRecordId`, `snapshotId` (nullable)
+  - partial updates may provide these facts because one confirmed owned target is sufficient to prove presence
+4. `qualifyingFullMapConfirmations`
+  - array of already-resolved qualifying snapshots
+  - each item contains `snapshotId`, `unionId`, `serverId`, `seasonId`, `fullConfirmationAt`, `ownedTerritoryCount` (non-negative integer)
+  - `ownedTerritoryCount` is the owned-territory count for that exact `unionId + serverId + seasonId` snapshot scope
+  - only these confirmations may prove zero territory or advance/reset a zero-territory inactivity window
+
+Input validation expectations:
+- All facts must exactly match input identity `unionId`, `serverId`, and `seasonId`.
+- All IDs must be unique non-empty non-whitespace strings in their collection domain.
+- Timestamps must be UTC ISO-8601 `Z` with zero to three fractional digits.
+- Input order is non-authoritative.
+- Evaluation sorts by parsed timestamp instant, then by stable ID tie-break.
+- Equivalent fractional forms such as `.1Z` and `.100Z` compare equal by parsed instant.
+- Inputs are treated as immutable.
+- A qualifying full-map item with `ownedTerritoryCount > 0` is a positive-presence event at `fullConfirmationAt` for the input union.
+- When a logical positive-presence event is represented in both `confirmedPresenceFacts` and `qualifyingFullMapConfirmations`, the evaluator must deduplicate by `snapshotId` and parsed instant.
+- If duplicate representations for the same logical event disagree on normalized scope/time identity, evaluation fails deterministically with `invalid_fact_set`.
+
+Deterministic evaluation rules:
+1. No confirmed presence ever
+  - `activityState = inactive`
+  - `derivedFrom = known_relation_without_confirmed_ownership`
+  - `verificationHealth = unverified`
+  - if `currentStatus` is null, `effectiveFrom = evaluatedAt` and `replacementEffectiveFrom = evaluatedAt`
+  - if `currentStatus` already has identical no-presence factual state, do not replace it and preserve existing `effectiveFrom`
+2. Any confirmed presence makes the union active.
+  - `firstConfirmedPresenceAt` and `mostRecentConfirmedPresenceAt` derive from all positive-presence facts, including qualifying confirmations with `ownedTerritoryCount > 0`
+3. Recapture/reset behavior
+  - any positive presence after a zero-territory window starts is recapture
+  - recapture clears zero-window timestamps and zero-window snapshot IDs
+  - a later qualifying zero confirmation starts a new zero-territory process
+4. Zero-territory window eligibility
+  - only a qualifying confirmation with `ownedTerritoryCount = 0` may establish final loss, set `zeroTerritorySince`, or enter/advance a zero-territory window
+  - begin from the first qualifying zero confirmation after the most recent positive presence
+5. Counted confirmation rules
+  - process zero confirmations chronologically
+  - a counted confirmation must be at least 24 full hours after the previously counted confirmation
+  - a qualifying zero confirmation inside 24 hours is valid but ignored for count advancement
+6. Gap failure and restart
+  - if the gap from the last counted confirmation exceeds five full days, that window fails
+  - the current qualifying zero confirmation starts a new window
+  - `zeroTerritorySince` retains the original post-presence zero timestamp when no recapture occurred
+7. Inactivity completion
+  - requires at least five counted confirmations
+  - requires at least fourteen full days from `verificationWindowStartedAt`
+  - requires a final counted confirmation at or after the fourteen-day threshold
+  - exactly 24-hour spacing counts
+  - exactly five days remains valid
+  - exactly fourteen days qualifies
+8. State while incomplete
+  - until completion, `activityState = active` and `derivedFrom = verified_zero_territory_period`
+9. State on completion
+  - on completion, `activityState = inactive` and `derivedFrom = verified_zero_territory_period`
+10. Qualifying positive snapshot behavior
+  - a qualifying confirmation with `ownedTerritoryCount > 0` is confirmed presence and immediately cancels any zero window
+11. Isolation
+  - the same union is evaluated independently per server and season
+
+Late historical evidence behavior:
+- The evaluator does not retroactively repair status history.
+- If newly supplied confirmed facts would change canonical factual state but the causative fact time precedes `currentStatus.effectiveFrom`, evaluation fails with `invalid_fact_set` and `evaluation = null`.
+- Re-evaluating unchanged older facts remains valid with `requiresReplacement = false`.
+
+Verification-health computation at `evaluatedAt`:
+1. known relation without confirmed ownership presence -> `unverified`
+2. if `evaluatedAt < verificationThrough` -> invalid input
+3. if more than five full days elapsed since `verificationThrough` -> `stale`
+4. otherwise, active and in incomplete zero window -> `monitoring`
+5. otherwise -> `current`
+
+Evaluator output contract:
+
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "evaluation": {
+   "canonicalStatus": {
+    "statusId": "active-status-0001",
+    "unionId": "union-0001",
+    "serverId": "server-366",
+    "seasonId": "season-1",
+    "activityState": "active",
+    "reviewState": "confirmed",
+    "derivedFrom": "confirmed_ownership",
+    "firstConfirmedPresenceAt": "2026-07-10T18:42:00Z",
+    "mostRecentConfirmedPresenceAt": "2026-07-25T09:15:00Z",
+    "zeroTerritorySince": null,
+    "verificationWindowStartedAt": null,
+    "verificationThrough": "2026-07-25T09:15:00Z",
+    "verificationSnapshotIds": ["snapshot-366-2026-07-25"],
+    "effectiveFrom": "2026-07-25T09:15:00Z",
+    "effectiveTo": null,
+    "supersededBy": null
+   },
+   "verificationHealth": "current",
+   "requiresReplacement": true,
+   "replacementEffectiveFrom": "2026-07-25T09:15:00Z",
+   "countedConfirmationIds": ["snapshot-366-2026-07-25"],
+   "ignoredConfirmationIds": [],
+   "windowRestartCount": 0
+  }
+}
+```
+
+Output requirements:
+- `evaluation` is `null` when `valid = false`.
+- `errors` entries use `{ code, path, message }`.
+- `canonicalStatus` must contain the exact sixteen `ActiveUnionStatus` fields.
+- `canonicalStatus` must validate under the existing active-status validator.
+- `requiresReplacement` compares only canonical factual fields after parsed-time normalization and deterministic array normalization:
+  - `unionId`
+  - `serverId`
+  - `seasonId`
+  - `activityState`
+  - `derivedFrom`
+  - `firstConfirmedPresenceAt`
+  - `mostRecentConfirmedPresenceAt`
+  - `zeroTerritorySince`
+  - `verificationWindowStartedAt`
+  - `verificationThrough`
+  - `verificationSnapshotIds`
+- Factual equality excludes `statusId`, `reviewState`, `effectiveFrom`, `effectiveTo`, and `supersededBy`.
+- `requiresReplacement` is `false` only when those factual fields are unchanged.
+- Otherwise `requiresReplacement` is `true`.
+- `replacementEffectiveFrom` is the fact time that caused the state:
+  - first evaluation time for unknown inactive
+  - latest recapture/presence time for confirmed ownership
+  - window start while monitoring
+  - final qualifying counted confirmation time when becoming inactive
+- If replacement would be required but that causative fact time precedes `currentStatus.effectiveFrom`, evaluation fails with `invalid_fact_set` and `evaluation = null`.
+- When replacement is required, canonical output uses supplied `statusId`, `reviewState = confirmed`, `effectiveTo = null`, and `supersededBy = null`.
+- When replacement is not required, `canonicalStatus` is a safe normalized copy of `currentStatus` unchanged and supplied `statusId` is unused.
+- `verificationThrough` is the latest parsed instant among confirmed evidence actually supporting the evaluated factual state.
+- `verificationSnapshotIds` contains unique deterministically ordered snapshot IDs supporting the active zero window, or supporting the latest confirmed positive state when `derivedFrom = confirmed_ownership`.
+- `countedConfirmationIds` and `ignoredConfirmationIds` contain unique IDs and are deterministically ordered by parsed instant then stable ID.
+
+Error expectations:
+- `invalid_input` for malformed identity, timestamps, ID uniqueness, scope mismatch, or `evaluatedAt < verificationThrough`.
+- `invalid_fact_set` for contradictory facts that cannot produce deterministic progression.
+- `invalid_current_status` when provided `currentStatus` is not the current confirmed non-superseded record for scope.
+- `invalid_output` when produced canonical status would fail validator requirements.
+
+Concise state-transition table:
+
+| Trigger condition | Resulting `activityState` | Resulting `derivedFrom` | Window effect |
+| --- | --- | --- | --- |
+| No confirmed presence ever | `inactive` | `known_relation_without_confirmed_ownership` | no window |
+| Any confirmed presence and no active zero window | `active` | `confirmed_ownership` | window cleared |
+| Qualifying zero confirmation starts/advances incomplete window | `active` | `verified_zero_territory_period` | window open |
+| Completion satisfied (5 counted + 14 days + terminal counted confirmation) | `inactive` | `verified_zero_territory_period` | window complete |
+| Any confirmed positive presence during zero window | `active` | `confirmed_ownership` | window canceled/reset |
+
+Boundary examples:
+1. 24-hour counting boundary
+  - counted at `2026-08-01T00:00:00Z`
+  - next at `2026-08-02T00:00:00Z` counts (exactly 24h)
+  - next at `2026-08-02T12:00:00Z` is valid evidence but ignored for counted progression
+2. 5-day gap boundary
+  - previous counted at `2026-08-01T00:00:00Z`
+  - next at `2026-08-06T00:00:00Z` is still valid (exactly 5d)
+  - next at `2026-08-06T00:00:01Z` restarts window (>5d)
+3. 14-day completion boundary
+  - window start `2026-08-01T00:00:00Z`
+  - final counted at `2026-08-15T00:00:00Z` qualifies (exactly 14d)
+
+Recapture/reset example:
+- zero window started at `2026-08-01T00:00:00Z`
+- qualifying zero confirmations counted through `2026-08-05T00:00:00Z`
+- confirmed positive presence at `2026-08-06T10:00:00Z` cancels window and zero snapshot IDs
+- later qualifying zero confirmation at `2026-08-08T00:00:00Z` starts a new window
+
+Server-isolation example:
+- `union-0001` on `server-366` can be inactive from a completed zero window
+- the same `union-0001` on `server-367` can remain active from confirmed ownership
+- one server's facts never advance, reset, or invalidate the other server's evaluation
 
 ### Timestamp and history invariants
 - `effectiveTo` cannot precede `effectiveFrom`.
@@ -382,13 +571,10 @@ Timestamp format uses canonical UTC ISO-8601 `Z` timestamps with zero to three f
   - exact parsed-time boundary alignment
   - cycle detection
 3. Snapshot-resolved derivation/evaluation:
-  - resolve snapshot timestamps and identity
-  - verify complete map coverage and zero ownership
-  - enforce 24-hour counted-confirmation spacing
-  - enforce five-day maximum gaps
-  - enforce fourteen-day duration and final confirmation
-  - enforce restart behavior
-  - compute `verificationHealth`
+  - use the Snapshot-Resolved Active Status Evaluator contract above
+  - derive canonical status from confirmed presence facts plus qualifying full-map confirmations
+  - enforce 24-hour counted spacing, five-day gap boundaries, fourteen-day completion, and deterministic restart behavior
+  - compute `verificationHealth` at `evaluatedAt`
 
 ### Historical lifecycle
 - Exactly one current confirmed active-status record exists per `unionId + serverId + seasonId`.
