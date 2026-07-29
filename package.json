@@ -18,6 +18,7 @@
   "test:union-relations": "node tests/union-server-season-relation-service.test.js",
   "test:native-assignment": "node tests/native-union-assignment-validator.test.js",
   "test:native-assignment-service": "node tests/native-union-assignment-service.test.js",
+  "test:union-server-season-view": "node tests/union-server-season-view-service.test.js",
   "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
   "test:season-loader": "node tests/season-loader.test.js"
