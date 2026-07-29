@@ -234,13 +234,36 @@ runTest("invalid and impossible timestamps are rejected", () => {
   const badObserved = validateNativeUnionAssignment(createValidManualConfirmedRecord({ observedAt: "not-a-time" }));
   const impossibleObserved = validateNativeUnionAssignment(createValidManualConfirmedRecord({ observedAt: "2026-02-30T12:00:00Z" }));
   const nonUtc = validateNativeUnionAssignment(createValidManualConfirmedRecord({ observedAt: "2026-07-10T18:42:00+01:00" }));
+  const tooManyFractionDigits = validateNativeUnionAssignment(createValidManualConfirmedRecord({ observedAt: "2026-07-10T18:42:00.1234Z" }));
+  const missingZulu = validateNativeUnionAssignment(createValidManualConfirmedRecord({ observedAt: "2026-07-10T18:42:00.123" }));
 
   assert.strictEqual(badObserved.valid, false);
   assert.strictEqual(impossibleObserved.valid, false);
   assert.strictEqual(nonUtc.valid, false);
+  assert.strictEqual(tooManyFractionDigits.valid, false);
+  assert.strictEqual(missingZulu.valid, false);
   assertError(badObserved, "INVALID_TIMESTAMP", "observedAt");
   assertError(impossibleObserved, "INVALID_TIMESTAMP", "observedAt");
   assertError(nonUtc, "INVALID_TIMESTAMP", "observedAt");
+  assertError(tooManyFractionDigits, "INVALID_TIMESTAMP", "observedAt");
+  assertError(missingZulu, "INVALID_TIMESTAMP", "observedAt");
+});
+
+runTest("timestamps accept zero to three fractional digits", () => {
+  const noFraction = validateNativeUnionAssignment(createValidManualConfirmedRecord({
+    observedAt: "2026-07-10T18:42:00Z",
+    effectiveFrom: "2026-07-10T18:42:00.1Z",
+    reviewedAt: "2026-07-10T19:05:00.12Z"
+  }));
+
+  const threeDigits = validateNativeUnionAssignment(createValidManualConfirmedRecord({
+    observedAt: "2026-07-10T18:42:00.123Z",
+    effectiveFrom: "2026-07-10T18:42:00.123Z",
+    reviewedAt: "2026-07-10T19:05:00.123Z"
+  }));
+
+  assert.strictEqual(noFraction.valid, true);
+  assert.strictEqual(threeDigits.valid, true);
 });
 
 runTest("reviewedAt cannot precede observedAt", () => {
@@ -394,6 +417,42 @@ runTest("supersession references must exist in the same relationship and match b
   assertError(missingResult, "INVALID_SUPERSESSION_REFERENCE", "records[0].supersededBy");
   assertError(crossResult, "INVALID_SUPERSESSION_REFERENCE", "records[0].supersededBy");
   assertError(mismatchResult, "INVALID_SUPERSESSION_REFERENCE", "records[0].supersededBy");
+});
+
+runTest("supersession boundary uses parsed timestamp equivalence", () => {
+  const oneDigitFraction = [
+    createValidManualConfirmedRecord({
+      assignmentId: "native-assign-frac-1",
+      reviewState: "superseded",
+      effectiveFrom: "2026-07-01T00:00:00Z",
+      effectiveTo: "2026-07-05T00:00:00.1Z",
+      supersededBy: "native-assign-frac-2"
+    }),
+    createValidManualConfirmedRecord({
+      assignmentId: "native-assign-frac-2",
+      effectiveFrom: "2026-07-05T00:00:00.100Z"
+    })
+  ];
+
+  const twoDigitFraction = [
+    createValidManualConfirmedRecord({
+      assignmentId: "native-assign-frac-3",
+      reviewState: "superseded",
+      effectiveFrom: "2026-07-06T00:00:00Z",
+      effectiveTo: "2026-07-07T00:00:00.12Z",
+      supersededBy: "native-assign-frac-4"
+    }),
+    createValidManualConfirmedRecord({
+      assignmentId: "native-assign-frac-4",
+      effectiveFrom: "2026-07-07T00:00:00.120Z"
+    })
+  ];
+
+  const resultOneDigit = validateNativeUnionAssignmentHistory(oneDigitFraction);
+  const resultTwoDigit = validateNativeUnionAssignmentHistory(twoDigitFraction);
+
+  assert.strictEqual(resultOneDigit.valid, true);
+  assert.strictEqual(resultTwoDigit.valid, true);
 });
 
 runTest("supersession cycles are rejected", () => {

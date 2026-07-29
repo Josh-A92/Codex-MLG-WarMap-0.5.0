@@ -23,7 +23,7 @@
   const REVIEW_STATES = new Set(["proposed", "confirmed", "rejected", "superseded"]);
   const SOURCE_TYPES = new Set(["manual_entry", "screenshot_extraction", "imported_data", "api_integration", "bot_integration"]);
   const NON_MANUAL_SOURCE_TYPES = new Set(["screenshot_extraction", "imported_data", "api_integration", "bot_integration"]);
-  const ISO_UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+  const ISO_UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,3}))?Z$/;
 
   function createResult(errors) {
     return {
@@ -59,7 +59,12 @@
   }
 
   function parseUtcTimestamp(value) {
-    if (typeof value !== "string" || !ISO_UTC_TIMESTAMP_PATTERN.test(value)) {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const timestampMatch = ISO_UTC_TIMESTAMP_PATTERN.exec(value);
+    if (!timestampMatch) {
       return null;
     }
 
@@ -69,11 +74,25 @@
     }
 
     const normalized = new Date(parsedTime).toISOString();
-    if (value.includes(".")) {
-      if (value !== normalized) {
+    const fractionalDigits = timestampMatch[1] || null;
+    if (fractionalDigits === null) {
+      if (value !== normalized.replace(".000Z", "Z")) {
         return null;
       }
-    } else if (value !== normalized.replace(".000Z", "Z")) {
+    } else {
+      const normalizedFraction = normalized.slice(20, 23);
+      if (normalizedFraction.slice(0, fractionalDigits.length) !== fractionalDigits) {
+        return null;
+      }
+      if (!value.startsWith(normalized.slice(0, 19) + ".")) {
+        return null;
+      }
+      if (!value.endsWith("Z")) {
+        return null;
+      }
+    }
+
+    if (Date.parse(normalized) !== parsedTime) {
       return null;
     }
 
@@ -530,7 +549,7 @@
           continue;
         }
 
-        if (validatedRecord.effectiveToValue === null || replacementRecord.effectiveFromValue === null || validatedRecord.effectiveToValue !== replacementRecord.effectiveFromValue) {
+        if (validatedRecord.effectiveToTime === null || replacementRecord.effectiveFromTime === null || validatedRecord.effectiveToTime !== replacementRecord.effectiveFromTime) {
           pushError(
             errors,
             "INVALID_SUPERSESSION_REFERENCE",
