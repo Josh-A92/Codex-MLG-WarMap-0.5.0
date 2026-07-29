@@ -20,6 +20,8 @@
   "test:native-assignment-service": "node tests/native-union-assignment-service.test.js",
   "test:active-status": "node tests/active-union-status-validator.test.js",
   "test:target-verification": "node tests/target-verification-validator.test.js",
+  "test:confirmed-snapshot": "node tests/confirmed-server-snapshot-validator.test.js",
+  "test:ownership-records": "node tests/ownership-record-validator.test.js",
   "test:union-server-season-view": "node tests/union-server-season-view-service.test.js",
   "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
