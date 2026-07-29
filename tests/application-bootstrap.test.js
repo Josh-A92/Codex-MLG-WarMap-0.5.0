@@ -139,6 +139,10 @@ function createValidScope(options) {
       callLog.push("createOwnershipService");
       return {};
     }),
+    createSummaryService: dependencyOverrides.createSummaryService || (() => {
+      callLog.push("createSummaryService");
+      return {};
+    }),
     createServerStateService: dependencyOverrides.createServerStateService || (() => {
       callLog.push("createServerStateService");
       return {};
@@ -246,8 +250,35 @@ runTest("renderer receives exact existing applicationConfig translation", async 
     workspace: {
       homeId: "command-centre",
       mapLabel: "Season 1 Blueprint"
+    },
+    summary: {
+      designatedUnionId: "union-0001"
     }
   });
+});
+
+runTest("renderer receives designated union summary config with null when omitted", async () => {
+  const seasonPackage = clone(SEASON_1_PACKAGE);
+  delete seasonPackage.applicationConfig.designatedUnionId;
+  const { scope, rendererCalls } = createValidScope({ seasonPackage });
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await bootstrap.bootstrapApplication();
+
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.deepStrictEqual(rendererCalls[0].applicationConfig.summary, {
+    designatedUnionId: null
+  });
+});
+
+runTest("renderer context receives exact summary service factory", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await bootstrap.bootstrapApplication();
+
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(rendererCalls[0].summaryServiceFactory, scope.createSummaryService);
 });
 
 runTest("renderer context receives exact server state service factory", async () => {
@@ -380,6 +411,20 @@ runTest("missing required dependency prevents renderer initialization", async ()
   assert.strictEqual(rendererCalls.length, 0);
 });
 
+runTest("missing summary service factory prevents renderer initialization", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  delete scope.createSummaryService;
+
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await assert.rejects(
+    () => bootstrap.resolveBootstrapContext(),
+    /createSummaryService/
+  );
+
+  assert.strictEqual(rendererCalls.length, 0);
+});
+
 runTest("missing server state service factory prevents renderer initialization", async () => {
   const { scope, rendererCalls } = createValidScope();
   delete scope.createServerStateService;
@@ -499,6 +544,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/persistence-service.js"',
     'src="src/services/electron-file-storage-adapter.js"',
     'src="src/app/server-state-persistence-controller.js"',
+    'src="src/services/summary-service.js"',
     'src="src/map-renderer.js"',
     'src="src/app/application-bootstrap.js"'
   ];

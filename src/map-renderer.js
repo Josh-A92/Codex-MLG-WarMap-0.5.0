@@ -6,7 +6,9 @@ let appMapConfig = null;
 let appServerConfig = null;
 let appUnionConfig = null;
 let appWorkspace = null;
+let appSummaryConfig = null;
 let ownershipServiceFactory = null;
+let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
 let serverStatePersistenceController = null;
 
@@ -95,6 +97,7 @@ const activePointers = new Map();
 let pinchZoomState = null;
 let loadedMapData = null;
 let ownershipService = null;
+let summaryService = null;
 let serverStateService = null;
 let applicationStarted = false;
 const appState = {
@@ -131,19 +134,6 @@ function getTileKey(row, col) {
   return `${row}-${col}`;
 }
 
-function getUnionLabel(unionId) {
-  if (!unionId) {
-    return "Placeholder only";
-  }
-
-  const union = appState.unionRegistry.find((item) => item && item.id === unionId);
-  if (!union) {
-    return "Placeholder only";
-  }
-
-  return `${union.shortName || union.displayName || union.id} (placeholder only)`;
-}
-
 function createServerDockButton(server) {
   const button = document.createElement("button");
   button.type = "button";
@@ -154,7 +144,69 @@ function createServerDockButton(server) {
   return button;
 }
 
+function formatPercent(value) {
+  const parsed = Number(value);
+  const finiteValue = Number.isFinite(parsed) ? parsed : 0;
+  return `${finiteValue.toFixed(1)}%`;
+}
+
+function getSummaryResourceLabel(summary) {
+  const scoringDisplay = summary && typeof summary === "object" ? summary.scoringDisplay : null;
+  if (scoringDisplay && typeof scoringDisplay.resourceLabel === "string" && scoringDisplay.resourceLabel.trim() !== "") {
+    return scoringDisplay.resourceLabel;
+  }
+
+  return "Territory Value";
+}
+
+function getStructureAggregate(summary) {
+  const byType = summary && Array.isArray(summary.structureOwnershipByType)
+    ? summary.structureOwnershipByType
+    : [];
+
+  return byType.reduce((aggregate, entry) => {
+    const designatedUnionControlledCount = Number(entry && entry.designatedUnionControlledCount);
+    const availableCount = Number(entry && entry.availableCount);
+
+    aggregate.designatedUnionControlledCount += Number.isFinite(designatedUnionControlledCount)
+      ? designatedUnionControlledCount
+      : 0;
+    aggregate.availableCount += Number.isFinite(availableCount) ? availableCount : 0;
+
+    return aggregate;
+  }, {
+    designatedUnionControlledCount: 0,
+    availableCount: 0
+  });
+}
+
 function createCommandCentreCard(server) {
+  const summary = summaryService && typeof summaryService.getServerSummary === "function"
+    ? summaryService.getServerSummary(server)
+    : null;
+  const designatedUnionLabel = summary
+    && typeof summary.designatedUnionLabel === "string"
+    && summary.designatedUnionLabel.trim() !== ""
+    ? summary.designatedUnionLabel
+    : "Unassigned";
+  const totalCapturableTileCount = Number(summary && summary.totalCapturableTileCount);
+  const controlledTileCount = Number(summary && summary.controlledTileCount);
+  const designatedUnionControlledTileCount = Number(summary && summary.designatedUnionControlledTileCount);
+  const controlledTerritoryPercent = summary ? summary.controlledTerritoryPercent : 0;
+  const designatedUnionTerritoryPercent = summary ? summary.designatedUnionTerritoryPercent : 0;
+  const scoringDisplay = summary && summary.scoringDisplay && typeof summary.scoringDisplay === "object"
+    ? summary.scoringDisplay
+    : null;
+  const scoringDisplayText = scoringDisplay
+    && typeof scoringDisplay.text === "string"
+    && scoringDisplay.text.trim() !== ""
+    ? scoringDisplay.text
+    : "Scoring rules not configured";
+  const structureAggregate = getStructureAggregate(summary);
+  const totalTiles = Number.isFinite(totalCapturableTileCount) ? totalCapturableTileCount : 0;
+  const controlledTiles = Number.isFinite(controlledTileCount) ? controlledTileCount : 0;
+  const designatedTiles = Number.isFinite(designatedUnionControlledTileCount) ? designatedUnionControlledTileCount : 0;
+
   const card = document.createElement("article");
   card.className = "command-centre-card";
   card.setAttribute("data-workspace-target", "server-map");
@@ -171,11 +223,11 @@ function createCommandCentreCard(server) {
   metrics.className = "command-centre-card-metrics";
 
   metrics.innerHTML = `
-    <div><span>Active Union</span><strong>${getUnionLabel(server.activeUnionId)}</strong></div>
-    <div><span>Ice Crystals</span><strong>Placeholder only</strong></div>
-    <div><span>Tiles Owned</span><strong>Placeholder only</strong></div>
-    <div><span>Territory %</span><strong>Placeholder only</strong></div>
-    <div><span>Structures</span><strong>Placeholder only (captured vs available)</strong></div>
+    <div><span>Designated Union</span><strong>${designatedUnionLabel}</strong></div>
+    <div><span>Territory Controlled</span><strong>${controlledTiles} / ${totalTiles} (${formatPercent(controlledTerritoryPercent)})</strong></div>
+    <div><span>${designatedUnionLabel} Territory</span><strong>${designatedTiles} / ${totalTiles} (${formatPercent(designatedUnionTerritoryPercent)})</strong></div>
+    <div><span>${getSummaryResourceLabel(summary)}</span><strong>${scoringDisplayText}</strong></div>
+    <div><span>Structures</span><strong>${structureAggregate.designatedUnionControlledCount} controlled · ${structureAggregate.availableCount} available</strong></div>
   `;
 
   card.appendChild(metrics);
@@ -191,20 +243,31 @@ function createCommandCentreCard(server) {
   return card;
 }
 
-function renderWorkspaceNavigation() {
+function renderServerDockNavigation() {
   if (serverDockButtons) {
     serverDockButtons.innerHTML = "";
     appState.servers.forEach((server) => {
       serverDockButtons.appendChild(createServerDockButton(server));
     });
   }
+}
 
+function renderCommandCentreCards() {
   if (commandCentreCards) {
     commandCentreCards.innerHTML = "";
     appState.servers.forEach((server) => {
       commandCentreCards.appendChild(createCommandCentreCard(server));
     });
   }
+}
+
+function renderWorkspaceNavigation() {
+  renderServerDockNavigation();
+  renderCommandCentreCards();
+}
+
+function refreshCommandCentreCards() {
+  renderCommandCentreCards();
 }
 
 function getServerById(serverId) {
@@ -455,6 +518,24 @@ function initializeOwnershipService() {
   });
 
   appState.ownershipService = ownershipService;
+}
+
+function initializeSummaryService() {
+  if (typeof summaryServiceFactory !== "function") {
+    throw new Error("Renderer requires a summary service factory.");
+  }
+
+  if (!serverStateService || typeof serverStateService.getTerritoryOwner !== "function") {
+    throw new Error("Renderer requires server state service territory ownership access.");
+  }
+
+  summaryService = summaryServiceFactory({
+    getMapData: () => loadedMapData,
+    getUnionRegistry: () => appState.unionRegistry,
+    getGameRulesEngine: () => appState.gameRulesEngine,
+    getDesignatedUnionId: () => appSummaryConfig.designatedUnionId,
+    getTerritoryOwner: serverStateService.getTerritoryOwner.bind(serverStateService)
+  });
 }
 
 function getStructureOwnerLabel(structure) {
@@ -1233,6 +1314,7 @@ function handleSelectionPanelChange(event) {
   }
 
   refreshOwnershipView();
+  refreshCommandCentreCards();
 
   serverStatePersistenceController.requestSave().catch((error) => {
     console.error("Unable to persist updated server ownership state", error);
@@ -1727,6 +1809,7 @@ function initializeMap() {
       appState.servers = serverStateService.listServers();
       loadedMapData = mapData;
       initializeOwnershipService();
+      initializeSummaryService();
       renderWorkspaceNavigation();
       renderMap(mapData);
       initializeCamera(mapData);
@@ -1755,6 +1838,10 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires an ownership service factory.");
   }
 
+  if (typeof bootstrapContext.summaryServiceFactory !== "function") {
+    throw new Error("Renderer requires a summary service factory.");
+  }
+
   if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
     throw new Error("Renderer requires a server state service factory.");
   }
@@ -1774,7 +1861,9 @@ function configureRenderer(bootstrapContext) {
   appServerConfig = applicationConfig.server && typeof applicationConfig.server === "object" ? applicationConfig.server : null;
   appUnionConfig = applicationConfig.union && typeof applicationConfig.union === "object" ? applicationConfig.union : null;
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
+  appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
+  summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
   serverStatePersistenceController = bootstrapContext.serverStatePersistenceController;
 
@@ -1792,6 +1881,10 @@ function configureRenderer(bootstrapContext) {
 
   if (!appWorkspace || !appWorkspace.homeId || !appWorkspace.mapLabel) {
     throw new Error("Renderer requires workspace configuration from bootstrap.");
+  }
+
+  if (!appSummaryConfig || !Object.prototype.hasOwnProperty.call(appSummaryConfig, "designatedUnionId")) {
+    throw new Error("Renderer requires summary configuration from bootstrap.");
   }
 
   mapDataUrl = appMapConfig.dataUrl;

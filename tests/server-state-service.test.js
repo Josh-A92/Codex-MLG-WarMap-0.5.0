@@ -485,6 +485,7 @@ runTest("renderer restores ownership before workspace and map initialization flo
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
   const initializeIndex = rendererSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
+  const initializeSummaryServiceIndex = rendererSource.indexOf("initializeSummaryService();");
   const listServersIndex = rendererSource.indexOf("appState.servers = serverStateService.listServers();");
   const renderWorkspaceNavigationIndex = rendererSource.indexOf("renderWorkspaceNavigation();");
   const renderMapIndex = rendererSource.indexOf("renderMap(mapData);");
@@ -494,6 +495,7 @@ runTest("renderer restores ownership before workspace and map initialization flo
 
   [
     initializeIndex,
+    initializeSummaryServiceIndex,
     listServersIndex,
     renderWorkspaceNavigationIndex,
     renderMapIndex,
@@ -505,11 +507,21 @@ runTest("renderer restores ownership before workspace and map initialization flo
   });
 
   assert.ok(initializeIndex < listServersIndex);
+  assert.ok(initializeIndex < initializeSummaryServiceIndex);
+  assert.ok(initializeSummaryServiceIndex < renderWorkspaceNavigationIndex);
   assert.ok(initializeIndex < renderWorkspaceNavigationIndex);
   assert.ok(initializeIndex < renderMapIndex);
   assert.ok(initializeIndex < initializeCameraIndex);
   assert.ok(initializeIndex < attachSelectionPanelHandlersIndex);
   assert.ok(initializeIndex < setActiveWorkspaceIndex);
+});
+
+runTest("renderer initializes summary service through server state ownership API", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.ok(/summaryServiceFactory\(\{[\s\S]*getMapData:[\s\S]*getUnionRegistry:[\s\S]*getGameRulesEngine:[\s\S]*getDesignatedUnionId:[\s\S]*getTerritoryOwner: serverStateService\.getTerritoryOwner\.bind\(serverStateService\)/.test(rendererSource));
+  assert.strictEqual(/server\.ownership/.test(rendererSource), false);
 });
 
 runTest("renderer requests exactly one save after completed ownership edit", () => {
@@ -521,9 +533,11 @@ runTest("renderer requests exactly one save after completed ownership edit", () 
 
   const changeHandlerSource = changeHandlerMatch[0];
   const requestSaveMatches = changeHandlerSource.match(/requestSave\(/g) || [];
+  const refreshCardsMatches = changeHandlerSource.match(/refreshCommandCentreCards\(/g) || [];
 
   assert.strictEqual(requestSaveMatches.length, 1);
-  assert.ok(/refreshOwnershipView\(\);[\s\S]*requestSave\(\)/.test(changeHandlerSource));
+  assert.strictEqual(refreshCardsMatches.length, 1);
+  assert.ok(/refreshOwnershipView\(\);[\s\S]*refreshCommandCentreCards\(\);[\s\S]*requestSave\(\)/.test(changeHandlerSource));
   assert.ok(/requestSave\(\)\.catch\(\(error\) => \{[\s\S]*console\.error/.test(changeHandlerSource));
 
   const footprintMatch = rendererSource.match(/function applyStructureFootprintOwner\(structure, ownerId\) \{[\s\S]*?\n\}/);
@@ -533,6 +547,29 @@ runTest("renderer requests exactly one save after completed ownership edit", () 
   const tileSetterMatch = rendererSource.match(/function setServerTileOwner\(tile, ownerId\) \{[\s\S]*?\n\}/);
   assert.ok(tileSetterMatch);
   assert.strictEqual(/requestSave\(/.test(tileSetterMatch[0]), false);
+});
+
+runTest("renderer command centre source contains no placeholder text and explicit structures wording", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.strictEqual(/Placeholder only/i.test(rendererSource), false);
+  assert.ok(/<span>Structures<\/span><strong>\$\{structureAggregate\.designatedUnionControlledCount\} controlled · \$\{structureAggregate\.availableCount\} available<\/strong>/.test(rendererSource));
+});
+
+runTest("index loads summary service before renderer and bootstrap", () => {
+  const indexPath = path.join(__dirname, "..", "index.html");
+  const html = fs.readFileSync(indexPath, "utf8");
+
+  const summaryServiceIndex = html.indexOf('src="src/services/summary-service.js"');
+  const rendererIndex = html.indexOf('src="src/map-renderer.js"');
+  const bootstrapIndex = html.indexOf('src="src/app/application-bootstrap.js"');
+
+  assert.ok(summaryServiceIndex > -1);
+  assert.ok(rendererIndex > -1);
+  assert.ok(bootstrapIndex > -1);
+  assert.ok(summaryServiceIndex < rendererIndex);
+  assert.ok(rendererIndex < bootstrapIndex);
 });
 
 runTest("renderer source preserves persistence boundary and excludes storage bridge and filesystem APIs", () => {

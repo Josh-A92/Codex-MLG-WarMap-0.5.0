@@ -72,6 +72,10 @@
     const workspace = canonicalAppConfig.workspace && typeof canonicalAppConfig.workspace === "object"
       ? canonicalAppConfig.workspace
       : {};
+    const designatedUnionId = typeof canonicalAppConfig.designatedUnionId === "string"
+      && canonicalAppConfig.designatedUnionId.trim() !== ""
+      ? canonicalAppConfig.designatedUnionId
+      : null;
 
     return {
       map: {
@@ -86,6 +90,9 @@
       workspace: {
         homeId: requireConfigValue(workspace.homeId, "applicationConfig.workspace.homeId"),
         mapLabel: requireConfigValue(workspace.mapLabel, "applicationConfig.workspace.mapLabel")
+      },
+      summary: {
+        designatedUnionId
       }
     };
   }
@@ -98,6 +105,7 @@
       const validateSeasonPackage = requireFunction(safeScope.validateSeasonPackage, "validateSeasonPackage");
       const createGameRulesEngine = requireFunction(safeScope.createGameRulesEngine, "createGameRulesEngine");
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
+      const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
       const serializeServerState = requireFunction(safeScope.serializeServerState, "serializeServerState");
       const deserializePersistenceEnvelope = requireFunction(
@@ -151,6 +159,7 @@
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
         ownershipServiceFactory: createOwnershipService,
+        summaryServiceFactory: createSummaryService,
         serverStateServiceFactory: createServerStateService,
         serverStatePersistenceController
       };
