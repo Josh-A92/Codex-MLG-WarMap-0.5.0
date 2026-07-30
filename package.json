@@ -24,6 +24,7 @@
   "test:target-verification": "node tests/target-verification-validator.test.js",
   "test:target-verification-service": "node tests/target-verification-service.test.js",
   "test:confirmed-snapshot": "node tests/confirmed-server-snapshot-validator.test.js",
+  "test:confirmed-snapshot-service": "node tests/confirmed-server-snapshot-service.test.js",
   "test:ownership-records": "node tests/ownership-record-validator.test.js",
   "test:ownership-record-service": "node tests/ownership-record-service.test.js",
   "test:union-server-season-view": "node tests/union-server-season-view-service.test.js",
