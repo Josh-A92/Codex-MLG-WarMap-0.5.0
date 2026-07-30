@@ -4,6 +4,10 @@ const path = require("path");
 const vm = require("vm");
 const { createUnionRegistryService } = require("../src/services/union-registry-service.js");
 const { createStrategicDomainRuntime } = require("../src/app/strategic-domain-runtime.js");
+const {
+  serializeStrategicDomainRuntime,
+  deserializeStrategicDomainEnvelope
+} = require("../src/services/strategic-domain-state-serializer.js");
 
 const modulePaths = [
   "union-matching-service.js",
@@ -110,6 +114,24 @@ assert.deepStrictEqual(initialState, createInitialState());
 const match = runtime.unionMatchingService.match({ value: "MLG" });
 assert.strictEqual(match.matchType, "exact_tag");
 assert.strictEqual(match.matchedUnion.unionId, "union-0001");
+
+const serializedRuntime = serializeStrategicDomainRuntime(
+  runtime,
+  "season-1",
+  "2026-07-30T22:30:00.000Z"
+);
+const restoredEnvelope = deserializeStrategicDomainEnvelope(serializedRuntime);
+const restoredRuntime = createStrategicDomainRuntime({
+  modules,
+  unionRegistryService,
+  initialState: restoredEnvelope.state
+});
+assert.notStrictEqual(restoredRuntime, runtime);
+assert.deepStrictEqual(restoredRuntime.relationService.listRelations(), []);
+assert.deepStrictEqual(restoredRuntime.activityFactHistoryService.getAllFacts(), {
+  confirmedPresenceFacts: [],
+  qualifyingFullMapConfirmations: []
+});
 
 assert.throws(
   () => createStrategicDomainRuntime({
