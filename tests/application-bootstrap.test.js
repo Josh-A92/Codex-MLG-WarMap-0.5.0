@@ -150,6 +150,11 @@ function createValidScope(options) {
           sourceScope: inputScope
         });
       }),
+    createStrategicDomainRuntime:
+      dependencyOverrides.createStrategicDomainRuntime || ((runtimeOptions) => {
+        callLog.push("createStrategicDomainRuntime");
+        return Object.freeze({ runtimeOptions });
+      }),
     createSummaryService: dependencyOverrides.createSummaryService || (() => {
       callLog.push("createSummaryService");
       return {};
@@ -288,12 +293,33 @@ runTest("renderer receives the grouped strategic domain module registry", async 
   assert.strictEqual(Object.isFrozen(rendererCalls[0].strategicDomainModules), true);
 });
 
+runTest("renderer receives the strategic domain runtime factory unchanged", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+  await bootstrap.bootstrapApplication();
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(
+    rendererCalls[0].strategicDomainRuntimeFactory,
+    scope.createStrategicDomainRuntime
+  );
+});
+
 runTest("bootstrap fails clearly when strategic domain module registry factory is missing", async () => {
   const { scope, rendererCalls } = createValidScope();
   delete scope.createStrategicDomainModuleRegistry;
   await assert.rejects(
     () => createApplicationBootstrap(scope).resolveBootstrapContext(),
     /createStrategicDomainModuleRegistry/
+  );
+  assert.strictEqual(rendererCalls.length, 0);
+});
+
+runTest("bootstrap fails clearly when strategic domain runtime factory is missing", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  delete scope.createStrategicDomainRuntime;
+  await assert.rejects(
+    () => createApplicationBootstrap(scope).resolveBootstrapContext(),
+    /createStrategicDomainRuntime/
   );
   assert.strictEqual(rendererCalls.length, 0);
 });
@@ -609,6 +635,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/union-server-season-view-service.js"',
     'src="src/services/union-server-season-intelligence-view-service.js"',
     'src="src/app/strategic-domain-module-registry.js"',
+    'src="src/app/strategic-domain-runtime.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',

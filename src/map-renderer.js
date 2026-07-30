@@ -8,6 +8,8 @@ let appUnionConfig = null;
 let appWorkspace = null;
 let appSummaryConfig = null;
 let unionRegistryServiceFactory = null;
+let strategicDomainModules = null;
+let strategicDomainRuntimeFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
@@ -100,6 +102,7 @@ let loadedMapData = null;
 let ownershipService = null;
 let summaryService = null;
 let serverStateService = null;
+let strategicDomainRuntime = null;
 let applicationStarted = false;
 const appState = {
   gameRulesEngine: null,
@@ -107,6 +110,7 @@ const appState = {
   seasonMetadata: {},
   unionRegistryService: null,
   unionRegistry: [],
+  strategicDomainRuntime: null,
   ownershipService: null,
   servers: [],
   activeWorkspace: null,
@@ -1814,9 +1818,29 @@ function initializeServerStateService(seasonServerState) {
   serverStateService = serverStateServiceFactory(seasonServerState);
 }
 
+function initializeStrategicDomainRuntime() {
+  strategicDomainRuntime = strategicDomainRuntimeFactory({
+    modules: strategicDomainModules,
+    unionRegistryService: appState.unionRegistryService,
+    initialState: {
+      relations: [],
+      nativeAssignments: [],
+      activeStatuses: [],
+      territoryOwnershipRecords: [],
+      structureOwnershipRecords: [],
+      targetVerifications: [],
+      confirmedSnapshots: [],
+      confirmedPresenceFacts: [],
+      qualifyingFullMapConfirmations: []
+    }
+  });
+  appState.strategicDomainRuntime = strategicDomainRuntime;
+}
+
 function initializeMap() {
   return Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
     .then(async ([mapData, _unionRegistry, seasonServerState]) => {
+      initializeStrategicDomainRuntime();
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
       appState.servers = serverStateService.listServers();
@@ -1859,6 +1883,16 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a union registry service factory.");
   }
 
+  if (!bootstrapContext.strategicDomainModules
+      || typeof bootstrapContext.strategicDomainModules !== "object"
+      || Array.isArray(bootstrapContext.strategicDomainModules)) {
+    throw new Error("Renderer requires strategic domain modules.");
+  }
+
+  if (typeof bootstrapContext.strategicDomainRuntimeFactory !== "function") {
+    throw new Error("Renderer requires a strategic domain runtime factory.");
+  }
+
   if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
     throw new Error("Renderer requires a server state service factory.");
   }
@@ -1880,6 +1914,8 @@ function configureRenderer(bootstrapContext) {
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
   unionRegistryServiceFactory = bootstrapContext.unionRegistryServiceFactory;
+  strategicDomainModules = bootstrapContext.strategicDomainModules;
+  strategicDomainRuntimeFactory = bootstrapContext.strategicDomainRuntimeFactory;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;

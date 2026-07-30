@@ -536,6 +536,42 @@ runTest("renderer initializes summary service through server state ownership API
   assert.strictEqual(/server\.ownership/.test(rendererSource), false);
 });
 
+runTest("renderer initializes an empty canonical strategic runtime after union registry loading", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+  const initializationMatch = rendererSource.match(
+    /function initializeStrategicDomainRuntime\(\) \{[\s\S]*?\n\}/
+  );
+
+  assert.ok(initializationMatch);
+  const initializationSource = initializationMatch[0];
+  assert.ok(/strategicDomainRuntimeFactory\(\{/.test(initializationSource));
+  assert.ok(/modules: strategicDomainModules/.test(initializationSource));
+  assert.ok(/unionRegistryService: appState\.unionRegistryService/.test(initializationSource));
+  [
+    "relations",
+    "nativeAssignments",
+    "activeStatuses",
+    "territoryOwnershipRecords",
+    "structureOwnershipRecords",
+    "targetVerifications",
+    "confirmedSnapshots",
+    "confirmedPresenceFacts",
+    "qualifyingFullMapConfirmations"
+  ].forEach((field) => {
+    assert.ok(new RegExp(`${field}: \\[\\]`).test(initializationSource), field);
+  });
+  assert.ok(/appState\.strategicDomainRuntime = strategicDomainRuntime/.test(initializationSource));
+
+  const loadUnionRegistryIndex = rendererSource.indexOf("loadUnionRegistry()");
+  const initializeRuntimeIndex = rendererSource.indexOf("initializeStrategicDomainRuntime();");
+  const initializeServerStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
+  assert.ok(loadUnionRegistryIndex > -1);
+  assert.ok(initializeRuntimeIndex > loadUnionRegistryIndex);
+  assert.ok(initializeServerStateIndex > initializeRuntimeIndex);
+  assert.strictEqual(/activeUnionId/.test(initializationSource), false);
+});
+
 runTest("renderer requests exactly one save after completed ownership edit", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
