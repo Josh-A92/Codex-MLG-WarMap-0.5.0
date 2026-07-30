@@ -22,6 +22,7 @@
   "test:active-status-evaluator": "node tests/active-union-status-evaluator.test.js",
   "test:active-status-service": "node tests/active-union-status-service.test.js",
   "test:target-verification": "node tests/target-verification-validator.test.js",
+  "test:target-verification-service": "node tests/target-verification-service.test.js",
   "test:confirmed-snapshot": "node tests/confirmed-server-snapshot-validator.test.js",
   "test:ownership-records": "node tests/ownership-record-validator.test.js",
   "test:ownership-record-service": "node tests/ownership-record-service.test.js",
