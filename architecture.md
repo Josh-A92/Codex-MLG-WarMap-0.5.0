@@ -40,7 +40,8 @@ This document reflects current main after v0.5.0.
 - The Active-Status Projection Service recalculates verification health at read time without mutating factual status.
 - The Union/Server/Season Intelligence View Service composes identity, relationship, native assignment, and read-time activity into a UI-neutral view.
 - The Union Matching Service resolves canonical IDs, tags, display names, and aliases deterministically and surfaces ambiguity without creating or merging identities.
-- These strategic services are currently domain-layer foundations; they are not yet composed through application bootstrap, runtime persistence, or the Command Centre UI.
+- Strategic modules are browser-loaded and exposed through application bootstrap as one frozen module registry.
+- The renderer does not yet instantiate strategic state or connect it to runtime persistence or the Command Centre UI.
 
 8. Data
 - data/season1-map.json stores shared map tiles and structures.

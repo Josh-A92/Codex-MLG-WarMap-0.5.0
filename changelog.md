@@ -18,6 +18,7 @@
 - Added an end-to-end regression covering held territory, five qualifying zero-territory confirmations over fourteen days, inactivity, and recapture.
 - Added deterministic union matching by canonical ID, tag, display name, and alias with explicit ambiguous/unmatched outcomes.
 - Added a UI-neutral intelligence view composing union identity, relationship, native assignment, and read-time activity.
+- Loaded strategic domain modules in the browser and exposed them through bootstrap as a validated frozen dependency registry.
 
 ## v0.5.0
 - Documentation reconciliation across core project docs to match repository-authoritative behavior.

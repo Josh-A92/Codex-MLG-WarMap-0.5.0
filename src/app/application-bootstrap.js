@@ -108,6 +108,10 @@
         safeScope.createUnionRegistryService,
         "createUnionRegistryService"
       );
+      const createStrategicDomainModuleRegistry = requireFunction(
+        safeScope.createStrategicDomainModuleRegistry,
+        "createStrategicDomainModuleRegistry"
+      );
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
@@ -162,6 +166,7 @@
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
+        strategicDomainModules: createStrategicDomainModuleRegistry(safeScope),
         unionRegistryServiceFactory: createUnionRegistryService,
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,

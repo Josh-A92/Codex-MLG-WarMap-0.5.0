@@ -24,10 +24,11 @@ Completed:
 - Runtime Summary Service integration for controlled territory, designated-union territory, structures, and season-defined scoring status
 - Designated-union selection from canonical season application configuration
 - Isolated strategic-domain foundations for union relationships, native status, confirmed snapshots, map-specific activity evaluation, and union matching
+- Strategic domain modules loaded in the browser and exposed through bootstrap as a frozen dependency bundle
 
 Pending:
 - Verified season scoring and resource-value calculations
-- Runtime/UI/persistence integration for native-union and active-union records
+- Runtime instantiation plus UI/persistence integration for native-union and active-union records
 - Combat-strength, completeness, evidence, and observation workflows
 - History playback
 - Descriptive server notes integration

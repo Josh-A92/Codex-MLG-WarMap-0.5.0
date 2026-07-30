@@ -55,9 +55,10 @@ Completed as isolated service boundaries:
 - Map-specific activity-fact history
 - Active-Status evaluation, immutable status history, update coordination, and read-time verification-health projection
 - End-to-end held territory -> verified inactivity -> recapture regression
+- Browser script loading and frozen bootstrap exposure of the complete strategic module bundle
 
 Pending:
-- Application bootstrap and Command Centre integration for these strategic services
+- Renderer instantiation and Command Centre integration for these strategic services
 - Persistence of strategic histories beyond current territory-ownership persistence
 
 ## Persistence and Strategic Workflows
@@ -76,6 +77,7 @@ Pending:
 ## Current Regression Commands
 
 - npm run test:application-bootstrap
+- npm run test:strategic-domain-modules
 - npm run test:server-state-persistence-controller
 - npm run test:persistence-storage
 - npm run test:persistence-service

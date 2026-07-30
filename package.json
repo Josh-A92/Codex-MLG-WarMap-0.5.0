@@ -8,6 +8,7 @@
   "start": "electron .",
   "build": "electron-builder",
   "test:application-bootstrap": "node tests/application-bootstrap.test.js",
+  "test:strategic-domain-modules": "node tests/strategic-domain-module-registry.test.js",
   "test:server-state-persistence-controller": "node tests/server-state-persistence-controller.test.js",
   "test:persistence-storage": "node tests/persistence-storage.test.js",
   "test:persistence-service": "node tests/persistence-service.test.js",

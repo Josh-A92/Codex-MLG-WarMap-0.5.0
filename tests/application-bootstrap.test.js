@@ -143,6 +143,13 @@ function createValidScope(options) {
       callLog.push("createUnionRegistryService");
       return {};
     }),
+    createStrategicDomainModuleRegistry:
+      dependencyOverrides.createStrategicDomainModuleRegistry || ((inputScope) => {
+        callLog.push("createStrategicDomainModuleRegistry");
+        return Object.freeze({
+          sourceScope: inputScope
+        });
+      }),
     createSummaryService: dependencyOverrides.createSummaryService || (() => {
       callLog.push("createSummaryService");
       return {};
@@ -269,6 +276,26 @@ runTest("renderer receives exact union registry service factory", async () => {
 
   assert.strictEqual(rendererCalls.length, 1);
   assert.strictEqual(rendererCalls[0].unionRegistryServiceFactory, scope.createUnionRegistryService);
+});
+
+runTest("renderer receives the grouped strategic domain module registry", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+  await bootstrap.bootstrapApplication();
+  assert.strictEqual(rendererCalls.length, 1);
+  assert.strictEqual(rendererCalls[0].strategicDomainModules.sourceScope, scope);
+  assert.ok(callLog.includes("createStrategicDomainModuleRegistry"));
+  assert.strictEqual(Object.isFrozen(rendererCalls[0].strategicDomainModules), true);
+});
+
+runTest("bootstrap fails clearly when strategic domain module registry factory is missing", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  delete scope.createStrategicDomainModuleRegistry;
+  await assert.rejects(
+    () => createApplicationBootstrap(scope).resolveBootstrapContext(),
+    /createStrategicDomainModuleRegistry/
+  );
+  assert.strictEqual(rendererCalls.length, 0);
 });
 
 runTest("bootstrap fails clearly when union registry factory is missing", async () => {
@@ -561,6 +588,27 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/seasons/season1-package.js"',
     'src="src/services/game-rules-engine.js"',
     'src="src/services/union-registry-service.js"',
+    'src="src/services/union-matching-service.js"',
+    'src="src/services/union-server-season-relation-service.js"',
+    'src="src/services/native-union-assignment-validator.js"',
+    'src="src/services/native-union-assignment-service.js"',
+    'src="src/services/active-union-status-validator.js"',
+    'src="src/services/active-union-status-evaluator.js"',
+    'src="src/services/active-union-status-service.js"',
+    'src="src/services/ownership-record-validator.js"',
+    'src="src/services/ownership-record-service.js"',
+    'src="src/services/target-verification-validator.js"',
+    'src="src/services/target-verification-service.js"',
+    'src="src/services/confirmed-server-snapshot-validator.js"',
+    'src="src/services/confirmed-server-snapshot-service.js"',
+    'src="src/services/confirmed-server-snapshot-coordinator.js"',
+    'src="src/services/snapshot-activity-fact-resolver.js"',
+    'src="src/services/activity-fact-history-service.js"',
+    'src="src/services/active-union-status-update-coordinator.js"',
+    'src="src/services/active-union-status-projection-service.js"',
+    'src="src/services/union-server-season-view-service.js"',
+    'src="src/services/union-server-season-intelligence-view-service.js"',
+    'src="src/app/strategic-domain-module-registry.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',
