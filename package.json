@@ -19,6 +19,7 @@
   "test:native-assignment": "node tests/native-union-assignment-validator.test.js",
   "test:native-assignment-service": "node tests/native-union-assignment-service.test.js",
   "test:active-status": "node tests/active-union-status-validator.test.js",
+  "test:active-status-evaluator": "node tests/active-union-status-evaluator.test.js",
   "test:active-status-service": "node tests/active-union-status-service.test.js",
   "test:target-verification": "node tests/target-verification-validator.test.js",
   "test:confirmed-snapshot": "node tests/confirmed-server-snapshot-validator.test.js",
