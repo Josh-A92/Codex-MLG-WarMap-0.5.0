@@ -9,9 +9,9 @@ Version context: current main following v0.5.0
 ## Not Yet Implemented
 
 - Verified scoring and resource-value calculations
-- Native-union and active-union runtime records
+- Runtime, UI, and persistence integration for the isolated native-union and active-union domain services
 - Combat-strength observations
-- Data freshness, completeness, evidence, and review workflows
+- Completeness, evidence, and review workflows
 - History playback
 - Descriptive notes workflows
 - Search and filters

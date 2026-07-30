@@ -16,6 +16,17 @@
     "serverId",
     "unionId"
   ]);
+  const ACTIVE_PROJECTION_FIELDS = new Set([
+    "statusId",
+    "unionId",
+    "serverId",
+    "seasonId",
+    "reviewState",
+    "effectiveTo",
+    "supersededBy",
+    "firstConfirmedPresenceAt",
+    "mostRecentConfirmedPresenceAt"
+  ]);
 
   class UnionServerSeasonRelationServiceError extends Error {
     constructor(code, message) {
@@ -133,13 +144,15 @@
 
     const timestamp = requireNonEmptyString(value, fieldName);
     const parsed = Date.parse(timestamp);
-
-    if (!Number.isFinite(parsed)) {
-      throwInvalidInput(`Union Server Season Relation Service requires ${fieldName} to be a valid UTC ISO-8601 string.`);
-    }
-
-    const normalized = new Date(parsed).toISOString();
-    if (timestamp !== normalized && timestamp !== normalized.replace(".000Z", "Z")) {
+    const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/.exec(timestamp);
+    const canonicalInput = match
+      ? `${match[1]}.${(match[2] || "").padEnd(3, "0")}Z`
+      : null;
+    if (
+      !match
+      || !Number.isFinite(parsed)
+      || new Date(parsed).toISOString() !== canonicalInput
+    ) {
       throwInvalidInput(`Union Server Season Relation Service requires ${fieldName} to be a valid UTC ISO-8601 string.`);
     }
 
@@ -353,11 +366,72 @@
       return deepClone(storedRelation);
     }
 
+    function applyActiveStatusProjection(input, shouldCommit) {
+      requirePlainObject(input, "input");
+      validateFieldNames(input, ACTIVE_PROJECTION_FIELDS, "input");
+      ACTIVE_PROJECTION_FIELDS.forEach((fieldName) => {
+        if (!Object.prototype.hasOwnProperty.call(input, fieldName)) {
+          throwInvalidInput(`Union Server Season Relation Service requires input.${fieldName}.`);
+        }
+      });
+
+      const seasonId = requireNonEmptyString(input.seasonId, "input.seasonId");
+      const serverId = requireNonEmptyString(input.serverId, "input.serverId");
+      const unionId = requireNonEmptyString(input.unionId, "input.unionId");
+      const statusId = requireNonEmptyString(input.statusId, "input.statusId");
+      if (input.reviewState !== "confirmed" || input.effectiveTo !== null || input.supersededBy !== null) {
+        throwInvalidInput(
+          "Union Server Season Relation Service requires an effective current confirmed Active-Status projection."
+        );
+      }
+      const firstConfirmedPresenceAt = requireUtcTimestampOrNull(
+        input.firstConfirmedPresenceAt,
+        "input.firstConfirmedPresenceAt"
+      );
+      const mostRecentConfirmedPresenceAt = requireUtcTimestampOrNull(
+        input.mostRecentConfirmedPresenceAt,
+        "input.mostRecentConfirmedPresenceAt"
+      );
+      if (
+        (firstConfirmedPresenceAt === null) !== (mostRecentConfirmedPresenceAt === null)
+        || (
+          firstConfirmedPresenceAt !== null
+          && Date.parse(firstConfirmedPresenceAt) > Date.parse(mostRecentConfirmedPresenceAt)
+        )
+      ) {
+        throwInvalidInput(
+          "Union Server Season Relation Service requires presence timestamps to be both null or chronologically ordered."
+        );
+      }
+
+      const storedRelation = requireExistingRelation(seasonId, serverId, unionId);
+      const projectedRelation = deepClone(storedRelation);
+      defineOwnDataProperty(projectedRelation, "currentActiveStatusId", statusId);
+      defineOwnDataProperty(projectedRelation, "firstConfirmedPresenceAt", firstConfirmedPresenceAt);
+      defineOwnDataProperty(projectedRelation, "mostRecentConfirmedPresenceAt", mostRecentConfirmedPresenceAt);
+      if (shouldCommit) {
+        defineOwnDataProperty(storedRelation, "currentActiveStatusId", statusId);
+        defineOwnDataProperty(storedRelation, "firstConfirmedPresenceAt", firstConfirmedPresenceAt);
+        defineOwnDataProperty(storedRelation, "mostRecentConfirmedPresenceAt", mostRecentConfirmedPresenceAt);
+      }
+      return projectedRelation;
+    }
+
+    function validateActiveStatusProjection(input) {
+      return applyActiveStatusProjection(input, false);
+    }
+
+    function updateActiveStatusProjection(input) {
+      return applyActiveStatusProjection(input, true);
+    }
+
     return {
       listRelations,
       getRelation,
       hasRelation,
-      addKnownUnion
+      addKnownUnion,
+      validateActiveStatusProjection,
+      updateActiveStatusProjection
     };
   }
 

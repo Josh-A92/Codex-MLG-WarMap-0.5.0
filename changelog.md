@@ -13,6 +13,11 @@
 - Reconciled current-state documentation with the verified ownership, persistence, and summary runtime.
 - Defined hosted scalability, operator-input, authorization, locked season-setup, and screenshot-intelligence boundaries.
 - Defined active-union status from confirmed ownership history with a fourteen-day verified zero-territory inactivity rule.
+- Added map-specific activity-fact history and snapshot-driven Active-Status update coordination.
+- Added rebuildable relationship cache projection and read-time verification-health projection.
+- Added an end-to-end regression covering held territory, five qualifying zero-territory confirmations over fourteen days, inactivity, and recapture.
+- Added deterministic union matching by canonical ID, tag, display name, and alias with explicit ambiguous/unmatched outcomes.
+- Added a UI-neutral intelligence view composing union identity, relationship, native assignment, and read-time activity.
 
 ## v0.5.0
 - Documentation reconciliation across core project docs to match repository-authoritative behavior.

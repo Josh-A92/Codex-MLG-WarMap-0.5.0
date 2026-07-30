@@ -23,11 +23,12 @@ Completed:
 - Automatic local persistence and restoration of per-server territory ownership
 - Runtime Summary Service integration for controlled territory, designated-union territory, structures, and season-defined scoring status
 - Designated-union selection from canonical season application configuration
+- Isolated strategic-domain foundations for union relationships, native status, confirmed snapshots, map-specific activity evaluation, and union matching
 
 Pending:
 - Verified season scoring and resource-value calculations
-- Native-union, active-union, and combat-strength runtime records
-- Data freshness, completeness, evidence, and observation workflows
+- Runtime/UI/persistence integration for native-union and active-union records
+- Combat-strength, completeness, evidence, and observation workflows
 - History playback
 - Descriptive server notes integration
 - Search and filters

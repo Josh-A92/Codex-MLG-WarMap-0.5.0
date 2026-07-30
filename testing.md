@@ -42,7 +42,23 @@ Completed:
 
 Pending:
 - Real scoring-backed values
-- Native-union, active-union, combat-strength, freshness, completeness, and evidence fields
+- Native-union, active-union, combat-strength, freshness, completeness, and evidence UI fields
+
+## Strategic Domain Logic
+
+Completed as isolated service boundaries:
+- Canonical union registry and deterministic ID/tag/alias matching
+- Union/server/season relationships and rebuildable Active-Status cache projection
+- Native-union assignment validation and lifecycle service
+- Ownership-record and target-verification validation and lifecycle services
+- Confirmed snapshot validation, assembly, storage, and activity-fact resolution
+- Map-specific activity-fact history
+- Active-Status evaluation, immutable status history, update coordination, and read-time verification-health projection
+- End-to-end held territory -> verified inactivity -> recapture regression
+
+Pending:
+- Application bootstrap and Command Centre integration for these strategic services
+- Persistence of strategic histories beyond current territory-ownership persistence
 
 ## Persistence and Strategic Workflows
 
@@ -66,6 +82,28 @@ Pending:
 - npm run test:persistence-state
 - npm run test:summary-service
 - npm run test:server-state
+- npm run test:union-registry
+- npm run test:union-matching
+- npm run test:union-relations
+- npm run test:native-assignment
+- npm run test:native-assignment-service
+- npm run test:ownership-records
+- npm run test:ownership-record-service
+- npm run test:target-verification
+- npm run test:target-verification-service
+- npm run test:confirmed-snapshot
+- npm run test:confirmed-snapshot-service
+- npm run test:confirmed-snapshot-coordinator
+- npm run test:snapshot-activity-facts
+- npm run test:activity-fact-history
+- npm run test:active-status
+- npm run test:active-status-evaluator
+- npm run test:active-status-service
+- npm run test:active-status-update
+- npm run test:active-status-projection
+- npm run test:activity-pipeline
+- npm run test:union-server-season-view
+- npm run test:union-server-season-intelligence-view
 - npm run test:season1-package
 - npm run test:season-package
 - npm run test:season-loader

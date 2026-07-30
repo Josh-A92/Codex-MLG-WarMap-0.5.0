@@ -32,7 +32,17 @@ This document reflects current main after v0.5.0.
 - src/services/summary-service.js calculates controlled territory, designated-union territory, structure totals, and season-defined scoring status.
 - Summary calculations consume authoritative server ownership and do not own or persist mutable state.
 
-7. Data
+7. Strategic domain logic
+- Canonical union identity, union/server/season relationships, and native/active status histories have isolated validators and services.
+- Confirmed ownership, target verification, and immutable server snapshots feed the snapshot activity fact resolver.
+- The Activity Fact History Service retains map-specific presence and qualifying-full-map facts.
+- The Active-Status Update Coordinator evaluates new snapshot facts, appends immutable status replacements, and refreshes rebuildable relation cache fields.
+- The Active-Status Projection Service recalculates verification health at read time without mutating factual status.
+- The Union/Server/Season Intelligence View Service composes identity, relationship, native assignment, and read-time activity into a UI-neutral view.
+- The Union Matching Service resolves canonical IDs, tags, display names, and aliases deterministically and surfaces ambiguity without creating or merging identities.
+- These strategic services are currently domain-layer foundations; they are not yet composed through application bootstrap, runtime persistence, or the Command Centre UI.
+
+8. Data
 - data/season1-map.json stores shared map tiles and structures.
 - data/unions.json stores union metadata and colors.
 - data/season1-servers.json stores Season 1 server workspace records.
@@ -95,8 +105,9 @@ Not implemented:
 - Real scoring pipeline
 - History playback
 - Descriptive server notes integration
-- Native-union, active-union, combat-strength, freshness, completeness, and evidence workflows
+- Runtime/UI/persistence integration for native-union and active-union workflows
+- Combat-strength, completeness, and evidence workflows
 - Search and filters
 
 Design note:
-- docs/Server-State-Data-Model.md defines a target snapshot/evidence model and is not fully implemented in the current runtime.
+- docs/Server-State-Data-Model.md defines the target snapshot/evidence model. Ownership, verification, snapshot, and activity foundations now exist as isolated domain services, but are not fully integrated into the current runtime.

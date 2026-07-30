@@ -297,6 +297,20 @@ runTest("invalid timestamps and ordering", () => {
 
   assertErrorCode(() => createUnionServerSeasonRelationService([
     {
+      unionId: "union-impossible-date",
+      serverId: "server-366",
+      seasonId: "season-1",
+      currentNativeStatusId: null,
+      currentActiveStatusId: null,
+      firstConfirmedPresenceAt: "2026-02-30T09:15:00Z",
+      mostRecentConfirmedPresenceAt: null,
+      evidenceIds: [],
+      manualOverride: null
+    }
+  ]), "invalid_input", /firstConfirmedPresenceAt/);
+
+  assertErrorCode(() => createUnionServerSeasonRelationService([
+    {
       unionId: "union-0011",
       serverId: "server-366",
       seasonId: "season-1",
@@ -402,6 +416,82 @@ runTest("failed addition leaves state unchanged", () => {
   const before = service.listRelations();
 
   assertErrorCode(() => service.addKnownUnion({ seasonId: "season-1", serverId: "server-366", unionId: "union-0001" }), "duplicate_relation", /season-1 \/ server-366 \/ union-0001/);
+  assert.deepStrictEqual(service.listRelations(), before);
+});
+
+runTest("active status projection updates only rebuildable relation cache fields", () => {
+  const service = createUnionServerSeasonRelationService(createValidInitialRelations());
+  const before = service.getRelation("season-1", "server-366", "union-0001");
+  const updated = service.updateActiveStatusProjection({
+    statusId: "active-status-new",
+    unionId: "union-0001",
+    serverId: "server-366",
+    seasonId: "season-1",
+    reviewState: "confirmed",
+    effectiveTo: null,
+    supersededBy: null,
+    firstConfirmedPresenceAt: "2026-07-10T18:42:00.1Z",
+    mostRecentConfirmedPresenceAt: "2026-07-25T09:15:00.12Z"
+  });
+  assert.strictEqual(updated.currentActiveStatusId, "active-status-new");
+  assert.strictEqual(updated.firstConfirmedPresenceAt, "2026-07-10T18:42:00.1Z");
+  assert.strictEqual(updated.mostRecentConfirmedPresenceAt, "2026-07-25T09:15:00.12Z");
+  assert.strictEqual(updated.currentNativeStatusId, before.currentNativeStatusId);
+  assert.deepStrictEqual(updated.evidenceIds, before.evidenceIds);
+});
+
+runTest("active status projection preflight returns the projected relation without mutation", () => {
+  const service = createUnionServerSeasonRelationService(createValidInitialRelations());
+  const before = service.getRelation("season-1", "server-366", "union-0001");
+  const projected = service.validateActiveStatusProjection({
+    statusId: "active-status-preview",
+    unionId: "union-0001",
+    serverId: "server-366",
+    seasonId: "season-1",
+    reviewState: "confirmed",
+    effectiveTo: null,
+    supersededBy: null,
+    firstConfirmedPresenceAt: "2026-07-10T18:42:00Z",
+    mostRecentConfirmedPresenceAt: "2026-07-25T09:15:00Z"
+  });
+  assert.strictEqual(projected.currentActiveStatusId, "active-status-preview");
+  assert.deepStrictEqual(service.getRelation("season-1", "server-366", "union-0001"), before);
+});
+
+runTest("invalid active status projection is rejected without changing relation state", () => {
+  const service = createUnionServerSeasonRelationService(createValidInitialRelations());
+  const before = service.listRelations();
+  const valid = {
+    statusId: "active-status-new",
+    unionId: "union-0001",
+    serverId: "server-366",
+    seasonId: "season-1",
+    reviewState: "confirmed",
+    effectiveTo: null,
+    supersededBy: null,
+    firstConfirmedPresenceAt: "2026-07-25T09:15:00Z",
+    mostRecentConfirmedPresenceAt: "2026-07-10T18:42:00Z"
+  };
+  assertErrorCode(() => service.updateActiveStatusProjection(valid), "invalid_input", /chronologically ordered/);
+  assertErrorCode(
+    () => service.updateActiveStatusProjection(Object.assign({}, valid, {
+      firstConfirmedPresenceAt: null,
+      mostRecentConfirmedPresenceAt: null,
+      reviewState: "superseded",
+      effectiveTo: "2026-07-30T00:00:00Z",
+      supersededBy: "replacement"
+    })),
+    "invalid_input",
+    /effective current confirmed/
+  );
+  assertErrorCode(
+    () => service.updateActiveStatusProjection(Object.assign({}, valid, {
+      serverId: "unknown",
+      firstConfirmedPresenceAt: null,
+      mostRecentConfirmedPresenceAt: null
+    })),
+    "unknown_relation"
+  );
   assert.deepStrictEqual(service.listRelations(), before);
 });
 
