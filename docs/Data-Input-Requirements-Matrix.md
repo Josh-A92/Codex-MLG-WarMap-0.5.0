@@ -35,28 +35,34 @@ These inputs describe the season and application context. They are not mutable s
 
 | Data point | Authority | Manual authoring required | Assisted proposal | Confirmation or validation | Primary consumers | Current implementation |
 | --- | --- | --- | --- | --- | --- | --- |
-| Season identity, label, status, and metadata | Season definition | Yes, when creating or maintaining a season package | Possible future import | Package validation | Bootstrap, Command Centre, Game Rules Engine | Canonical package exists |
-| Shared map definition and dimensions | Season definition | Yes, unless generated from a verified source | Possible future import/extraction | Package and referenced-map validation | Renderer, calculations | Season 1 definition exists |
-| Capturable and non-playable cell rules | Season definition | Yes | Possible future import | Package validation | Territory denominators and map behaviour | Contract exists |
-| Structure types, codes, levels, categories, and capturability | Season definition | Yes | Possible future import/extraction | Package validation and reference integrity | Renderer, structure summaries, rules engine | Catalogue exists |
-| Structure placement and footprints | Season definition / referenced map | Yes, unless generated from verified map data | Possible future extraction | Map reference and footprint validation | Renderer and territory calculations | Season 1 map exists |
-| Resource identity, label, unit, and metric type | Season definition | Yes | Possible future import | Package validation | Summary Service and UI | Season 1 resource identity exists |
-| Resource outputs and scoring rules | Season definition | Yes, when verified rules are available | Possible future import | Package validation and reference integrity | Game Rules Engine and Summary Service | Contract exists; Season 1 scoring is intentionally unconfigured |
-| Phases, unlocks, capture rules, and buffs | Season definition | Yes | Possible future import | Package validation and reference integrity | Game Rules Engine | Contract and initial Season 1 definitions exist |
+| Season identity, label, status, and metadata | Season definition | Prepared package selected and confirmed | Possible future import | Package validation and administrator confirmation | Bootstrap, Command Centre, Game Rules Engine | Canonical package exists |
+| Shared map definition and dimensions | Season definition | Supplied by prepared package | Possible future import/extraction | Package and referenced-map validation plus administrator confirmation | Renderer, calculations | Season 1 definition exists |
+| Capturable and non-playable cell rules | Season definition | Supplied by prepared package | Possible future import | Package validation | Territory denominators and map behaviour | Contract exists |
+| Structure types, codes, levels, categories, and capturability | Season definition | Supplied by prepared package | Possible future import/extraction | Package validation, reference integrity, and administrator confirmation | Renderer, structure summaries, rules engine | Catalogue exists |
+| Structure placement and footprints | Season definition / referenced map | Supplied by prepared package and referenced map | Possible future extraction | Map reference and footprint validation | Renderer and territory calculations | Season 1 map exists |
+| Resource identity, label, unit, and metric type | Season definition | Supplied by prepared package | Possible future import | Package validation and administrator confirmation | Summary Service and UI | Season 1 resource identity exists |
+| Resource outputs and scoring rules | Season definition | Supplied by prepared package when verified rules are available | Possible future import | Package validation, reference integrity, and administrator confirmation | Game Rules Engine and Summary Service | Contract exists; Season 1 scoring is intentionally unconfigured |
+| Phases, unlocks, capture rules, and buffs | Season definition | Supplied by prepared package only when verified and relevant | Possible future import | Package validation and reference integrity | Game Rules Engine | Contract and initial Season 1 definitions exist |
 | Designated player union | Application configuration | Yes, or omitted explicitly | No requirement | Must reference a valid union when configured | Summary Service and Command Centre | Season 1 uses MLG |
 | Workspace and data-source configuration | Application configuration | Yes during package authoring | No requirement | Required-field validation; no silent fallbacks | Bootstrap and navigation | Implemented |
 
-Season rules are configuration, not live server state. A user-facing authoring system may eventually manage them, but the confirmed specifications do not yet define its exact interface or publication lifecycle.
+Season rules are configuration, not live server state. The initial user-facing
+workflow selects a prepared package, confirms its map/structure and
+resource/value content, and activates it. It does not make normal users author
+the package fields directly.
 
-### Confirmed structure-value authoring model
+### Confirmed structure-value configuration model
 
-Structure resource and scoring values use a hybrid authoring model:
+Structure resource and scoring values use a prepared-package model:
 
-- Simple values are entered through structured fields or tables.
+- Package authoring assigns values through a verified source or controlled
+  authoring process outside the normal season-activation screen.
 - A value is assigned to a stable structure type or code, such as Royal City or Town.
 - Individual placed structures reference that structure type; they do not each require the same value to be re-entered.
 - Structure footprint tiles do not store independent copies of the structure value.
 - The active season package identifies the resource, unit, metric type, and calculation model.
+- The Season Administrator reviews the loaded values and explicitly confirms
+  them before activation.
 - The Game Rules Engine interprets the rule, and summary services apply it to confirmed per-server ownership.
 - More complex mechanics may reference reusable calculation rules rather than forcing a single numeric field to represent every season mechanic.
 - The backend validates identifiers and references before accepting the configuration.

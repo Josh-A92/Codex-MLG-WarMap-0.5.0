@@ -63,8 +63,16 @@ This document reflects current main after v0.5.0.
   and per-server management projections.
 - The Data Management Runtime composes those operations over the existing
   Union Registry, Strategic Domain Runtime, and Evidence Domain Runtime.
-- The current renderer does not instantiate this runtime yet. The next milestone
-  is user-facing Data Management screen design and integration.
+- The approved Data Management, responsive map, and prepared Season Setup
+  interfaces are defined in docs/User-Interface-Design-Specification.md.
+- The current renderer does not instantiate the Data Management Runtime yet.
+- Union registration still needs one application coordinator across global
+  identity, known-server association, and native assignment.
+- Map ownership editing still needs one coordinator that creates canonical
+  ownership history and refreshes the current map projection without competing
+  authorities.
+- Prepared Season Setup still needs an authorized activation and persistence
+  boundary above Season Loader and Season Package Validator.
 
 9. Data
 - data/season1-map.json stores shared map tiles and structures.

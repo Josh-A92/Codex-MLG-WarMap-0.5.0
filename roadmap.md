@@ -60,7 +60,11 @@ Pending:
   active-union, combat-strength, server-observation, and evidence records
 - Command Centre and Server Overview integration of canonical intelligence,
   freshness, completeness, and pending-review projections
-- User-facing Data Management workspace design and renderer integration
+- Data Management workspace renderer integration (screen design approved)
+- Responsive map layout, compact selected-target projection, and canonical
+  ownership-edit coordination (design approved)
+- Prepared Season Setup confirmation, activation, and persistence (design
+  approved; application service pending)
 
 Domain foundations completed:
 - Native and active union histories, activity evaluation, and read-time projection
@@ -72,6 +76,8 @@ Domain foundations completed:
 - Storage-neutral Union Registry, Server Intelligence, Evidence, and Proposal
   Review management operations
 - Screen-ready Union Registry and per-server Data Management query projections
+- Approved Data Management, responsive map, and prepared Season Setup UI
+  specification
 
 ## Phase 5 - History and Descriptive Notes
 

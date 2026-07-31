@@ -197,20 +197,33 @@ Returned data is copied and cannot mutate domain state.
 Unscoped manual evidence remains available in the global Evidence workspace and is
 not incorrectly attributed to a server.
 
-## 10. Initial Screen Areas
+## 10. Approved Screen Areas
 
-The first screen-design milestone may now define:
+The first user-facing Data Management design is now defined in
+`docs/User-Interface-Design-Specification.md`.
 
-1. Union Registry
-2. Server Intelligence
-3. Evidence Upload
-4. Review Queue
+Its approved navigation order is:
+
+1. Territory & Evidence
+2. Evidence Intake
+3. Review Queue
+4. Union Registry
+
+Territory & Evidence is an evidence-approval and freshness workspace. Direct
+territory and structure ownership changes remain map actions.
+
+Evidence Intake treats screenshots as partial views, requires server scope, and
+does not ask users to enter file metadata or coverage.
+
+Union Registry exposes name, tag, colour, map pattern, and native server. Stable
+union IDs and initial alias state are application-managed.
 
 The UI may derive available actions from actor capabilities for usability, while
 the application service remains authoritative.
 
-Season Setup remains separate because season rules are initialized once, validated,
-and locked before ordinary use.
+Season Setup remains separate. The initial interface selects a prepared season
+package, confirms its map/structure and resource/value configuration, then
+activates it as read-only for normal use.
 
 ## 11. Corrections and Audit Boundary
 
@@ -249,5 +262,13 @@ them.
 The storage-neutral, authorized Data Management backend boundary is implemented
 and tested.
 
-The project is ready to design its first user-facing Data Management screens around
-the operation and query contracts in this document.
+The first user-facing Data Management, responsive map, and prepared Season Setup
+designs are approved and documented.
+
+Renderer integration remains pending. Two application coordination gaps must be
+closed before the approved screens can be considered complete:
+
+- one atomic Union Registration operation spanning identity, known-server
+  association, and native assignment;
+- one canonical map-ownership operation that creates ownership history and
+  refreshes the current map projection without competing authorities.
