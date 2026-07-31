@@ -53,7 +53,20 @@ This document reflects current main after v0.5.0.
   state persistence, operator input workflows, and Command Centre/Server
   Overview consumption remain integration work.
 
-8. Data
+8. Data Management application boundary
+- The Authorization Policy Service enforces capability grants with optional
+  season and server scopes without depending on role names or an authentication
+  provider.
+- Union Registry, Server Intelligence, Evidence, and Proposal Review management
+  services expose explicit authorized operations instead of storage mutation.
+- The Data Management Query Service returns safe, screen-ready global-registry
+  and per-server management projections.
+- The Data Management Runtime composes those operations over the existing
+  Union Registry, Strategic Domain Runtime, and Evidence Domain Runtime.
+- The current renderer does not instantiate this runtime yet. The next milestone
+  is user-facing Data Management screen design and integration.
+
+9. Data
 - data/season1-map.json stores shared map tiles and structures.
 - data/unions.json stores union metadata and colors.
 - data/season1-servers.json stores Season 1 server workspace records.
@@ -118,8 +131,9 @@ Not implemented:
 - Descriptive server-note UI integration (the canonical Server Observation
   validator, service, persistence collection, and read-only Server Intelligence
   View now exist)
-- Operator UI and startup persistence integration for native-union,
-  active-union, combat-strength, server-observation, and evidence workflows
+- Operator UI and startup persistence integration for the implemented
+  authorized native-union, combat-strength, server-observation, ownership,
+  evidence, and review operations
 - Command Centre and Server Overview consumption of canonical intelligence and
   completeness projections
 - Search and filters

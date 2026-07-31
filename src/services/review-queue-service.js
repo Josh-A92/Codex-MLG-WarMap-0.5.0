@@ -4,7 +4,8 @@
     "combatStrengthObservationService",
     "serverObservationService",
     "ownershipRecordService",
-    "evidenceRecordService"
+    "evidenceRecordService",
+    "resolveEvidenceScope"
   ]);
   const FILTER_FIELDS = new Set(["seasonId", "serverId", "itemType"]);
   const ITEM_TYPES = new Set([
@@ -96,8 +97,12 @@
       "evidenceRecordService",
       ["listEvidenceRecords"]
     );
+    if (typeof options.resolveEvidenceScope !== "function") {
+      fail("invalid_factory", "Review Queue Service requires options.resolveEvidenceScope.");
+    }
+    const resolveEvidenceScope = options.resolveEvidenceScope.bind(options);
 
-    function createItem(itemType, record, idField, timeField) {
+    function createItem(itemType, record, idField, timeField, scopeOverride) {
       if (!isRecord(record)
           || typeof record[idField] !== "string"
           || record[idField].trim() === ""
@@ -108,8 +113,12 @@
       return {
         itemType,
         itemId: record[idField],
-        seasonId: typeof record.seasonId === "string" ? record.seasonId : null,
-        serverId: typeof record.serverId === "string" ? record.serverId : null,
+        seasonId: scopeOverride
+          ? scopeOverride.seasonId
+          : (typeof record.seasonId === "string" ? record.seasonId : null),
+        serverId: scopeOverride
+          ? scopeOverride.serverId
+          : (typeof record.serverId === "string" ? record.serverId : null),
         observedAt: record[timeField],
         sourceType: typeof record.sourceType === "string" ? record.sourceType : null,
         evidenceIds: Array.isArray(record.evidenceIds)
@@ -177,10 +186,27 @@
         ));
       }
       if (include("evidence_record")) {
-        const evidenceItems = collect(
-          evidence, "listEvidenceRecords", { reviewState: "proposed" },
-          "evidence_record", "evidenceId", "observedAt"
-        );
+        const evidenceRecords = evidence.listEvidenceRecords({ reviewState: "proposed" });
+        if (!Array.isArray(evidenceRecords)) {
+          fail("invalid_dependency", "Review Queue Service requires listEvidenceRecords to return an array.");
+        }
+        const evidenceItems = evidenceRecords.map((record) => {
+          const scope = resolveEvidenceScope(clone(record));
+          if (!isRecord(scope)
+              || typeof scope.seasonId !== "string"
+              || scope.seasonId.trim() === ""
+              || typeof scope.serverId !== "string"
+              || scope.serverId.trim() === "") {
+            fail("invalid_dependency", "Review Queue Service received an invalid evidence scope.");
+          }
+          return createItem(
+            "evidence_record",
+            record,
+            "evidenceId",
+            "observedAt",
+            { seasonId: scope.seasonId, serverId: scope.serverId }
+          );
+        });
         items.push(...evidenceItems.filter((item) => (
           (value.seasonId === undefined || item.seasonId === value.seasonId)
           && (value.serverId === undefined || item.serverId === value.serverId)

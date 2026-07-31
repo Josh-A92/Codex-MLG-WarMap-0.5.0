@@ -60,6 +60,7 @@ Pending:
   active-union, combat-strength, server-observation, and evidence records
 - Command Centre and Server Overview integration of canonical intelligence,
   freshness, completeness, and pending-review projections
+- User-facing Data Management workspace design and renderer integration
 
 Domain foundations completed:
 - Native and active union histories, activity evaluation, and read-time projection
@@ -67,6 +68,10 @@ Domain foundations completed:
 - Canonical ownership, verification, snapshots, and map freshness projections
 - Evidence asset/record runtime and storage-neutral persistence
 - Server Intelligence and Pending Review read models
+- Capability-based authorization with season/server scopes
+- Storage-neutral Union Registry, Server Intelligence, Evidence, and Proposal
+  Review management operations
+- Screen-ready Union Registry and per-server Data Management query projections
 
 ## Phase 5 - History and Descriptive Notes
 

@@ -49,6 +49,9 @@ function dependencies() {
       },
       evidenceRecordService: {
         listEvidenceRecords: list("evidence", [proposal("evidence-1")])
+      },
+      resolveEvidenceScope() {
+        return { seasonId: "season-1", serverId: "server-366" };
       }
     }
   };
@@ -101,6 +104,13 @@ class NativeService {
 const classDeps = dependencies();
 classDeps.options.nativeAssignmentService = new NativeService();
 assert.doesNotThrow(() => createReviewQueueService(classDeps.options).listPendingReviews());
+
+const invalidEvidenceScope = dependencies();
+invalidEvidenceScope.options.resolveEvidenceScope = () => ({});
+assert.throws(
+  () => createReviewQueueService(invalidEvidenceScope.options).listPendingReviews(),
+  (error) => error.code === "invalid_dependency"
+);
 
 const source = fs.readFileSync(
   path.join(__dirname, "..", "src", "services", "review-queue-service.js"),

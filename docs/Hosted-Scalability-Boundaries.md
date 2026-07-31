@@ -183,7 +183,7 @@ Capabilities may be scoped to selected seasons or servers. An account can theref
 
 Manual facts entered by an authorised user become confirmed when explicitly saved. The operation records the actor and time. Automated and screenshot-derived facts remain proposed until reviewed unless a later trusted-source policy explicitly permits automatic confirmation.
 
-The current desktop application remains a single-trusted-user environment because it has no authentication system. That is a temporary adapter-level assumption and must not become embedded in domain services or future hosted authorization.
+The current desktop application remains a single-trusted-user environment because it has no authentication system. A storage-neutral capability policy and authorised Data Management operation boundary now exist, including season/server scoping. The trusted local actor is a temporary adapter-level identity and does not bypass those operation checks.
 
 ### Season structure-value operations
 
@@ -462,7 +462,9 @@ Existing ownership, rules, state, and summary services should remain usable thro
 - map-renderer.js currently holds too many UI and orchestration responsibilities
 - bootstrap currently requires an Electron persistence bridge
 - version 1 persistence replaces a complete local ownership snapshot
-- authentication, authorization, concurrency, and audit behavior are not implemented
+- capability authorization and Data Management operations are implemented as
+  storage-neutral application services; authentication, durable account storage,
+  concurrency, and transactional audit history remain planned
 - Union and Server Intelligence read models are implemented as runtime-neutral
   application services; hosted API integration and operator-facing UI remain
   planned
