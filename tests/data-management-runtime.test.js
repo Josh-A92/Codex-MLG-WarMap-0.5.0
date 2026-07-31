@@ -19,6 +19,7 @@ function factory() {
   created.authorization = { requireAuthorized() {} };
   created.registryManagement = { createUnionIdentity() {} };
   created.serverManagement = { addKnownUnion() {} };
+  created.unionRegistration = { registerUnion() {} };
   created.evidenceManagement = { resolveEvidenceScope() { return {}; } };
   created.reviewQueue = { listPendingReviews() { return []; } };
   created.proposalReview = { confirmProposal() {} };
@@ -27,6 +28,7 @@ function factory() {
     createAuthorizationPolicyService: creator("authorization", created.authorization),
     createUnionRegistryManagementService: creator("registryManagement", created.registryManagement),
     createServerIntelligenceManagementService: creator("serverManagement", created.serverManagement),
+    createUnionRegistrationCoordinator: creator("unionRegistration", created.unionRegistration),
     createEvidenceManagementService: creator("evidenceManagement", created.evidenceManagement),
     createProposalReviewManagementService: creator("proposalReview", created.proposalReview),
     createReviewQueueService: creator("reviewQueue", created.reviewQueue),
@@ -60,18 +62,20 @@ function factory() {
       strategicDomainRuntime: strategic,
       evidenceDomainRuntime: evidence,
       clock() { return "2026-07-31T10:00:00Z"; },
-      createId(kind) { return `${kind}-1`; }
+      createId(kind) { return `${kind}-1`; },
+      executeAtomically(operation) { return operation(); }
     }
   };
 }
 
-test("composes the seven screen-facing management services", () => {
+test("composes the union registration coordinator with the screen-facing services", () => {
   const setup = factory();
   const runtime = createDataManagementRuntime(setup.options);
   assert.deepStrictEqual(Object.keys(runtime), [
     "authorizationPolicyService",
     "unionRegistryManagementService",
     "serverIntelligenceManagementService",
+    "unionRegistrationCoordinator",
     "evidenceManagementService",
     "reviewQueueService",
     "proposalReviewManagementService",
@@ -84,6 +88,7 @@ test("composes the seven screen-facing management services", () => {
     "authorization",
     "registryManagement",
     "serverManagement",
+    "unionRegistration",
     "evidenceManagement",
     "reviewQueue",
     "proposalReview",
@@ -94,10 +99,38 @@ test("composes the seven screen-facing management services", () => {
 test("threads one authorization policy through all mutation boundaries", () => {
   const setup = factory();
   createDataManagementRuntime(setup.options);
-  ["registryManagement", "serverManagement", "evidenceManagement", "proposalReview"].forEach((name) => {
+  [
+    "registryManagement",
+    "serverManagement",
+    "unionRegistration",
+    "evidenceManagement",
+    "proposalReview"
+  ].forEach((name) => {
     const options = setup.calls.find((call) => call[0] === name)[1];
     assert.strictEqual(options.authorizationPolicyService, setup.created.authorization);
   });
+});
+
+test("threads registration services, ID generation, and transaction execution into the coordinator", () => {
+  const setup = factory();
+  const runtime = createDataManagementRuntime(setup.options);
+  const registration = setup.calls.find((call) => call[0] === "unionRegistration")[1];
+
+  assert.strictEqual(
+    registration.authorizationPolicyService,
+    setup.created.authorization
+  );
+  assert.strictEqual(
+    registration.unionRegistryManagementService,
+    setup.created.registryManagement
+  );
+  assert.strictEqual(
+    registration.serverIntelligenceManagementService,
+    setup.created.serverManagement
+  );
+  assert.strictEqual(registration.createId, setup.options.createId);
+  assert.strictEqual(registration.executeAtomically, setup.options.executeAtomically);
+  assert.strictEqual(runtime.unionRegistrationCoordinator, setup.created.unionRegistration);
 });
 
 test("threads strategic and evidence services into management and review composition", () => {
@@ -138,6 +171,12 @@ test("factory rejects missing, unknown, and malformed dependencies", () => {
   delete missingStrategic.options.strategicDomainRuntime.ownershipRecordService;
   assert.throws(
     () => createDataManagementRuntime(missingStrategic.options),
+    (error) => error instanceof DataManagementRuntimeError && error.code === "invalid_factory"
+  );
+  const missingTransaction = factory();
+  delete missingTransaction.options.executeAtomically;
+  assert.throws(
+    () => createDataManagementRuntime(missingTransaction.options),
     (error) => error instanceof DataManagementRuntimeError && error.code === "invalid_factory"
   );
 });

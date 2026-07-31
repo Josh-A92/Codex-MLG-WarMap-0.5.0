@@ -5,12 +5,14 @@
     "strategicDomainRuntime",
     "evidenceDomainRuntime",
     "clock",
-    "createId"
+    "createId",
+    "executeAtomically"
   ]);
   const MODULE_FIELDS = new Set([
     "createAuthorizationPolicyService",
     "createUnionRegistryManagementService",
     "createServerIntelligenceManagementService",
+    "createUnionRegistrationCoordinator",
     "createEvidenceManagementService",
     "createProposalReviewManagementService",
     "createReviewQueueService",
@@ -67,8 +69,12 @@
         fail(`Data Management Runtime requires options.modules.${field}.`);
       }
     });
-    if (typeof input.clock !== "function" || typeof input.createId !== "function") {
-      fail("Data Management Runtime requires clock and createId functions.");
+    if (
+      typeof input.clock !== "function"
+      || typeof input.createId !== "function"
+      || typeof input.executeAtomically !== "function"
+    ) {
+      fail("Data Management Runtime requires clock, createId, and executeAtomically functions.");
     }
 
     const registry = requireInterface(
@@ -122,6 +128,13 @@
       clock: input.clock,
       createId: input.createId
     });
+    const unionRegistrationCoordinator = modules.createUnionRegistrationCoordinator({
+      authorizationPolicyService,
+      unionRegistryManagementService,
+      serverIntelligenceManagementService,
+      executeAtomically: input.executeAtomically,
+      createId: input.createId
+    });
     const evidenceManagementService = modules.createEvidenceManagementService({
       authorizationPolicyService,
       evidenceAssetService: evidence.evidenceAssetService,
@@ -164,6 +177,7 @@
       authorizationPolicyService,
       unionRegistryManagementService,
       serverIntelligenceManagementService,
+      unionRegistrationCoordinator,
       evidenceManagementService,
       reviewQueueService,
       proposalReviewManagementService,

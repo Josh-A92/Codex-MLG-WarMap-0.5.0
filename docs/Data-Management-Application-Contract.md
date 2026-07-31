@@ -24,6 +24,7 @@ The services are storage-neutral and UI-neutral.
 - `AuthorizationPolicyService`
 - `UnionRegistryManagementService`
 - `ServerIntelligenceManagementService`
+- `UnionRegistrationCoordinator`
 - `EvidenceManagementService`
 - `ReviewQueueService`
 - `ProposalReviewManagementService`
