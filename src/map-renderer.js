@@ -59,8 +59,6 @@ const commandCentreView = document.getElementById("commandCentreView");
 const commandCentreCards = document.getElementById("commandCentreCards");
 const mapWorkspaceView = document.getElementById("mapWorkspaceView");
 const workspaceMapTitle = document.getElementById("workspaceMapTitle");
-const legendPanel = document.querySelector(".legend");
-const stageElement = document.querySelector(".stage");
 const colheads = document.getElementById("colheads");
 const colheadsBottom = document.getElementById("colheadsBottom");
 const rowheads = document.getElementById("rowheads");
@@ -107,6 +105,7 @@ let strategicDomainRuntime = null;
 let evidenceDomainRuntime = null;
 let dataManagementRuntime = null;
 let mapOwnershipCoordinator = null;
+let selectedMapTargetViewService = null;
 let localActor = null;
 let applicationStarted = false;
 const appState = {
@@ -301,14 +300,6 @@ function updateWorkspaceShellUI() {
 
   if (mapWorkspaceView) {
     mapWorkspaceView.setAttribute("aria-hidden", String(isCommandCentre));
-  }
-
-  if (legendPanel) {
-    legendPanel.style.visibility = isCommandCentre ? "hidden" : "visible";
-  }
-
-  if (stageElement) {
-    stageElement.classList.toggle("is-command-centre", isCommandCentre);
   }
 
   if (workspaceMapTitle) {
@@ -1360,6 +1351,75 @@ function attachSelectionPanelHandlers() {
   selectionPanel.addEventListener("change", handleSelectionPanelChange);
 }
 
+function getSelectedTargetView(item) {
+  if (!selectedMapTargetViewService || !item || !appState.activeServer) {
+    return null;
+  }
+  if (isStructureSelection(item)) {
+    return selectedMapTargetViewService.getStructureView({
+      seasonId: seasonIdentity.seasonId,
+      serverId: appState.activeServer,
+      structureId: item.id,
+      structureCode: item.code
+    });
+  }
+  return selectedMapTargetViewService.getTerritoryView({
+    seasonId: seasonIdentity.seasonId,
+    serverId: appState.activeServer,
+    row: Number(item.row),
+    col: Number(item.col)
+  });
+}
+
+function formatRecordedTime(value, emptyLabel) {
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+    return emptyLabel;
+  }
+  const recordedAt = Date.parse(value);
+  const elapsedMilliseconds = Math.max(0, Date.now() - recordedAt);
+  const elapsedMinutes = Math.floor(elapsedMilliseconds / 60000);
+  let relative;
+  if (elapsedMinutes < 1) {
+    relative = "Just now";
+  } else if (elapsedMinutes < 60) {
+    relative = `${elapsedMinutes} min ago`;
+  } else if (elapsedMinutes < 48 * 60) {
+    const hours = Math.floor(elapsedMinutes / 60);
+    relative = `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  } else {
+    const days = Math.floor(elapsedMinutes / (24 * 60));
+    relative = `${days} ${days === 1 ? "day" : "days"} ago`;
+  }
+  const exact = new Date(recordedAt).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return `${relative} · ${exact}`;
+}
+
+function formatSeasonDefinedValue(value) {
+  if (value === null || value === undefined) return "Not configured";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    const amount = Object.prototype.hasOwnProperty.call(value, "value")
+      ? value.value
+      : (Object.prototype.hasOwnProperty.call(value, "amount") ? value.amount : null);
+    const unit = value.unit || value.resourceLabel || value.resourceId || "";
+    if (amount !== null) return `${amount}${unit ? ` ${unit}` : ""}`;
+  }
+  return "Configured";
+}
+
+function getOwnerPattern(union) {
+  const metadata = union && union.presentationMetadata;
+  return metadata && typeof metadata.mapPattern === "string"
+    ? metadata.mapPattern
+    : "solid";
+}
+
 function renderSelectionPanel(tile) {
   if (!selectionPanel) {
     return;
@@ -1374,26 +1434,49 @@ function renderSelectionPanel(tile) {
   }
 
   const terrainValue = tile.type || "Unknown terrain";
-  const structureValue = tile.code && tile.type ? `${tile.code} · ${tile.type}` : tile.code || "None";
   const isStructure = isStructureSelection(tile);
-  const ownerValue = ownershipService
+  const targetView = getSelectedTargetView(tile);
+  const fallbackOwnerValue = ownershipService
     ? (isStructure ? getStructureOwnerLabel(tile) : ownershipService.getTileOwnerLabel(tile))
     : "Unassigned";
+  const unionIdentity = targetView && targetView.currentUnionIdentity;
+  const ownerValue = unionIdentity
+    ? (unionIdentity.tag || unionIdentity.displayName || unionIdentity.unionId)
+    : fallbackOwnerValue;
+  const ownerColor = unionIdentity && unionIdentity.defaultColor
+    ? unionIdentity.defaultColor
+    : "transparent";
+  const ownerPattern = getOwnerPattern(unionIdentity);
+  const title = isStructure
+    ? `${tile.type || "Structure"}${tile.level ? ` · Level ${tile.level}` : ""}`
+    : terrainValue;
+  const structureValue = targetView
+    ? formatSeasonDefinedValue(targetView.seasonDefinedValue)
+    : "Not configured";
+  const lastConfirmed = formatRecordedTime(
+    targetView && targetView.lastConfirmedAt,
+    "Not yet confirmed"
+  );
+  const lastOwnershipChange = formatRecordedTime(
+    targetView && targetView.lastOwnershipChangeAt,
+    "No recorded change"
+  );
 
   selectionPanel.innerHTML = `
-    <h2>Tile Details</h2>
+    <h2>${isStructure ? "Structure Details" : "Tile Details"}</h2>
     <div class="selection-summary">
-      <div class="selection-title">${tile.code || "Unknown"} · ${terrainValue}</div>
+      <div class="selection-title">${title}</div>
       <div class="selection-meta">
-        <div class="selection-row"><span class="selection-label">Coordinate</span><span>Row ${tile.row}, Col ${tile.col}</span></div>
-        <div class="selection-row"><span class="selection-label">Terrain</span><span>${terrainValue}</span></div>
-        <div class="selection-row"><span class="selection-label">Structure</span><span>${structureValue}</span></div>
-        <div class="selection-row"><span class="selection-label">Owner</span><span>${ownerValue}</span></div>
-      </div>
-      <div class="selection-secondary">
-        <div class="selection-row selection-row--subtle"><span class="selection-label">Code</span><span>${tile.code || "Unknown"}</span></div>
-        <div class="selection-row selection-row--subtle"><span class="selection-label">Row</span><span>${tile.row}</span></div>
-        <div class="selection-row selection-row--subtle"><span class="selection-label">Column</span><span>${tile.col}</span></div>
+        <div class="selection-row">
+          <span class="selection-label">Owner</span>
+          <span class="selection-owner">
+            <span class="selection-owner-swatch pattern-${ownerPattern}" style="--owner-color:${ownerColor}"></span>
+            ${ownerValue}
+          </span>
+        </div>
+        <div class="selection-row"><span class="selection-label">Last confirmed</span><span>${lastConfirmed}</span></div>
+        <div class="selection-row"><span class="selection-label">Last ownership change</span><span>${lastOwnershipChange}</span></div>
+        ${isStructure ? `<div class="selection-row"><span class="selection-label">Season value</span><span>${structureValue}</span></div>` : ""}
       </div>
     </div>
   `;
@@ -1437,6 +1520,7 @@ function clearTileOwnershipOverlays() {
   map.querySelectorAll(`.${TILE_CLASS_PREFIX}.ownership-owned`).forEach((tileElement) => {
     tileElement.classList.remove("ownership-owned");
     tileElement.style.removeProperty("--ownership-color");
+    tileElement.removeAttribute("data-ownership-pattern");
   });
 }
 
@@ -1444,6 +1528,7 @@ function clearStructureOwnershipOverlays() {
   map.querySelectorAll(".footprint-overlay.ownership-owned").forEach((overlayElement) => {
     overlayElement.classList.remove("ownership-owned");
     overlayElement.style.removeProperty("--ownership-color");
+    overlayElement.removeAttribute("data-ownership-pattern");
   });
 }
 
@@ -1457,6 +1542,8 @@ function applyTileOwnershipOverlays() {
   map.querySelectorAll(`.${TILE_CLASS_PREFIX}`).forEach((tileElement) => {
     const tile = tileElement.tileData;
     const ownerColor = ownershipService.getTileOwnerColor(tile);
+    const ownerId = ownershipService.getTileOwner(tile);
+    const union = ownershipService.getUnionById(ownerId);
 
     if (!ownerColor) {
       return;
@@ -1464,6 +1551,7 @@ function applyTileOwnershipOverlays() {
 
     tileElement.classList.add("ownership-owned");
     tileElement.style.setProperty("--ownership-color", ownerColor);
+    tileElement.setAttribute("data-ownership-pattern", getOwnerPattern(union));
   });
 }
 
@@ -1483,6 +1571,7 @@ function applyStructureOwnershipOverlays(markers) {
     footprintTiles.forEach((tileElement) => {
       tileElement.classList.remove("ownership-owned");
       tileElement.style.removeProperty("--ownership-color");
+      tileElement.removeAttribute("data-ownership-pattern");
     });
 
     const owner = ownershipService.getStructureOwner(marker);
@@ -1503,6 +1592,7 @@ function applyStructureOwnershipOverlays(markers) {
 
     overlayElement.classList.add("ownership-owned");
     overlayElement.style.setProperty("--ownership-color", ownerColor);
+    overlayElement.setAttribute("data-ownership-pattern", getOwnerPattern(union));
   });
 }
 
@@ -1858,6 +1948,7 @@ function initializeDataManagementRuntime() {
     createId: createRuntimeId
   });
   mapOwnershipCoordinator = dataManagementRuntime.mapOwnershipCoordinator;
+  selectedMapTargetViewService = dataManagementRuntime.selectedMapTargetViewService;
   localActor = trustedLocalActorFactory("desktop-user");
   appState.dataManagementRuntime = dataManagementRuntime;
 }

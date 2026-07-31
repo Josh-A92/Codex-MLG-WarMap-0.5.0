@@ -602,6 +602,37 @@ runTest("renderer command centre source contains no placeholder text and explici
   assert.ok(/<span>Structures<\/span><strong>\$\{structureAggregate\.designatedUnionControlledCount\} controlled · \$\{structureAggregate\.availableCount\} available<\/strong>/.test(rendererSource));
 });
 
+runTest("map layout removes the legend and provides smartphone responsive boundaries", () => {
+  const indexSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const styleSource = fs.readFileSync(path.join(__dirname, "..", "src", "styles.css"), "utf8");
+
+  assert.strictEqual(/class="legend"/.test(indexSource), false);
+  assert.ok(/class="server-dock"/.test(indexSource));
+  assert.ok(/@media \(max-width: 760px\)/.test(styleSource));
+  assert.ok(/overflow-x:hidden/.test(styleSource));
+  assert.ok(/\.workspace-shell\s*\{[\s\S]*min-width:0/.test(styleSource));
+  assert.ok(/#serverDockButtons\s*\{[\s\S]*flex-wrap:wrap/.test(styleSource));
+  assert.ok(/\.camera-viewport\s*\{[\s\S]*overflow:hidden/.test(styleSource));
+});
+
+runTest("compact selected-target panel uses canonical view data without coordinates or evidence", () => {
+  const rendererSource = fs.readFileSync(
+    path.join(__dirname, "..", "src", "map-renderer.js"),
+    "utf8"
+  );
+  const start = rendererSource.indexOf("function renderSelectionPanel(tile)");
+  const end = rendererSource.indexOf("function clearHoverEffects()", start);
+  assert.ok(start > -1 && end > start);
+  const selectionRenderer = rendererSource.slice(start, end);
+  assert.ok(/getSelectedTargetView\(tile\)/.test(selectionRenderer));
+  assert.ok(/Last confirmed/.test(selectionRenderer));
+  assert.ok(/Last ownership change/.test(selectionRenderer));
+  assert.ok(/Season value/.test(selectionRenderer));
+  assert.strictEqual(/Coordinate|Row \$\{|Column|Evidence source/.test(selectionRenderer), false);
+  assert.ok(/selectedMapTargetViewService\.getTerritoryView/.test(rendererSource));
+  assert.ok(/selectedMapTargetViewService\.getStructureView/.test(rendererSource));
+});
+
 runTest("index loads summary service before renderer and bootstrap", () => {
   const indexPath = path.join(__dirname, "..", "index.html");
   const html = fs.readFileSync(indexPath, "utf8");
