@@ -19,6 +19,7 @@
     <nav class="server-dock" id="serverDock" aria-label="Workspace and Server Navigation">
       <button class="server-dock-button server-dock-button--home" data-workspace-target="command-centre" type="button">Command Centre</button>
       <div id="serverDockButtons"></div>
+      <button class="server-dock-button server-dock-button--setup" data-workspace-target="season-setup" type="button">Season Setup</button>
     </nav>
 
     <section class="command-centre-view" id="commandCentreView" aria-live="polite">
@@ -30,6 +31,10 @@
       <div class="command-centre-grid" id="commandCentreCards"></div>
 
       <div class="command-centre-note">Ownership changes save automatically. Season scoring remains unconfigured.</div>
+    </section>
+
+    <section class="season-setup-view" id="seasonSetupView" aria-live="polite" aria-hidden="true">
+      <div id="seasonSetupContent"></div>
     </section>
 
     <section class="map-frame" id="mapWorkspaceView">

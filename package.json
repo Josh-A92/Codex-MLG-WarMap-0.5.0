@@ -75,7 +75,8 @@
   "test:season1-package": "node tests/season1-package.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
   "test:season-loader": "node tests/season-loader.test.js",
-  "test:season-administration": "node tests/season-administration-service.test.js"
+  "test:season-administration": "node tests/season-administration-service.test.js",
+  "test:season-setup-ui": "node tests/season-setup-ui.test.js"
 },
   "repository": {
     "type": "git",

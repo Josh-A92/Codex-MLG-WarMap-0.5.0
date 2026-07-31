@@ -510,15 +510,18 @@ runTest("renderer requires persistence controller initialize and requestSave", (
 runTest("renderer restores ownership before workspace and map initialization flow", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
+  const initializeMapStart = rendererSource.indexOf("function initializeMap()");
+  const configureRendererStart = rendererSource.indexOf("function configureRenderer(", initializeMapStart);
+  const initializeMapSource = rendererSource.slice(initializeMapStart, configureRendererStart);
 
-  const initializeIndex = rendererSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
-  const initializeSummaryServiceIndex = rendererSource.indexOf("initializeSummaryService();");
-  const listServersIndex = rendererSource.indexOf("appState.servers = serverStateService.listServers();");
-  const renderWorkspaceNavigationIndex = rendererSource.indexOf("renderWorkspaceNavigation();");
-  const renderMapIndex = rendererSource.indexOf("renderMap(mapData);");
-  const initializeCameraIndex = rendererSource.indexOf("initializeCamera(mapData);");
-  const attachSelectionPanelHandlersIndex = rendererSource.indexOf("attachSelectionPanelHandlers();");
-  const setActiveWorkspaceIndex = rendererSource.indexOf("setActiveWorkspace(workspaceHome);");
+  const initializeIndex = initializeMapSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
+  const initializeSummaryServiceIndex = initializeMapSource.indexOf("initializeSummaryService();");
+  const listServersIndex = initializeMapSource.indexOf("appState.servers = serverStateService.listServers();");
+  const renderWorkspaceNavigationIndex = initializeMapSource.indexOf("renderWorkspaceNavigation();");
+  const renderMapIndex = initializeMapSource.indexOf("renderMap(mapData);");
+  const initializeCameraIndex = initializeMapSource.indexOf("initializeCamera(mapData);");
+  const attachSelectionPanelHandlersIndex = initializeMapSource.indexOf("attachSelectionPanelHandlers();");
+  const setActiveWorkspaceIndex = initializeMapSource.indexOf("setActiveWorkspace(workspaceHome);");
 
   [
     initializeIndex,

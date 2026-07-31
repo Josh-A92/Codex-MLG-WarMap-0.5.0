@@ -15,6 +15,8 @@ let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
 let serverStatePersistenceController = null;
 let dataManagementPersistenceController = null;
+let seasonAdministrationService = null;
+let seasonContext = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -57,6 +59,8 @@ const serverDock = document.getElementById("serverDock");
 const serverDockButtons = document.getElementById("serverDockButtons");
 const commandCentreView = document.getElementById("commandCentreView");
 const commandCentreCards = document.getElementById("commandCentreCards");
+const seasonSetupView = document.getElementById("seasonSetupView");
+const seasonSetupContent = document.getElementById("seasonSetupContent");
 const mapWorkspaceView = document.getElementById("mapWorkspaceView");
 const workspaceMapTitle = document.getElementById("workspaceMapTitle");
 const colheads = document.getElementById("colheads");
@@ -121,6 +125,15 @@ const appState = {
   servers: [],
   activeWorkspace: null,
   activeServer: null
+};
+const seasonSetupState = {
+  step: 1,
+  selectedSeasonId: null,
+  selectedServerIds: new Set(),
+  mapAndStructuresConfirmed: true,
+  resourcesAndValuesConfirmed: true,
+  errorMessage: null,
+  isActivating: false
 };
 const desktopPanState = {
   isPointerDown: false,
@@ -286,20 +299,348 @@ function getServerById(serverId) {
   return appState.servers.find((server) => server.id === serverId) || null;
 }
 
+function createSeasonSetupElement(tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  if (text !== undefined && text !== null) element.textContent = text;
+  return element;
+}
+
+function appendSeasonSetupFact(parent, label, value) {
+  const row = createSeasonSetupElement("div", "season-setup-fact");
+  row.appendChild(createSeasonSetupElement("span", null, label));
+  row.appendChild(createSeasonSetupElement("strong", null, value));
+  parent.appendChild(row);
+}
+
+function formatStructureValue(summary, structure) {
+  const outputs = summary.resource && summary.resource.structureOutputs;
+  if (!outputs || !Object.prototype.hasOwnProperty.call(outputs, structure.code)) return "Not configured";
+  const value = outputs[structure.code];
+  return `${value} ${summary.resource.unit}`;
+}
+
+function renderSeasonSetupHeader(container, activeSeason) {
+  const header = createSeasonSetupElement("div", "season-setup-header");
+  const heading = createSeasonSetupElement("div");
+  heading.appendChild(createSeasonSetupElement("h2", null, "Season Setup"));
+  heading.appendChild(createSeasonSetupElement(
+    "p",
+    null,
+    "Confirm a prepared season package before normal operation. Package rules remain read-only."
+  ));
+  header.appendChild(heading);
+  header.appendChild(createSeasonSetupElement(
+    "span",
+    activeSeason ? "season-setup-status is-active" : "season-setup-status",
+    activeSeason ? "Active" : "Not activated"
+  ));
+  container.appendChild(header);
+}
+
+function renderSeasonSetupProgress(container) {
+  const progress = createSeasonSetupElement("ol", "season-setup-progress");
+  ["Season & Servers", "Confirm Loaded Setup", "Review & Activate"].forEach((label, index) => {
+    const item = createSeasonSetupElement("li", index + 1 === seasonSetupState.step ? "is-current" : null);
+    if (index + 1 < seasonSetupState.step) item.classList.add("is-complete");
+    item.appendChild(createSeasonSetupElement("span", null, String(index + 1)));
+    item.appendChild(createSeasonSetupElement("strong", null, label));
+    progress.appendChild(item);
+  });
+  container.appendChild(progress);
+}
+
+function renderSeasonSetupPackageSummary(container, preparedView, includeStructures) {
+  const summary = preparedView.summary;
+  const overview = createSeasonSetupElement("div", "season-setup-summary-grid");
+  const mapCard = createSeasonSetupElement("section", "season-setup-card");
+  mapCard.appendChild(createSeasonSetupElement("h3", null, "Map & Structures"));
+  appendSeasonSetupFact(mapCard, "Base map", summary.map.baseMapId);
+  appendSeasonSetupFact(mapCard, "Dimensions", `${summary.map.rows} × ${summary.map.columns}`);
+  appendSeasonSetupFact(mapCard, "Structure types", String(summary.structures.length));
+  overview.appendChild(mapCard);
+
+  const resourceCard = createSeasonSetupElement("section", "season-setup-card");
+  resourceCard.appendChild(createSeasonSetupElement("h3", null, "Resources & Values"));
+  appendSeasonSetupFact(resourceCard, "Resource", summary.resource.displayName);
+  appendSeasonSetupFact(resourceCard, "Unit", summary.resource.unit);
+  appendSeasonSetupFact(
+    resourceCard,
+    "Scoring",
+    summary.resource.scoringConfigured ? "Configured" : "Not configured in package"
+  );
+  overview.appendChild(resourceCard);
+  container.appendChild(overview);
+
+  if (!includeStructures) return;
+  const structureSection = createSeasonSetupElement("section", "season-setup-card season-setup-structures");
+  structureSection.appendChild(createSeasonSetupElement("h3", null, "Loaded structure catalogue"));
+  const grid = createSeasonSetupElement("div", "season-setup-structure-grid");
+  summary.structures.forEach((structure) => {
+    const entry = createSeasonSetupElement("div", "season-setup-structure");
+    entry.appendChild(createSeasonSetupElement("strong", null, `${structure.code} · ${structure.type}`));
+    entry.appendChild(createSeasonSetupElement(
+      "span",
+      null,
+      `Level ${structure.level === null ? "—" : structure.level} · ${structure.capturable ? "Capturable" : "Not capturable"}`
+    ));
+    entry.appendChild(createSeasonSetupElement(
+      "span",
+      "season-setup-structure-value",
+      formatStructureValue(summary, structure)
+    ));
+    grid.appendChild(entry);
+  });
+  structureSection.appendChild(grid);
+  container.appendChild(structureSection);
+}
+
+function renderSeasonSetupStepOne(container, preparedSeasons) {
+  const section = createSeasonSetupElement("section", "season-setup-card");
+  section.appendChild(createSeasonSetupElement("h3", null, "1. Season & Servers"));
+
+  const seasonLabel = createSeasonSetupElement("label", "season-setup-field");
+  seasonLabel.appendChild(createSeasonSetupElement("span", null, "Prepared season package"));
+  const select = createSeasonSetupElement("select");
+  select.setAttribute("data-season-setup-action", "select-season");
+  preparedSeasons.forEach((season) => {
+    const option = createSeasonSetupElement("option", null, `${season.displayName} · Package ${season.packageVersion || "unversioned"}`);
+    option.value = season.seasonId;
+    option.selected = season.seasonId === seasonSetupState.selectedSeasonId;
+    select.appendChild(option);
+  });
+  seasonLabel.appendChild(select);
+  section.appendChild(seasonLabel);
+
+  section.appendChild(createSeasonSetupElement("h4", null, "Participating servers"));
+  section.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-help",
+    "Select the servers that belong to this season setup."
+  ));
+  const serverGrid = createSeasonSetupElement("div", "season-setup-server-grid");
+  appState.servers.forEach((server) => {
+    const label = createSeasonSetupElement("label", "season-setup-server-option");
+    const checkbox = createSeasonSetupElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = server.id;
+    checkbox.checked = seasonSetupState.selectedServerIds.has(server.id);
+    checkbox.setAttribute("data-season-setup-action", "toggle-server");
+    label.appendChild(checkbox);
+    label.appendChild(createSeasonSetupElement("span", null, server.label || `Server ${server.id}`));
+    serverGrid.appendChild(label);
+  });
+  section.appendChild(serverGrid);
+  container.appendChild(section);
+}
+
+function renderConfirmationOption(labelText, action, checked) {
+  const label = createSeasonSetupElement("label", "season-setup-confirmation");
+  const checkbox = createSeasonSetupElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = checked;
+  checkbox.setAttribute("data-season-setup-action", action);
+  label.appendChild(checkbox);
+  label.appendChild(createSeasonSetupElement("span", null, labelText));
+  return label;
+}
+
+function renderSeasonSetupStepTwo(container, preparedView) {
+  const intro = createSeasonSetupElement("section", "season-setup-card");
+  intro.appendChild(createSeasonSetupElement("h3", null, "2. Confirm Loaded Setup"));
+  intro.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-help",
+    "This information comes from the prepared package and cannot be edited here."
+  ));
+  container.appendChild(intro);
+  renderSeasonSetupPackageSummary(container, preparedView, true);
+  const confirmations = createSeasonSetupElement("div", "season-setup-confirmations");
+  confirmations.appendChild(renderConfirmationOption(
+    "Map and structure configuration confirmed",
+    "confirm-map",
+    seasonSetupState.mapAndStructuresConfirmed
+  ));
+  confirmations.appendChild(renderConfirmationOption(
+    "Resource and structure-value configuration confirmed",
+    "confirm-resource",
+    seasonSetupState.resourcesAndValuesConfirmed
+  ));
+  container.appendChild(confirmations);
+}
+
+function renderSeasonSetupStepThree(container, preparedView) {
+  const section = createSeasonSetupElement("section", "season-setup-card");
+  section.appendChild(createSeasonSetupElement("h3", null, "3. Review & Activate"));
+  appendSeasonSetupFact(section, "Season", preparedView.summary.displayName);
+  appendSeasonSetupFact(section, "Package", preparedView.summary.packageVersion || "Unversioned");
+  appendSeasonSetupFact(section, "Servers", Array.from(seasonSetupState.selectedServerIds).join(", "));
+  appendSeasonSetupFact(section, "Map & structures", "Confirmed");
+  appendSeasonSetupFact(section, "Resources & values", "Confirmed");
+  section.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-warning",
+    "Activation makes this season package read-only during normal operation."
+  ));
+  container.appendChild(section);
+}
+
+function renderActivatedSeasonSetup(container, preparedView, activeSeason) {
+  const notice = createSeasonSetupElement("section", "season-setup-card season-setup-active-card");
+  notice.appendChild(createSeasonSetupElement("h3", null, `${preparedView.summary.displayName} is active`));
+  notice.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-help",
+    "The prepared rules are locked for normal operation. Changes require a controlled versioned correction."
+  ));
+  appendSeasonSetupFact(notice, "Activated", activeSeason.activatedAt);
+  appendSeasonSetupFact(notice, "Activated by", activeSeason.activatedBy);
+  appendSeasonSetupFact(notice, "Participating servers", activeSeason.serverIds.join(", "));
+  container.appendChild(notice);
+  renderSeasonSetupPackageSummary(container, preparedView, true);
+}
+
+function renderSeasonSetupActions(container, canContinue) {
+  const actions = createSeasonSetupElement("div", "season-setup-actions");
+  if (seasonSetupState.step > 1) {
+    const back = createSeasonSetupElement("button", "season-setup-button is-secondary", "Back");
+    back.type = "button";
+    back.setAttribute("data-season-setup-action", "back");
+    actions.appendChild(back);
+  }
+  const nextAction = seasonSetupState.step === 3 ? "activate" : "next";
+  const nextLabel = seasonSetupState.step === 3
+    ? (seasonSetupState.isActivating ? "Activating…" : "Activate Season")
+    : "Continue";
+  const next = createSeasonSetupElement("button", "season-setup-button", nextLabel);
+  next.type = "button";
+  next.disabled = !canContinue || seasonSetupState.isActivating;
+  next.setAttribute("data-season-setup-action", nextAction);
+  actions.appendChild(next);
+  container.appendChild(actions);
+}
+
+function renderSeasonSetup() {
+  if (!seasonSetupContent || !seasonAdministrationService) return;
+  seasonSetupContent.innerHTML = "";
+  const activeSeason = seasonAdministrationService.getActiveSeason();
+  renderSeasonSetupHeader(seasonSetupContent, activeSeason);
+  const preparedSeasons = seasonAdministrationService.listPreparedSeasons();
+  if (!seasonSetupState.selectedSeasonId && preparedSeasons.length > 0) {
+    seasonSetupState.selectedSeasonId = activeSeason ? activeSeason.seasonId : preparedSeasons[0].seasonId;
+  }
+  const preparedView = seasonAdministrationService.getPreparedSeason(seasonSetupState.selectedSeasonId);
+
+  if (activeSeason) {
+    renderActivatedSeasonSetup(seasonSetupContent, preparedView, activeSeason);
+    return;
+  }
+
+  renderSeasonSetupProgress(seasonSetupContent);
+  if (seasonSetupState.errorMessage) {
+    seasonSetupContent.appendChild(createSeasonSetupElement(
+      "div",
+      "season-setup-error",
+      seasonSetupState.errorMessage
+    ));
+  }
+
+  if (seasonSetupState.step === 1) renderSeasonSetupStepOne(seasonSetupContent, preparedSeasons);
+  if (seasonSetupState.step === 2) renderSeasonSetupStepTwo(seasonSetupContent, preparedView);
+  if (seasonSetupState.step === 3) renderSeasonSetupStepThree(seasonSetupContent, preparedView);
+
+  const canContinue = seasonSetupState.step === 1
+    ? seasonSetupState.selectedServerIds.size > 0
+    : seasonSetupState.mapAndStructuresConfirmed && seasonSetupState.resourcesAndValuesConfirmed;
+  renderSeasonSetupActions(seasonSetupContent, canContinue);
+}
+
+function applyActivatedServerSelection(activeSeason) {
+  if (!activeSeason || !Array.isArray(activeSeason.serverIds)) return;
+  const allowed = new Set(activeSeason.serverIds);
+  appState.servers = appState.servers.filter((server) => allowed.has(server.id));
+  renderWorkspaceNavigation();
+}
+
+async function handleSeasonSetupClick(event) {
+  const actionTarget = event.target.closest("[data-season-setup-action]");
+  if (!actionTarget) return;
+  const action = actionTarget.getAttribute("data-season-setup-action");
+  if (action === "back") {
+    seasonSetupState.step = Math.max(1, seasonSetupState.step - 1);
+    seasonSetupState.errorMessage = null;
+    renderSeasonSetup();
+    return;
+  }
+  if (action === "next") {
+    seasonSetupState.step = Math.min(3, seasonSetupState.step + 1);
+    seasonSetupState.errorMessage = null;
+    renderSeasonSetup();
+    return;
+  }
+  if (action !== "activate") return;
+
+  seasonSetupState.isActivating = true;
+  seasonSetupState.errorMessage = null;
+  renderSeasonSetup();
+  try {
+    const activeSeason = await seasonAdministrationService.activateSeason(localActor, {
+      seasonId: seasonSetupState.selectedSeasonId,
+      serverIds: Array.from(seasonSetupState.selectedServerIds),
+      confirmations: {
+        mapAndStructures: seasonSetupState.mapAndStructuresConfirmed,
+        resourcesAndValues: seasonSetupState.resourcesAndValuesConfirmed
+      }
+    });
+    seasonContext = {
+      seasonId: activeSeason.seasonId,
+      activated: true,
+      serverIds: activeSeason.serverIds.slice()
+    };
+    applyActivatedServerSelection(activeSeason);
+  } catch (error) {
+    seasonSetupState.errorMessage = error && error.message
+      ? error.message
+      : "Unable to activate the season.";
+  } finally {
+    seasonSetupState.isActivating = false;
+    renderSeasonSetup();
+  }
+}
+
+function handleSeasonSetupChange(event) {
+  const action = event.target.getAttribute("data-season-setup-action");
+  if (action === "select-season") {
+    seasonSetupState.selectedSeasonId = event.target.value;
+  }
+  if (action === "toggle-server") {
+    if (event.target.checked) seasonSetupState.selectedServerIds.add(event.target.value);
+    else seasonSetupState.selectedServerIds.delete(event.target.value);
+  }
+  if (action === "confirm-map") seasonSetupState.mapAndStructuresConfirmed = event.target.checked;
+  if (action === "confirm-resource") seasonSetupState.resourcesAndValuesConfirmed = event.target.checked;
+  renderSeasonSetup();
+}
+
 function updateWorkspaceShellUI() {
   if (!workspaceShell) {
     return;
   }
 
   const isCommandCentre = appState.activeWorkspace === "command-centre";
+  const isSeasonSetup = appState.activeWorkspace === "season-setup";
   workspaceShell.dataset.activeWorkspace = appState.activeWorkspace;
 
   if (commandCentreView) {
     commandCentreView.setAttribute("aria-hidden", String(!isCommandCentre));
   }
 
+  if (seasonSetupView) {
+    seasonSetupView.setAttribute("aria-hidden", String(!isSeasonSetup));
+  }
+
   if (mapWorkspaceView) {
-    mapWorkspaceView.setAttribute("aria-hidden", String(isCommandCentre));
+    mapWorkspaceView.setAttribute("aria-hidden", String(isCommandCentre || isSeasonSetup));
   }
 
   if (workspaceMapTitle) {
@@ -317,15 +658,26 @@ function updateWorkspaceShellUI() {
     const targetWorkspace = button.getAttribute("data-workspace-target");
     const serverId = button.getAttribute("data-server-id");
     const isActiveCommand = targetWorkspace === "command-centre" && isCommandCentre;
+    const isActiveSetup = targetWorkspace === "season-setup" && isSeasonSetup;
     const isActiveServer = targetWorkspace === "server-map"
       && !isCommandCentre
+      && !isSeasonSetup
       && serverId === appState.activeServer;
 
-    button.classList.toggle("is-active", isActiveCommand || isActiveServer);
+    button.classList.toggle("is-active", isActiveCommand || isActiveSetup || isActiveServer);
   });
 }
 
 function setActiveWorkspace(nextWorkspace, nextServerId = null) {
+  if (nextWorkspace === "season-setup") {
+    appState.activeWorkspace = "season-setup";
+    appState.activeServer = null;
+    clearSelection();
+    renderSeasonSetup();
+    updateWorkspaceShellUI();
+    return;
+  }
+
   if (nextWorkspace === "server-map") {
     const server = getServerById(nextServerId) || appState.servers[0];
 
@@ -362,7 +714,7 @@ function handleWorkspaceShellClick(event) {
     return;
   }
 
-  setActiveWorkspace("command-centre");
+  setActiveWorkspace(targetWorkspace === "season-setup" ? "season-setup" : "command-centre");
 }
 
 function attachWorkspaceShellHandlers() {
@@ -1289,6 +1641,11 @@ function getStructureFootprint(structure) {
       footprint.push({ row, col });
     }
   }
+
+  if (seasonSetupView) {
+    seasonSetupView.addEventListener("click", handleSeasonSetupClick);
+    seasonSetupView.addEventListener("change", handleSeasonSetupChange);
+  }
   return footprint;
 }
 
@@ -1974,6 +2331,14 @@ function initializeMap() {
       await serverStatePersistenceController.initialize(serverStateService);
       initializeDataManagementRuntime();
       appState.servers = serverStateService.listServers();
+      const activeSeason = seasonAdministrationService.getActiveSeason();
+      if (activeSeason) {
+        const allowedServers = new Set(activeSeason.serverIds);
+        appState.servers = appState.servers.filter((server) => allowedServers.has(server.id));
+      }
+      seasonSetupState.selectedServerIds = new Set(
+        activeSeason ? activeSeason.serverIds : appState.servers.map((server) => server.id)
+      );
       loadedMapData = mapData;
       initializeOwnershipService();
       initializeSummaryService();
@@ -2041,6 +2406,19 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a data management persistence controller.");
   }
 
+  if (!bootstrapContext.seasonAdministrationService
+      || typeof bootstrapContext.seasonAdministrationService !== "object"
+      || typeof bootstrapContext.seasonAdministrationService.listPreparedSeasons !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.getPreparedSeason !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.getActiveSeason !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.activateSeason !== "function") {
+    throw new Error("Renderer requires a Season Administration Service.");
+  }
+
+  if (!bootstrapContext.seasonContext || typeof bootstrapContext.seasonContext !== "object") {
+    throw new Error("Renderer requires an active season context.");
+  }
+
   gameRulesEngine = bootstrapContext.gameRulesEngine;
   seasonIdentity = gameRulesEngine.getSeasonIdentity();
   seasonMetadata = gameRulesEngine.getSeasonMetadata();
@@ -2058,6 +2436,8 @@ function configureRenderer(bootstrapContext) {
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
   serverStatePersistenceController = bootstrapContext.serverStatePersistenceController;
   dataManagementPersistenceController = bootstrapContext.dataManagementPersistenceController;
+  seasonAdministrationService = bootstrapContext.seasonAdministrationService;
+  seasonContext = bootstrapContext.seasonContext;
 
   if (!appMapConfig || !appMapConfig.dataUrl) {
     throw new Error("Renderer requires a map data URL from bootstrap.");
