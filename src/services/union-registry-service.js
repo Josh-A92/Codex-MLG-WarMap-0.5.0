@@ -428,6 +428,29 @@
       return setRegistryStatus(unionId, "current");
     }
 
+    function captureTransactionState() {
+      return state.identities.map((identity) => deepClone(identity));
+    }
+
+    function restoreTransactionState(snapshot) {
+      requireArray(snapshot, "snapshot");
+      const nextIdentities = [];
+      const nextIdentitiesById = new Map();
+
+      snapshot.forEach((identity, index) => {
+        const canonicalIdentity = normalizeCanonicalIdentity(identity, `snapshot[${index}]`);
+        if (nextIdentitiesById.has(canonicalIdentity.unionId)) {
+          throwDuplicateUnionId(canonicalIdentity.unionId);
+        }
+        const storedIdentity = deepClone(canonicalIdentity);
+        nextIdentities.push(storedIdentity);
+        nextIdentitiesById.set(storedIdentity.unionId, storedIdentity);
+      });
+
+      state.identities = nextIdentities;
+      state.identitiesById = nextIdentitiesById;
+    }
+
     return {
       listUnionIdentities,
       getUnionIdentity,
@@ -435,7 +458,9 @@
       createUnionIdentity,
       updateUnionIdentity,
       archiveUnionIdentity,
-      restoreUnionIdentity
+      restoreUnionIdentity,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

@@ -25,6 +25,12 @@ The services are storage-neutral and UI-neutral.
 - `UnionRegistryManagementService`
 - `ServerIntelligenceManagementService`
 - `UnionRegistrationCoordinator`
+
+The runtime creates the coordinator's transaction executor from the Union
+Registry, union/server/season relationship, and Native-Union Assignment
+services. A failed multi-record registration restores all three participants
+before the operation rejects. The UI does not supply or emulate this
+transaction boundary.
 - `EvidenceManagementService`
 - `ReviewQueueService`
 - `ProposalReviewManagementService`

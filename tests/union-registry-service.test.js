@@ -572,6 +572,32 @@ runTest("unknown-union behaviour", () => {
   assertErrorCode(() => service.restoreUnionIdentity("union-9999"), "unknown_union", /union-9999/);
 });
 
+runTest("transaction snapshots restore registry state atomically", () => {
+  const service = createUnionRegistryService(createValidInitialIdentities());
+  const snapshot = service.captureTransactionState();
+  service.createUnionIdentity({
+    unionId: "union-transaction",
+    displayName: "Transaction Union",
+    tag: "TXN",
+    aliases: [],
+    defaultColor: "#445566",
+    presentationMetadata: { mapPattern: "dots" },
+    registryStatus: "current"
+  });
+  snapshot[0].displayName = "caller mutation";
+
+  service.restoreTransactionState(service.captureTransactionState().slice(0, 2));
+  assert.strictEqual(service.hasUnionIdentity("union-transaction"), false);
+  assert.strictEqual(service.getUnionIdentity("union-0001").displayName, "Moonlight Guillotine");
+
+  const before = service.captureTransactionState();
+  assertErrorCode(
+    () => service.restoreTransactionState([before[0], before[0]]),
+    "duplicate_union_id"
+  );
+  assert.deepStrictEqual(service.captureTransactionState(), before);
+});
+
 runTest("browser-global and CommonJS exports", () => {
   assert.strictEqual(typeof createUnionRegistryService, "function");
   assert.strictEqual(typeof UnionRegistryServiceError, "function");

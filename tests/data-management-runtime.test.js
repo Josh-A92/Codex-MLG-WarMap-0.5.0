@@ -17,6 +17,7 @@ function factory() {
     };
   }
   created.authorization = { requireAuthorized() {} };
+  created.atomicExecutor = { executeAtomically(operation) { return operation(); } };
   created.registryManagement = { createUnionIdentity() {} };
   created.serverManagement = { addKnownUnion() {} };
   created.unionRegistration = { registerUnion() {} };
@@ -26,6 +27,7 @@ function factory() {
   created.query = { getServerWorkspace() {} };
   const modules = {
     createAuthorizationPolicyService: creator("authorization", created.authorization),
+    createAtomicOperationExecutor: creator("atomicExecutor", created.atomicExecutor),
     createUnionRegistryManagementService: creator("registryManagement", created.registryManagement),
     createServerIntelligenceManagementService: creator("serverManagement", created.serverManagement),
     createUnionRegistrationCoordinator: creator("unionRegistration", created.unionRegistration),
@@ -62,8 +64,7 @@ function factory() {
       strategicDomainRuntime: strategic,
       evidenceDomainRuntime: evidence,
       clock() { return "2026-07-31T10:00:00Z"; },
-      createId(kind) { return `${kind}-1`; },
-      executeAtomically(operation) { return operation(); }
+      createId(kind) { return `${kind}-1`; }
     }
   };
 }
@@ -88,6 +89,7 @@ test("composes the union registration coordinator with the screen-facing service
     "authorization",
     "registryManagement",
     "serverManagement",
+    "atomicExecutor",
     "unionRegistration",
     "evidenceManagement",
     "reviewQueue",
@@ -111,7 +113,7 @@ test("threads one authorization policy through all mutation boundaries", () => {
   });
 });
 
-test("threads registration services, ID generation, and transaction execution into the coordinator", () => {
+test("builds registration transaction support from the three mutable domain participants", () => {
   const setup = factory();
   const runtime = createDataManagementRuntime(setup.options);
   const registration = setup.calls.find((call) => call[0] === "unionRegistration")[1];
@@ -129,8 +131,15 @@ test("threads registration services, ID generation, and transaction execution in
     setup.created.serverManagement
   );
   assert.strictEqual(registration.createId, setup.options.createId);
-  assert.strictEqual(registration.executeAtomically, setup.options.executeAtomically);
+  assert.strictEqual(typeof registration.executeAtomically, "function");
   assert.strictEqual(runtime.unionRegistrationCoordinator, setup.created.unionRegistration);
+
+  const atomic = setup.calls.find((call) => call[0] === "atomicExecutor")[1];
+  assert.deepStrictEqual(atomic.participants, [
+    setup.options.unionRegistryService,
+    setup.options.strategicDomainRuntime.relationService,
+    setup.options.strategicDomainRuntime.nativeAssignmentService
+  ]);
 });
 
 test("threads strategic and evidence services into management and review composition", () => {
@@ -174,7 +183,7 @@ test("factory rejects missing, unknown, and malformed dependencies", () => {
     (error) => error instanceof DataManagementRuntimeError && error.code === "invalid_factory"
   );
   const missingTransaction = factory();
-  delete missingTransaction.options.executeAtomically;
+  missingTransaction.created.atomicExecutor.executeAtomically = null;
   assert.throws(
     () => createDataManagementRuntime(missingTransaction.options),
     (error) => error instanceof DataManagementRuntimeError && error.code === "invalid_factory"

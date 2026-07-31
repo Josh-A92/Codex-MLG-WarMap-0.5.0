@@ -629,6 +629,16 @@
       return cloneAssignmentRecord(candidateRecord);
     }
 
+    function captureTransactionState() {
+      return state.assignments.map((assignment) => cloneAssignmentRecord(assignment));
+    }
+
+    function restoreTransactionState(snapshot) {
+      const restoredAssignments = requireArray(snapshot, "snapshot")
+        .map((assignment) => cloneAssignmentRecord(assignment));
+      commit(restoredAssignments);
+    }
+
     validateHistory(validateNativeUnionAssignmentHistory, initialAssignments);
     state.assignments = deepClone(initialAssignments);
     rebuildIndexes();
@@ -641,7 +651,9 @@
       proposeAssignment,
       addConfirmedManualAssignment,
       confirmProposal,
-      rejectProposal
+      rejectProposal,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

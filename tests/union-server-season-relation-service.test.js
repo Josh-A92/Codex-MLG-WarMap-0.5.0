@@ -123,6 +123,29 @@ runTest("existence does not create native active status", () => {
   assert.strictEqual(relation.mostRecentConfirmedPresenceAt, null);
 });
 
+runTest("transaction snapshots restore relation state atomically", () => {
+  const service = createUnionServerSeasonRelationService(createValidInitialRelations());
+  const snapshot = service.captureTransactionState();
+  service.addKnownUnion({
+    seasonId: "season-1",
+    serverId: "server-368",
+    unionId: "union-transaction"
+  });
+
+  service.restoreTransactionState(snapshot);
+  assert.strictEqual(
+    service.hasRelation("season-1", "server-368", "union-transaction"),
+    false
+  );
+
+  const before = service.captureTransactionState();
+  assertErrorCode(
+    () => service.restoreTransactionState([before[0], before[0]]),
+    "duplicate_relation"
+  );
+  assert.deepStrictEqual(service.captureTransactionState(), before);
+});
+
 runTest("list filtering by season server union and combinations", () => {
   const service = createUnionServerSeasonRelationService(createValidInitialRelations());
 

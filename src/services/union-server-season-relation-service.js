@@ -425,13 +425,47 @@
       return applyActiveStatusProjection(input, true);
     }
 
+    function captureTransactionState() {
+      return state.relations.map((relation) => deepClone(relation));
+    }
+
+    function restoreTransactionState(snapshot) {
+      requireArray(snapshot, "snapshot");
+      const nextRelations = [];
+      const nextRelationsByKey = new Map();
+
+      snapshot.forEach((relation, index) => {
+        const canonicalRelation = normalizeCanonicalRelation(relation, `snapshot[${index}]`);
+        const relationKey = composeRelationKey(
+          canonicalRelation.seasonId,
+          canonicalRelation.serverId,
+          canonicalRelation.unionId
+        );
+        if (nextRelationsByKey.has(relationKey)) {
+          throwDuplicateRelation(
+            canonicalRelation.seasonId,
+            canonicalRelation.serverId,
+            canonicalRelation.unionId
+          );
+        }
+        const storedRelation = deepClone(canonicalRelation);
+        nextRelations.push(storedRelation);
+        nextRelationsByKey.set(relationKey, storedRelation);
+      });
+
+      state.relations = nextRelations;
+      state.relationsByKey = nextRelationsByKey;
+    }
+
     return {
       listRelations,
       getRelation,
       hasRelation,
       addKnownUnion,
       validateActiveStatusProjection,
-      updateActiveStatusProjection
+      updateActiveStatusProjection,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

@@ -92,6 +92,34 @@ runTest("valid initialization and empty initialization", () => {
   assert.strictEqual(seeded.hasAssignment("missing"), false);
 });
 
+runTest("transaction snapshots restore assignment history atomically", () => {
+  const service = createService([createConfirmedRecord()]);
+  const snapshot = service.captureTransactionState();
+  service.addConfirmedManualAssignment({
+    assignmentId: "assign-transaction",
+    unionId: "union-0002",
+    serverId: "server-2",
+    seasonId: "season-1",
+    nativeState: "native",
+    evidenceId: null,
+    observedAt: "2026-07-11T10:00:00Z",
+    effectiveFrom: "2026-07-11T10:00:00Z",
+    reviewer: "reviewer-1",
+    reviewedAt: "2026-07-11T10:10:00Z"
+  });
+
+  service.restoreTransactionState(snapshot);
+  assert.strictEqual(service.hasAssignment("assign-transaction"), false);
+  assert.deepStrictEqual(service.listAssignments(), snapshot);
+
+  const before = service.captureTransactionState();
+  expectServiceError(
+    () => service.restoreTransactionState([before[0], before[0]]),
+    "invalid_history"
+  );
+  assert.deepStrictEqual(service.captureTransactionState(), before);
+});
+
 runTest("ordinary valid factory construction still works", () => {
   const service = createNativeUnionAssignmentService({
     initialAssignments: [createConfirmedRecord({ assignmentId: "factory-ok-1" })],

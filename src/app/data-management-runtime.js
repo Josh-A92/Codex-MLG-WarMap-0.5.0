@@ -5,11 +5,11 @@
     "strategicDomainRuntime",
     "evidenceDomainRuntime",
     "clock",
-    "createId",
-    "executeAtomically"
+    "createId"
   ]);
   const MODULE_FIELDS = new Set([
     "createAuthorizationPolicyService",
+    "createAtomicOperationExecutor",
     "createUnionRegistryManagementService",
     "createServerIntelligenceManagementService",
     "createUnionRegistrationCoordinator",
@@ -69,12 +69,8 @@
         fail(`Data Management Runtime requires options.modules.${field}.`);
       }
     });
-    if (
-      typeof input.clock !== "function"
-      || typeof input.createId !== "function"
-      || typeof input.executeAtomically !== "function"
-    ) {
-      fail("Data Management Runtime requires clock, createId, and executeAtomically functions.");
+    if (typeof input.clock !== "function" || typeof input.createId !== "function") {
+      fail("Data Management Runtime requires clock and createId functions.");
     }
 
     const registry = requireInterface(
@@ -128,11 +124,22 @@
       clock: input.clock,
       createId: input.createId
     });
+    const atomicOperationExecutor = requireInterface(
+      modules.createAtomicOperationExecutor({
+        participants: [
+          registry,
+          strategic.relationService,
+          strategic.nativeAssignmentService
+        ]
+      }),
+      "created atomicOperationExecutor",
+      ["executeAtomically"]
+    );
     const unionRegistrationCoordinator = modules.createUnionRegistrationCoordinator({
       authorizationPolicyService,
       unionRegistryManagementService,
       serverIntelligenceManagementService,
-      executeAtomically: input.executeAtomically,
+      executeAtomically: atomicOperationExecutor.executeAtomically.bind(atomicOperationExecutor),
       createId: input.createId
     });
     const evidenceManagementService = modules.createEvidenceManagementService({
