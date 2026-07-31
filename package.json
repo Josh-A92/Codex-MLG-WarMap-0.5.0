@@ -22,6 +22,7 @@
   "test:server-state": "node tests/server-state-service.test.js",
     "test:union-registry": "node tests/union-registry-service.test.js",
     "test:union-registry-management": "node tests/union-registry-management-service.test.js",
+    "test:union-registration": "node tests/union-registration-coordinator.test.js",
   "test:union-registry-state": "node tests/union-registry-state-serializer.test.js",
   "test:union-registry-persistence": "node tests/union-registry-persistence-service.test.js",
   "test:union-matching": "node tests/union-matching-service.test.js",
