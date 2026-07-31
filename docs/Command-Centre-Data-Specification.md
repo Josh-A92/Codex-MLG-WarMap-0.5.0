@@ -102,6 +102,11 @@ The Server Overview provides the detailed factual view for one server.
 - Manual corrections override automated proposals.
 - Combat strength is a time-stamped observation attached to a union/server/season relationship.
 - Territory-change comparisons must identify their baseline snapshot, with the previous confirmed server snapshot as the initial baseline.
+- Snapshot change comparison resolves the ownership records selected by the
+  current and previous confirmed snapshots, compares canonical normal-map-cell
+  and logical-structure targets independently, and reports per-union territory
+  and structure deltas. Structure footprints are not counted as separate
+  structure changes.
 - On server cards, last updated means the timestamp of the latest confirmed server-map snapshot used to calculate the displayed ownership statistics.
 - Combat strength, notes, and other observations retain separate timestamps.
 - Editing unrelated data must not make the map appear freshly verified.

@@ -1826,6 +1826,8 @@ function initializeStrategicDomainRuntime() {
       relations: [],
       nativeAssignments: [],
       activeStatuses: [],
+      combatStrengthObservations: [],
+      serverObservations: [],
       territoryOwnershipRecords: [],
       structureOwnershipRecords: [],
       targetVerifications: [],

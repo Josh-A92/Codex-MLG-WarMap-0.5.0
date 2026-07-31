@@ -12,6 +12,8 @@ const COLLECTION_FIELDS = [
   "relations",
   "nativeAssignments",
   "activeStatuses",
+  "combatStrengthObservations",
+  "serverObservations",
   "territoryOwnershipRecords",
   "structureOwnershipRecords",
   "targetVerifications",
@@ -49,6 +51,8 @@ function createRuntime() {
     relations: [record("relation")],
     nativeAssignments: [record("native")],
     activeStatuses: [record("active")],
+    combatStrengthObservations: [record("combat")],
+    serverObservations: [record("server-observation")],
     territoryOwnershipRecords: [record("territory")],
     structureOwnershipRecords: [record("structure")],
     targetVerifications: [record("verification")],
@@ -62,6 +66,12 @@ function createRuntime() {
       relationService: { listRelations: () => state.relations },
       nativeAssignmentService: { listAssignments: () => state.nativeAssignments },
       activeStatusService: { listStatuses: () => state.activeStatuses },
+      combatStrengthObservationService: {
+        listObservations: () => state.combatStrengthObservations
+      },
+      serverObservationService: {
+        listObservations: () => state.serverObservations
+      },
       ownershipRecordService: {
         listTerritoryRecords: () => state.territoryOwnershipRecords,
         listStructureRecords: () => state.structureOwnershipRecords

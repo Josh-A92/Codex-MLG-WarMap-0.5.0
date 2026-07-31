@@ -755,6 +755,10 @@ Combat strength is historical observed data attached to a union/server/season re
 - The UI may select the latest confirmed observation for display.
 - Combat strength must remain a measured observation, not a qualitative label.
 - Review state never substitutes for the value of the fact being reviewed.
+- A later observation is new history and does not supersede an earlier valid observation.
+- Supersession is reserved for correcting an erroneous observation of the same factual moment.
+- The latest display observation is the greatest parsed `observedAt` among confirmed, non-superseded records.
+- Two confirmed, non-superseded observations for the same union/server/season at the same parsed `observedAt` are invalid.
 
 ### Fields
 - `observationId`
@@ -772,8 +776,37 @@ Combat strength is historical observed data attached to a union/server/season re
 - `normalizedValue`
 - `confidence`
 - `reviewState`
-- `reviewer`
+- `actorId`
+- `reviewerId`
 - `reviewedAt`
+- `supersededBy`
+
+All fields are required, including nullable fields.
+
+### Value and provenance rules
+
+- `value` is a finite non-negative number.
+- `unit` and `displayFormat` are non-empty, non-whitespace strings.
+- `observedAt` is a real UTC ISO-8601 timestamp ending in `Z`, with zero to three fractional digits.
+- `sourceType` is one of `manual_entry`, `screenshot_extraction`, `imported_data`, `api_integration`, or `bot_integration`.
+- `actorId` is always a non-empty, non-whitespace string.
+- `evidenceId` is nullable for `manual_entry` and required non-empty for every non-manual source.
+- `extractionMethod` is null for `manual_entry`; for a non-manual source it is a non-empty string describing the extraction or integration method.
+- `rawExtractedValue` is null or a string.
+- `normalizedValue` is null or a finite non-negative number; when non-null it equals `value`.
+- `confidence` is null for `manual_entry`; for a non-manual source it is a number from zero through one.
+
+### Review lifecycle
+
+- `proposed` requires `reviewerId`, `reviewedAt`, and `supersededBy` to be null.
+- `confirmed` requires non-empty `reviewerId`, valid `reviewedAt`, and null `supersededBy`.
+- `rejected` requires non-empty `reviewerId`, valid `reviewedAt`, and null `supersededBy`.
+- `superseded` retains its original confirmation `reviewerId` and `reviewedAt`, and requires non-empty `supersededBy`.
+- Every non-null `reviewedAt` is at or after `observedAt` by parsed instant.
+- A supersession replacement is a confirmed or superseded record with the same union, server, season, and parsed `observedAt`.
+- A replacement `reviewedAt` is not earlier than the superseded record’s `reviewedAt`.
+- Supersession cannot reference the same record and supersession chains are cycle-free.
+- Proposed and rejected records never become the latest confirmed display observation.
 
 ### Example
 ```json
@@ -793,13 +826,17 @@ Combat strength is historical observed data attached to a union/server/season re
   "normalizedValue": 128450,
   "confidence": 0.91,
   "reviewState": "confirmed",
-  "reviewer": "user-01",
-  "reviewedAt": "2026-07-25T09:40:00Z"
+  "actorId": "user-01",
+  "reviewerId": "user-01",
+  "reviewedAt": "2026-07-25T09:40:00Z",
+  "supersededBy": null
 }
 ```
 
 ## 9. Evidence and Review Model
 Evidence records capture how a fact entered the system and how it was reviewed.
+
+Binary upload metadata and processing state belong to the separate `EvidenceAsset` model in `docs/Evidence-Data-Model.md`. EvidenceRecord references an asset; it does not duplicate file metadata or image bytes.
 
 ### Supported source types
 - manual_entry
@@ -816,18 +853,20 @@ Evidence records capture how a fact entered the system and how it was reviewed.
 
 ### Fields
 - `evidenceId`
+- `assetId`
 - `sourceType`
-- `sourceAssetRef`
 - `rawExtractedValue`
 - `normalizedValue`
 - `confidence`
 - `observedAt`
 - `reviewState`
-- `reviewer`
+- `actorId`
+- `reviewerId`
 - `reviewedAt`
 - `notes`
 - `linkedEntityType`
 - `linkedEntityId`
+- `supersededBy`
 
 ### Rules
 - Automated extraction proposes facts; it does not silently confirm them.
@@ -835,26 +874,41 @@ Evidence records capture how a fact entered the system and how it was reviewed.
 - Confidence belongs to the evidence item or observation.
 - Review state must be explicit.
 - `evidenceId` is the internal record identifier.
-- `sourceAssetRef` identifies the screenshot, file, import, API payload, or bot message being preserved.
-- Evidence records may reference one or more related entities through `linkedEntityId`.
+- `assetId` identifies the immutable EvidenceAsset being preserved.
+- `assetId` may be null for manual entry and is required for non-manual sources.
+- `rawExtractedValue` is null or a string.
+- `normalizedValue` is nullable JSON-compatible structured data.
+- `confidence` is null for manual entry and is from zero through one for non-manual sources.
+- `observedAt` is a real UTC timestamp ending in `Z`, with zero to three fractional digits.
+- `actorId` is always required.
+- `notes` is null or a string.
+- `linkedEntityType` and `linkedEntityId` identify exactly one proposed, confirmed, or historical domain entity.
 - Imported data is a source type and uses the same evidence and review lifecycle as other sources.
+- `proposed` requires `reviewerId`, `reviewedAt`, and `supersededBy` to be null.
+- `confirmed` and `rejected` require `reviewerId` and `reviewedAt`, with null `supersededBy`.
+- `superseded` retains its original confirmation audit fields and references its correction through `supersededBy`.
+- A correction replacement must reference the same linked entity and cannot have a reviewed time earlier than the superseded record.
+- Supersession chains are cycle-free.
+- Review of an EvidenceRecord does not directly confirm its linked candidate fact; authoritative domain operations remain separate.
 
 ### Example
 ```json
 {
   "evidenceId": "evidence-9002",
+  "assetId": "asset-9002",
   "sourceType": "screenshot_extraction",
-  "sourceAssetRef": "shot-2026-07-25-a",
   "rawExtractedValue": "128,450",
   "normalizedValue": 128450,
   "confidence": 0.91,
   "observedAt": "2026-07-25T09:15:00Z",
   "reviewState": "confirmed",
-  "reviewer": "user-01",
+  "actorId": "user-01",
+  "reviewerId": "user-01",
   "reviewedAt": "2026-07-25T09:40:00Z",
   "notes": "OCR matched the server card text.",
   "linkedEntityType": "CombatStrengthObservation",
-  "linkedEntityId": "combat-5017"
+  "linkedEntityId": "combat-5017",
+  "supersededBy": null
 }
 ```
 

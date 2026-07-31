@@ -47,6 +47,13 @@
   function defaultProjection() {
     return {
       mapDataConfirmedThrough: null,
+      latestPartialConfirmationAt: null,
+      requiredTargetCount: 0,
+      verifiedTargetCount: 0,
+      requiredTerritoryTargetCount: 0,
+      verifiedTerritoryTargetCount: 0,
+      requiredStructureTargetCount: 0,
+      verifiedStructureTargetCount: 0,
       completeCoverage: false,
       qualifiesAsFullMapConfirmation: false,
       observationWindowStartedAt: null,
@@ -897,6 +904,12 @@
     validateOwnershipHasVerification(selectedStructureByTarget, "structureOwnershipRecordIds");
 
     const requiredTargetKeys = Array.from(requiredTargetRefKeys.values()).sort();
+    projection.requiredTargetCount = requiredTargetKeys.length;
+    requiredTargetKeys.forEach((targetKey) => {
+      const type = JSON.parse(targetKey)[0];
+      if (type === "normal_map_cell") projection.requiredTerritoryTargetCount += 1;
+      if (type === "logical_structure") projection.requiredStructureTargetCount += 1;
+    });
 
     if (requiredTargetKeys.length === 0) {
       return createEvaluationResult(errors, projection);
@@ -925,6 +938,9 @@
       }
 
       selectedObservedAtValues.push(observedAtParsed);
+      const selectedType = JSON.parse(targetKey)[0];
+      if (selectedType === "normal_map_cell") projection.verifiedTerritoryTargetCount += 1;
+      if (selectedType === "logical_structure") projection.verifiedStructureTargetCount += 1;
 
       const latestInHistory = verificationState.validCurrentByTarget.get(targetKey);
       if (!latestInHistory) {
@@ -939,6 +955,13 @@
           "Selected verification must be the latest valid non-superseded confirmed verification for each required target."
         );
       }
+    }
+
+    projection.verifiedTargetCount = selectedObservedAtValues.length;
+    if (selectedObservedAtValues.length > 0) {
+      const newestSelectedObservedAt = Math.max(...selectedObservedAtValues);
+      projection.latestPartialConfirmationAt =
+        new Date(newestSelectedObservedAt).toISOString().replace(".000Z", "Z");
     }
 
     if (errors.length > 0) {

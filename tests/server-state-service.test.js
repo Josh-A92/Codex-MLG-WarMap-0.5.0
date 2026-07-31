@@ -552,6 +552,8 @@ runTest("renderer initializes an empty canonical strategic runtime after union r
     "relations",
     "nativeAssignments",
     "activeStatuses",
+    "combatStrengthObservations",
+    "serverObservations",
     "territoryOwnershipRecords",
     "structureOwnershipRecords",
     "targetVerifications",

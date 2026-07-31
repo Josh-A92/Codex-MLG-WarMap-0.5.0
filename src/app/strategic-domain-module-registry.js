@@ -10,6 +10,12 @@
     "validateActiveUnionStatusHistory",
     "createActiveUnionStatusEvaluator",
     "createActiveUnionStatusService",
+    "validateCombatStrengthObservation",
+    "validateCombatStrengthObservationHistory",
+    "createCombatStrengthObservationService",
+    "validateServerObservation",
+    "validateServerObservationHistory",
+    "createServerObservationService",
     "validateTerritoryOwnershipRecord",
     "validateTerritoryOwnershipHistory",
     "validateStructureOwnershipRecord",
@@ -26,7 +32,11 @@
     "createActiveUnionStatusUpdateCoordinator",
     "createActiveUnionStatusProjectionService",
     "createUnionServerSeasonViewService",
-    "createUnionServerSeasonIntelligenceViewService"
+    "createUnionServerSeasonIntelligenceViewService",
+    "createServerIntelligenceViewService",
+    "createServerDataCompletenessService",
+    "createConfirmedSnapshotChangeService",
+    "createServerHistoryService"
   ]);
 
   function createStrategicDomainModuleRegistry(scope) {

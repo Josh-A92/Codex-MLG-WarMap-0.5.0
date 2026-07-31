@@ -332,6 +332,13 @@ runTest("reference evaluation resolves valid cell and structure selections", () 
   assert.strictEqual(result.projection.completeCoverage, true);
   assert.strictEqual(result.projection.qualifiesAsFullMapConfirmation, true);
   assert.strictEqual(result.projection.mapDataConfirmedThrough, "2026-07-29T00:30:00Z");
+  assert.strictEqual(result.projection.latestPartialConfirmationAt, "2026-07-29T20:30:00Z");
+  assert.strictEqual(result.projection.requiredTargetCount, 2);
+  assert.strictEqual(result.projection.verifiedTargetCount, 2);
+  assert.strictEqual(result.projection.requiredTerritoryTargetCount, 1);
+  assert.strictEqual(result.projection.verifiedTerritoryTargetCount, 1);
+  assert.strictEqual(result.projection.requiredStructureTargetCount, 1);
+  assert.strictEqual(result.projection.verifiedStructureTargetCount, 1);
   assert.strictEqual(result.projection.observationWindowStartedAt, "2026-07-29T00:30:00Z");
   assert.strictEqual(result.projection.observationWindowEndedAt, "2026-07-29T20:30:00Z");
   assert.strictEqual(result.projection.fullConfirmationAt, "2026-07-29T00:30:00Z");
@@ -396,6 +403,13 @@ runTest("incomplete coverage stays valid but non-qualifying with null window fie
   assert.strictEqual(result.projection.completeCoverage, false);
   assert.strictEqual(result.projection.qualifiesAsFullMapConfirmation, false);
   assert.strictEqual(result.projection.mapDataConfirmedThrough, null);
+  assert.strictEqual(result.projection.latestPartialConfirmationAt, "2026-07-29T00:30:00Z");
+  assert.strictEqual(result.projection.requiredTargetCount, 2);
+  assert.strictEqual(result.projection.verifiedTargetCount, 1);
+  assert.strictEqual(result.projection.requiredTerritoryTargetCount, 1);
+  assert.strictEqual(result.projection.verifiedTerritoryTargetCount, 1);
+  assert.strictEqual(result.projection.requiredStructureTargetCount, 1);
+  assert.strictEqual(result.projection.verifiedStructureTargetCount, 0);
   assert.strictEqual(result.projection.observationWindowStartedAt, null);
   assert.strictEqual(result.projection.observationWindowEndedAt, null);
   assert.strictEqual(result.projection.fullConfirmationAt, null);

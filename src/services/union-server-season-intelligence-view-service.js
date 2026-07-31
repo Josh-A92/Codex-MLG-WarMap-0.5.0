@@ -1,7 +1,8 @@
 (function initializeUnionServerSeasonIntelligenceViewServiceFactory(globalScope) {
   const FACTORY_FIELDS = new Set([
     "unionServerSeasonViewService",
-    "activeStatusProjectionService"
+    "activeStatusProjectionService",
+    "combatStrengthObservationService"
   ]);
   const LIST_FIELDS = new Set(["seasonId", "serverId", "evaluatedAt"]);
 
@@ -100,6 +101,11 @@
       "activeStatusProjectionService",
       ["getProjection"]
     );
+    const combatStrength = bindInterface(
+      input.combatStrengthObservationService,
+      "combatStrengthObservationService",
+      ["getLatestConfirmed"]
+    );
 
     function compose(baseView, evaluatedAt) {
       if (
@@ -130,6 +136,18 @@
       ) {
         fail("invalid_dependency", "Union Server Season Intelligence View Service received an invalid activity projection.");
       }
+      const latestCombatStrengthObservation = combatStrength.getLatestConfirmed(
+        baseView.relation.seasonId,
+        baseView.relation.serverId,
+        baseView.relation.unionId
+      );
+      if (latestCombatStrengthObservation !== null
+          && !isRecordObject(latestCombatStrengthObservation)) {
+        fail(
+          "invalid_dependency",
+          "Union Server Season Intelligence View Service received an invalid combat strength observation."
+        );
+      }
       return {
         valid: projectionResult.valid,
         errors: deepClone(projectionResult.errors),
@@ -139,7 +157,8 @@
               relation: deepClone(baseView.relation),
               unionIdentity: deepClone(baseView.unionIdentity),
               currentNativeAssignment: deepClone(baseView.currentNativeAssignment),
-              activity: deepClone(projectionResult.projection)
+              activity: deepClone(projectionResult.projection),
+              latestCombatStrengthObservation: deepClone(latestCombatStrengthObservation)
             }
           : null
       };

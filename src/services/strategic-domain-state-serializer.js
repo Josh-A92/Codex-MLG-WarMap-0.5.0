@@ -5,6 +5,8 @@
     "relations",
     "nativeAssignments",
     "activeStatuses",
+    "combatStrengthObservations",
+    "serverObservations",
     "territoryOwnershipRecords",
     "structureOwnershipRecords",
     "targetVerifications",
@@ -244,6 +246,16 @@
     const relations = requireService(runtime, "relationService", ["listRelations"]);
     const nativeAssignments = requireService(runtime, "nativeAssignmentService", ["listAssignments"]);
     const activeStatuses = requireService(runtime, "activeStatusService", ["listStatuses"]);
+    const combatStrength = requireService(
+      runtime,
+      "combatStrengthObservationService",
+      ["listObservations"]
+    );
+    const serverObservations = requireService(
+      runtime,
+      "serverObservationService",
+      ["listObservations"]
+    );
     const ownership = requireService(runtime, "ownershipRecordService", [
       "listTerritoryRecords",
       "listStructureRecords"
@@ -278,6 +290,14 @@
         activeStatuses: requireCollection(
           activeStatuses.listStatuses(),
           "runtime.activeStatusService.listStatuses"
+        ),
+        combatStrengthObservations: requireCollection(
+          combatStrength.listObservations(),
+          "runtime.combatStrengthObservationService.listObservations"
+        ),
+        serverObservations: requireCollection(
+          serverObservations.listObservations(),
+          "runtime.serverObservationService.listObservations"
         ),
         territoryOwnershipRecords: requireCollection(
           ownership.listTerritoryRecords(),

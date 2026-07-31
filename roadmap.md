@@ -56,15 +56,30 @@ Completed:
 
 Pending:
 - Verified scoring and resource-value calculations
-- Native-union and active-union runtime records
-- Combat-strength observations
-- Freshness, completeness, and evidence-backed data
+- Operator input and startup persistence integration for native-union,
+  active-union, combat-strength, server-observation, and evidence records
+- Command Centre and Server Overview integration of canonical intelligence,
+  freshness, completeness, and pending-review projections
+
+Domain foundations completed:
+- Native and active union histories, activity evaluation, and read-time projection
+- Combat-strength and factual server-observation histories
+- Canonical ownership, verification, snapshots, and map freshness projections
+- Evidence asset/record runtime and storage-neutral persistence
+- Server Intelligence and Pending Review read models
 
 ## Phase 5 - History and Descriptive Notes
 
-Status: Pending
-- History timeline/playback
-- Descriptive server notes workflows
+Status: Partial
+
+Completed domain foundations:
+- Chronological confirmed-snapshot timeline with explicit previous-snapshot
+  baselines and factual territory/structure/union change sets
+- Canonical descriptive Server Observation history and read model
+
+Pending:
+- History playback UI
+- Descriptive server-observation input and review UI
 
 ## Phase 6 - Search and Filters
 

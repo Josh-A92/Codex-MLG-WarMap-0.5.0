@@ -4,6 +4,8 @@
     "relations",
     "nativeAssignments",
     "activeStatuses",
+    "combatStrengthObservations",
+    "serverObservations",
     "territoryOwnershipRecords",
     "structureOwnershipRecords",
     "targetVerifications",
@@ -22,6 +24,12 @@
     "validateActiveUnionStatusHistory",
     "createActiveUnionStatusEvaluator",
     "createActiveUnionStatusService",
+    "validateCombatStrengthObservation",
+    "validateCombatStrengthObservationHistory",
+    "createCombatStrengthObservationService",
+    "validateServerObservation",
+    "validateServerObservationHistory",
+    "createServerObservationService",
     "validateTerritoryOwnershipRecord",
     "validateTerritoryOwnershipHistory",
     "validateStructureOwnershipRecord",
@@ -38,7 +46,11 @@
     "createActiveUnionStatusUpdateCoordinator",
     "createActiveUnionStatusProjectionService",
     "createUnionServerSeasonViewService",
-    "createUnionServerSeasonIntelligenceViewService"
+    "createUnionServerSeasonIntelligenceViewService",
+    "createServerIntelligenceViewService",
+    "createServerDataCompletenessService",
+    "createConfirmedSnapshotChangeService",
+    "createServerHistoryService"
   ];
 
   class StrategicDomainRuntimeError extends Error {
@@ -141,6 +153,16 @@
       validateActiveUnionStatus: modules.validateActiveUnionStatus,
       validateActiveUnionStatusHistory: modules.validateActiveUnionStatusHistory
     });
+    const combatStrengthObservationService = modules.createCombatStrengthObservationService({
+      initialObservations: initialState.combatStrengthObservations,
+      validateCombatStrengthObservation: modules.validateCombatStrengthObservation,
+      validateCombatStrengthObservationHistory: modules.validateCombatStrengthObservationHistory
+    });
+    const serverObservationService = modules.createServerObservationService({
+      initialObservations: initialState.serverObservations,
+      validateServerObservation: modules.validateServerObservation,
+      validateServerObservationHistory: modules.validateServerObservationHistory
+    });
     const ownershipRecordService = modules.createOwnershipRecordService({
       initialTerritoryRecords: initialState.territoryOwnershipRecords,
       initialStructureRecords: initialState.structureOwnershipRecords,
@@ -202,8 +224,20 @@
     const unionServerSeasonIntelligenceViewService =
       modules.createUnionServerSeasonIntelligenceViewService({
         unionServerSeasonViewService,
-        activeStatusProjectionService
+        activeStatusProjectionService,
+        combatStrengthObservationService
       });
+    const serverIntelligenceViewService = modules.createServerIntelligenceViewService({
+      unionServerSeasonIntelligenceViewService,
+      serverObservationService
+    });
+    const serverDataCompletenessService = modules.createServerDataCompletenessService();
+    const confirmedSnapshotChangeService = modules.createConfirmedSnapshotChangeService();
+    const serverHistoryService = modules.createServerHistoryService({
+      confirmedSnapshotService,
+      ownershipRecordService,
+      confirmedSnapshotChangeService
+    });
 
     return Object.freeze({
       unionRegistryService,
@@ -212,6 +246,8 @@
       nativeAssignmentService,
       activeStatusEvaluator,
       activeStatusService,
+      combatStrengthObservationService,
+      serverObservationService,
       ownershipRecordService,
       targetVerificationService,
       confirmedSnapshotValidator,
@@ -222,7 +258,11 @@
       activeStatusUpdateCoordinator,
       activeStatusProjectionService,
       unionServerSeasonViewService,
-      unionServerSeasonIntelligenceViewService
+      unionServerSeasonIntelligenceViewService,
+      serverIntelligenceViewService,
+      serverDataCompletenessService,
+      confirmedSnapshotChangeService,
+      serverHistoryService
     });
   }
 

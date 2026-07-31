@@ -518,6 +518,8 @@ oldestTargetObservedAt = minimum observedAt
 newestTargetObservedAt = maximum observedAt
 mapDataConfirmedThrough = oldestTargetObservedAt
 latestPartialConfirmationAt = newestTargetObservedAt
+requiredTargetCount = number of required verification targets
+verifiedTargetCount = number with a selected current confirmed verification
 ```
 
 Rules:
@@ -528,6 +530,11 @@ Rules:
 - User-facing overall label is Map data confirmed through.
 - If one corner is three days old while everything else is newer, the map is confirmed through three days ago.
 - These values are reproducible from verification history.
+- `requiredTargetCount` and `verifiedTargetCount` expose factual coverage without
+  collapsing completeness into an opaque score.
+- `latestPartialConfirmationAt` may be present when coverage is incomplete; it
+  reports the newest selected target confirmation and must not be labelled as
+  whole-map freshness.
 
 ## 12. Confirmed Snapshot Model
 A ConfirmedServerSnapshot is an immutable selected set of confirmed facts for one server and season.
@@ -666,10 +673,59 @@ Data completeness remains represented by derived categories rather than one opaq
 ## 15. Server Observation and Proposal Models
 Server observations and proposals remain non-authoritative support entities.
 
+### ServerObservation canonical fields
+
+All fields are required, including nullable fields:
+
+- `observationId`
+- `serverId`
+- `seasonId`
+- `text`
+- `observedAt`
+- `sourceType`
+- `evidenceIds`
+- `actorId`
+- `reviewState`
+- `reviewerId`
+- `reviewedAt`
+- `supersededBy`
+
 ### Observation rules
 - Observations are short, factual, and descriptive.
 - Observation notes do not create verification freshness.
 - Observation timestamps are separate from verification observedAt and snapshot createdAt.
+- Observations must not contain objectives, recommended actions, priorities, or threat ratings.
+- `observationId`, `serverId`, `seasonId`, `text`, and `actorId` are non-empty strings.
+- `observedAt` is a real UTC timestamp ending in `Z`, with zero to three fractional digits.
+- `sourceType` uses the canonical five source values.
+- `evidenceIds` contains unique non-empty IDs; manual entry may use an empty array and non-manual sources require at least one ID.
+- Manual observations may be created directly as confirmed by an authorised user.
+- Assisted observations begin as proposed unless a later trusted-source policy exists.
+- Proposed, confirmed, rejected, and superseded review states use the standard review lifecycle.
+- A later distinct observation is additional history and does not supersede an earlier valid observation.
+- Supersession is reserved for correcting an erroneous observation and references the replacement through `supersededBy`.
+- A correction stays within the same server and season and cannot have a reviewed time earlier than the superseded record.
+- Supersession chains are cycle-free.
+- Confirmed observations are displayable factual context but remain excluded from ownership, activity, scoring, and freshness calculations.
+
+### ServerObservation example
+
+```json
+{
+  "observationId": "server-observation-501",
+  "serverId": "server-366",
+  "seasonId": "season-1",
+  "text": "Eastern territory is obscured in the latest screenshot.",
+  "observedAt": "2026-07-25T09:15:00Z",
+  "sourceType": "manual_entry",
+  "evidenceIds": [],
+  "actorId": "user-01",
+  "reviewState": "confirmed",
+  "reviewerId": "user-01",
+  "reviewedAt": "2026-07-25T09:16:00Z",
+  "supersededBy": null
+}
+```
 
 ### Proposal workflow rules
 1. Capture proposed value and source asset.

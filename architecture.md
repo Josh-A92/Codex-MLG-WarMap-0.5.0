@@ -39,9 +39,19 @@ This document reflects current main after v0.5.0.
 - The Active-Status Update Coordinator evaluates new snapshot facts, appends immutable status replacements, and refreshes rebuildable relation cache fields.
 - The Active-Status Projection Service recalculates verification health at read time without mutating factual status.
 - The Union/Server/Season Intelligence View Service composes identity, relationship, native assignment, and read-time activity into a UI-neutral view.
+- The Server Intelligence View Service composes per-union intelligence and
+  confirmed factual server observations for a future Server Overview.
+- Combat-strength and server-observation histories have canonical validators,
+  services, and season-scoped strategic persistence.
+- Evidence assets and reviewable EvidenceRecords compose through a separate
+  global Evidence Domain Runtime with a versioned storage-neutral envelope.
+- The Pending Review Queue provides a read-only normalized view across proposed
+  domain records without becoming an authority.
 - The Union Matching Service resolves canonical IDs, tags, display names, and aliases deterministically and surfaces ambiguity without creating or merging identities.
 - Strategic modules are browser-loaded and exposed through application bootstrap as one frozen module registry.
-- The renderer does not yet instantiate strategic state or connect it to runtime persistence or the Command Centre UI.
+- The renderer instantiates an empty canonical strategic runtime. Strategic
+  state persistence, operator input workflows, and Command Centre/Server
+  Overview consumption remain integration work.
 
 8. Data
 - data/season1-map.json stores shared map tiles and structures.
@@ -105,9 +115,13 @@ Implemented:
 Not implemented:
 - Real scoring pipeline
 - History playback
-- Descriptive server notes integration
-- Runtime/UI/persistence integration for native-union and active-union workflows
-- Combat-strength, completeness, and evidence workflows
+- Descriptive server-note UI integration (the canonical Server Observation
+  validator, service, persistence collection, and read-only Server Intelligence
+  View now exist)
+- Operator UI and startup persistence integration for native-union,
+  active-union, combat-strength, server-observation, and evidence workflows
+- Command Centre and Server Overview consumption of canonical intelligence and
+  completeness projections
 - Search and filters
 
 Design note:

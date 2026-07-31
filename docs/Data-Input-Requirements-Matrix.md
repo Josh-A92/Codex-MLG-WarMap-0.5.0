@@ -378,6 +378,13 @@ The following are calculated from confirmed facts and season rules. They must no
 | Territory, structure, union, and combat-strength completeness | Required-record coverage and confirmation/review state |
 | Pending-review count | Reviewable proposals/evidence not yet resolved |
 
+The Pending Review Queue is a derived read model, not a separate source of
+truth. It normalizes proposed native assignments, combat-strength observations,
+server observations, territory and structure ownership records, and evidence
+records while retaining each original canonical record. Reviewing an item must
+invoke its owning domain service; removing an item from the queue directly is
+not a valid state transition.
+
 ## 10. Input-to-Display Traceability
 
 | User-facing information | Required underlying input |

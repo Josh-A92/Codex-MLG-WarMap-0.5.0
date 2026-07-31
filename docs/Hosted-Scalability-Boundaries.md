@@ -463,7 +463,9 @@ Existing ownership, rules, state, and summary services should remain usable thro
 - bootstrap currently requires an Electron persistence bridge
 - version 1 persistence replaces a complete local ownership snapshot
 - authentication, authorization, concurrency, and audit behavior are not implemented
-- Union and Server Intelligence models are documented but not implemented as runtime application services
+- Union and Server Intelligence read models are implemented as runtime-neutral
+  application services; hosted API integration and operator-facing UI remain
+  planned
 
 ## 14. Explicit Non-Goals
 

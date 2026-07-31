@@ -17,6 +17,10 @@ const modulePaths = [
   "active-union-status-validator.js",
   "active-union-status-evaluator.js",
   "active-union-status-service.js",
+  "combat-strength-observation-validator.js",
+  "combat-strength-observation-service.js",
+  "server-observation-validator.js",
+  "server-observation-service.js",
   "ownership-record-validator.js",
   "ownership-record-service.js",
   "target-verification-validator.js",
@@ -29,7 +33,11 @@ const modulePaths = [
   "active-union-status-update-coordinator.js",
   "active-union-status-projection-service.js",
   "union-server-season-view-service.js",
-  "union-server-season-intelligence-view-service.js"
+  "union-server-season-intelligence-view-service.js",
+  "server-intelligence-view-service.js",
+  "server-data-completeness-service.js",
+  "confirmed-snapshot-change-service.js",
+  "server-history-service.js"
 ];
 
 function createModules() {
@@ -43,6 +51,8 @@ function createInitialState() {
     relations: [],
     nativeAssignments: [],
     activeStatuses: [],
+    combatStrengthObservations: [],
+    serverObservations: [],
     territoryOwnershipRecords: [],
     structureOwnershipRecords: [],
     targetVerifications: [],
@@ -83,6 +93,8 @@ assert.strictEqual(runtime.unionRegistryService, unionRegistryService);
   ["nativeAssignmentService", "listAssignments"],
   ["activeStatusEvaluator", "evaluate"],
   ["activeStatusService", "listStatuses"],
+  ["combatStrengthObservationService", "listObservations"],
+  ["serverObservationService", "listObservations"],
   ["ownershipRecordService", "listTerritoryRecords"],
   ["targetVerificationService", "listVerifications"],
   ["confirmedSnapshotValidator", "validateConfirmedServerSnapshot"],
@@ -93,7 +105,11 @@ assert.strictEqual(runtime.unionRegistryService, unionRegistryService);
   ["activeStatusUpdateCoordinator", "processSnapshot"],
   ["activeStatusProjectionService", "getProjection"],
   ["unionServerSeasonViewService", "listViews"],
-  ["unionServerSeasonIntelligenceViewService", "listViews"]
+  ["unionServerSeasonIntelligenceViewService", "listViews"],
+  ["serverIntelligenceViewService", "getView"],
+  ["serverDataCompletenessService", "evaluate"],
+  ["confirmedSnapshotChangeService", "compare"],
+  ["serverHistoryService", "getTimeline"]
 ].forEach(([serviceName, methodName]) => {
   assert.strictEqual(typeof runtime[serviceName][methodName], "function", `${serviceName}.${methodName}`);
 });
@@ -101,6 +117,8 @@ assert.strictEqual(runtime.unionRegistryService, unionRegistryService);
 assert.deepStrictEqual(runtime.relationService.listRelations(), []);
 assert.deepStrictEqual(runtime.nativeAssignmentService.listAssignments(), []);
 assert.deepStrictEqual(runtime.activeStatusService.listStatuses(), []);
+assert.deepStrictEqual(runtime.combatStrengthObservationService.listObservations(), []);
+assert.deepStrictEqual(runtime.serverObservationService.listObservations(), []);
 assert.deepStrictEqual(runtime.ownershipRecordService.listTerritoryRecords(), []);
 assert.deepStrictEqual(runtime.ownershipRecordService.listStructureRecords(), []);
 assert.deepStrictEqual(runtime.targetVerificationService.listVerifications(), []);
@@ -132,6 +150,68 @@ assert.deepStrictEqual(restoredRuntime.activityFactHistoryService.getAllFacts(),
   confirmedPresenceFacts: [],
   qualifyingFullMapConfirmations: []
 });
+
+const populatedState = createInitialState();
+populatedState.combatStrengthObservations.push({
+  observationId: "combat-1",
+  unionId: "union-0001",
+  serverId: "server-366",
+  seasonId: "season-1",
+  value: 128450,
+  unit: "combat strength",
+  displayFormat: "number",
+  observedAt: "2026-07-25T09:15:00Z",
+  sourceType: "manual_entry",
+  evidenceId: null,
+  extractionMethod: null,
+  rawExtractedValue: null,
+  normalizedValue: 128450,
+  confidence: null,
+  reviewState: "confirmed",
+  actorId: "user-1",
+  reviewerId: "user-1",
+  reviewedAt: "2026-07-25T09:16:00Z",
+  supersededBy: null
+});
+populatedState.serverObservations.push({
+  observationId: "server-note-1",
+  serverId: "server-366",
+  seasonId: "season-1",
+  text: "Eastern territory was obscured in the source.",
+  observedAt: "2026-07-25T09:15:00Z",
+  sourceType: "manual_entry",
+  evidenceIds: [],
+  actorId: "user-1",
+  reviewState: "confirmed",
+  reviewerId: "user-1",
+  reviewedAt: "2026-07-25T09:16:00Z",
+  supersededBy: null
+});
+const populatedRuntime = createStrategicDomainRuntime({
+  modules,
+  unionRegistryService,
+  initialState: populatedState
+});
+const populatedEnvelope = serializeStrategicDomainRuntime(
+  populatedRuntime,
+  "season-1",
+  "2026-07-30T22:31:00.000Z"
+);
+const roundTrippedRuntime = createStrategicDomainRuntime({
+  modules,
+  unionRegistryService,
+  initialState: deserializeStrategicDomainEnvelope(populatedEnvelope).state
+});
+assert.strictEqual(
+  roundTrippedRuntime.combatStrengthObservationService
+    .getObservation("combat-1").value,
+  128450
+);
+assert.strictEqual(
+  roundTrippedRuntime.serverObservationService
+    .getObservation("server-note-1").text,
+  "Eastern territory was obscured in the source."
+);
 
 assert.throws(
   () => createStrategicDomainRuntime({

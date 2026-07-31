@@ -23,6 +23,7 @@ Version 1 persists:
 - known union/server/season relations;
 - native-union assignment history;
 - active-union status history;
+- server observation history;
 - canonical territory ownership history;
 - canonical logical-structure ownership history;
 - target-verification history;
@@ -35,7 +36,6 @@ Version 1 does not persist:
 - season packages, rules, structure values, phases, or map definitions;
 - union identities or presentation metadata;
 - evidence assets or screenshot binaries;
-- combat-strength observations, which do not yet have a runtime authority;
 - calculated summaries, activity projections, map freshness projections, or dashboard totals;
 - UI, camera, selection, workspace, or authentication state;
 - the existing legacy Server State Service ownership map.
@@ -46,7 +46,11 @@ Union identity is global and may be referenced by more than one season. It must 
 
 Before restoring a strategic envelope, the application must load the authoritative global Union Registry Service. Every `unionId` referenced by restored strategic state must resolve through that registry.
 
-Persistence for user-created or edited global union identities requires a separate global Union Registry persistence contract. Until that boundary is implemented, `data/unions.json` remains the application’s registry source.
+User-created or edited global union identities use the separate global Union
+Registry persistence contract. Its serializer and storage-neutral persistence
+coordinator are implemented; application-startup and concrete storage-adapter
+integration remain separate work. Until that integration is completed,
+`data/unions.json` remains the live application’s registry source.
 
 ## Transitional ownership boundary
 
@@ -90,6 +94,8 @@ Named slots, environments, branches, and multiple concurrent envelopes are futur
     "relations": [],
     "nativeAssignments": [],
     "activeStatuses": [],
+    "combatStrengthObservations": [],
+    "serverObservations": [],
     "territoryOwnershipRecords": [],
     "structureOwnershipRecords": [],
     "targetVerifications": [],
@@ -114,6 +120,8 @@ State collections:
 - `relations`
 - `nativeAssignments`
 - `activeStatuses`
+- `combatStrengthObservations`
+- `serverObservations`
 - `territoryOwnershipRecords`
 - `structureOwnershipRecords`
 - `targetVerifications`
@@ -132,6 +140,8 @@ Unknown top-level or `state` fields are rejected in version 1.
 | `relations` | Union Server Season Relation Service |
 | `nativeAssignments` | Native Union Assignment Service |
 | `activeStatuses` | Active Union Status Service |
+| `combatStrengthObservations` | Combat Strength Observation Service |
+| `serverObservations` | Server Observation Service |
 | `territoryOwnershipRecords` | Ownership Record Service |
 | `structureOwnershipRecords` | Ownership Record Service |
 | `targetVerifications` | Target Verification Service |
@@ -174,6 +184,11 @@ Validation and restoration are atomic. No collection may be partially applied.
 - The envelope `seasonId` must match the active season.
 - All input is validated before any active runtime reference changes.
 - Restoration creates a new candidate runtime from the envelope; it does not merge records into the active runtime.
+- The storage-neutral Strategic Domain Persistence Service coordinates load,
+  serialization, restoration, and save using the logical season identity.
+- Before candidate runtime construction or save, every direct `unionId` and
+  non-null `ownerUnionId` in the canonical collections must resolve through the
+  loaded global Union Registry Service.
 - On success, orchestration replaces the active runtime reference atomically.
 - On failure, the previous runtime remains active and unchanged.
 - Input envelopes and returned state must be safe copies.
@@ -203,9 +218,9 @@ Authentication determines identity. Authorization determines which domain action
 
 ## Explicitly deferred work
 
-- Global Union Registry persistence.
+- Global Union Registry persistence integration with application startup and a
+  concrete storage adapter.
 - Evidence metadata and screenshot-asset persistence.
-- Combat-strength observation persistence.
 - Canonical ownership migration from the current Server State Service.
 - Database schema, API endpoints, authentication provider, and authorization roles.
 - Multi-writer concurrency and conflict-resolution protocol.

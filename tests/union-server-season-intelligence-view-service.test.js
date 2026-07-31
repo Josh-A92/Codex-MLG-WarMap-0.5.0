@@ -55,6 +55,19 @@ function dependencies() {
           }
         };
       }
+    },
+    combatStrengthObservationService: {
+      getLatestConfirmed(_seasonId, _serverId, unionId) {
+        return unionId === "union-1"
+          ? {
+              observationId: "combat-1",
+              unionId,
+              serverId: "server-366",
+              seasonId: "season-1",
+              value: 128450
+            }
+          : null;
+      }
     }
   };
 }
@@ -70,6 +83,7 @@ test("getView composes identity relation native assignment and read-time activit
   assert.strictEqual(result.valid, true);
   assert.strictEqual(result.view.unionIdentity.tag, "MLG");
   assert.strictEqual(result.view.activity.canonicalStatus.activityState, "active");
+  assert.strictEqual(result.view.latestCombatStrengthObservation.value, 128450);
   assert.strictEqual(result.view.activity.evaluatedAt, "2026-07-30T00:00:00Z");
   assert.strictEqual(
     service.getView("season-1", "server-366", "unknown", "2026-07-30T00:00:00Z"),
@@ -87,6 +101,10 @@ test("listViews preserves base relation ordering and map-specific activity", () 
   assert.deepStrictEqual(
     results.map((result) => result.view.activity.canonicalStatus.activityState),
     ["active", "inactive"]
+  );
+  assert.deepStrictEqual(
+    results.map((result) => result.view.latestCombatStrengthObservation?.value ?? null),
+    [128450, null]
   );
 });
 
@@ -143,7 +161,8 @@ test("strict inputs dependency contracts class binding and safe copies are prese
   const base = new BaseViews();
   createUnionServerSeasonIntelligenceViewService({
     unionServerSeasonViewService: base,
-    activeStatusProjectionService: dependencies().activeStatusProjectionService
+    activeStatusProjectionService: dependencies().activeStatusProjectionService,
+    combatStrengthObservationService: dependencies().combatStrengthObservationService
   }).getView("season-1", "server-366", "union-1", "now");
   assert.strictEqual(base.calls, 1);
 
@@ -171,6 +190,15 @@ test("strict inputs dependency contracts class binding and safe copies are prese
   };
   assert.throws(
     () => createUnionServerSeasonIntelligenceViewService(malformedProjection)
+      .getView("season-1", "server-366", "union-1", "now"),
+    (error) => error.code === "invalid_dependency"
+  );
+  const malformedStrength = dependencies();
+  malformedStrength.combatStrengthObservationService.getLatestConfirmed = function getLatestConfirmed() {
+    return [];
+  };
+  assert.throws(
+    () => createUnionServerSeasonIntelligenceViewService(malformedStrength)
       .getView("season-1", "server-366", "union-1", "now"),
     (error) => error.code === "invalid_dependency"
   );
