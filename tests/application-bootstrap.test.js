@@ -175,6 +175,38 @@ function createValidScope(options) {
         callLog.push("createDataManagementRuntime");
         return Object.freeze({ runtimeOptions });
       }),
+    createAuthorizationPolicyService:
+      dependencyOverrides.createAuthorizationPolicyService || (() => {
+        callLog.push("createAuthorizationPolicyService");
+        return {
+          requireAuthorized() {
+            return { actorId: "local-operator" };
+          }
+        };
+      }),
+    createSeasonAdministrationService:
+      dependencyOverrides.createSeasonAdministrationService || ((serviceOptions) => {
+        callLog.push("createSeasonAdministrationService");
+        return {
+          serviceOptions,
+          async initialize() {
+            callLog.push("initializeSeasonAdministration");
+            return values.activeSeasonActivation || null;
+          },
+          listPreparedSeasons() {
+            return [];
+          },
+          getPreparedSeason() {
+            return null;
+          },
+          getActiveSeason() {
+            return values.activeSeasonActivation || null;
+          },
+          activateSeason() {
+            return Promise.resolve();
+          }
+        };
+      }),
     createTrustedLocalActor:
       dependencyOverrides.createTrustedLocalActor || ((actorId) => ({
         actorId,
@@ -344,6 +376,48 @@ runTest("bootstrap retains the union registry factory inside persistence composi
     Object.prototype.hasOwnProperty.call(rendererCalls[0], "unionRegistryServiceFactory"),
     false
   );
+});
+
+runTest("bootstrap exposes first-run season context and administration service", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.deepStrictEqual(rendererCalls[0].seasonContext, {
+    seasonId: "season-1",
+    activated: false,
+    serverIds: null
+  });
+  assert.strictEqual(typeof rendererCalls[0].seasonAdministrationService.initialize, "function");
+  assert.ok(callLog.indexOf("initializeSeasonAdministration") < callLog.indexOf("resolvePackage"));
+});
+
+runTest("bootstrap uses and safely exposes persisted active season context", async () => {
+  const activation = {
+    seasonId: "season-1",
+    serverIds: ["366", "367"]
+  };
+  const { scope, rendererCalls } = createValidScope({ activeSeasonActivation: activation });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.deepStrictEqual(rendererCalls[0].seasonContext, {
+    seasonId: "season-1",
+    activated: true,
+    serverIds: ["366", "367"]
+  });
+  activation.serverIds.push("999");
+  assert.deepStrictEqual(rendererCalls[0].seasonContext.serverIds, ["366", "367"]);
+});
+
+runTest("missing season administration dependencies prevents renderer initialization", async () => {
+  for (const field of ["createSeasonAdministrationService", "createAuthorizationPolicyService"]) {
+    const { scope, rendererCalls } = createValidScope();
+    delete scope[field];
+    await assert.rejects(
+      () => createApplicationBootstrap(scope).resolveBootstrapContext(),
+      new RegExp(field)
+    );
+    assert.strictEqual(rendererCalls.length, 0);
+  }
 });
 
 runTest("bootstrap builds the grouped strategic domain module registry for persistence", async () => {
@@ -761,6 +835,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/app/evidence-domain-module-registry.js"',
     'src="src/app/evidence-domain-runtime.js"',
     'src="src/services/authorization-policy-service.js"',
+    'src="src/services/season-administration-service.js"',
     'src="src/services/atomic-operation-executor.js"',
     'src="src/services/union-registry-management-service.js"',
     'src="src/services/server-intelligence-management-service.js"',

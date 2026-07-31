@@ -103,6 +103,14 @@
     async function resolveBootstrapContext() {
       const createSeasonLoader = requireFunction(safeScope.createSeasonLoader, "createSeasonLoader");
       const validateSeasonPackage = requireFunction(safeScope.validateSeasonPackage, "validateSeasonPackage");
+      const createSeasonAdministrationService = requireFunction(
+        safeScope.createSeasonAdministrationService,
+        "createSeasonAdministrationService"
+      );
+      const createAuthorizationPolicyService = requireFunction(
+        safeScope.createAuthorizationPolicyService,
+        "createAuthorizationPolicyService"
+      );
       const createGameRulesEngine = requireFunction(safeScope.createGameRulesEngine, "createGameRulesEngine");
       const createUnionRegistryService = requireFunction(
         safeScope.createUnionRegistryService,
@@ -187,7 +195,18 @@
       );
 
       const bundledSeasonPackage = resolveBundledSeasonPackage(safeScope);
-      const requestedSeasonId = resolveRequestedSeasonId(bundledSeasonPackage);
+      const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
+      const seasonAdministrationService = createSeasonAdministrationService({
+        preparedPackages: [bundledSeasonPackage],
+        validateSeasonPackage,
+        authorizationPolicyService: createAuthorizationPolicyService(),
+        storageAdapter,
+        clock: () => new Date()
+      });
+      const activeSeasonActivation = await seasonAdministrationService.initialize();
+      const requestedSeasonId = activeSeasonActivation === null
+        ? resolveRequestedSeasonId(bundledSeasonPackage)
+        : activeSeasonActivation.seasonId;
       const seasonLoader = createSeasonLoader({
         resolvePackage: createSeasonPackageResolver(bundledSeasonPackage),
         validateSeasonPackage
@@ -202,7 +221,6 @@
         throw new Error("Application Bootstrap requires rulesDefinition on the loaded season package.");
       }
 
-      const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
       const strategicDomainModules = createStrategicDomainModuleRegistry(safeScope);
       const evidenceDomainModules = createEvidenceDomainModuleRegistry(safeScope);
       const dataManagementModules = createDataManagementModuleRegistry(safeScope);
@@ -244,6 +262,14 @@
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
+        seasonAdministrationService,
+        seasonContext: {
+          seasonId: requestedSeasonId,
+          activated: activeSeasonActivation !== null,
+          serverIds: activeSeasonActivation === null
+            ? null
+            : activeSeasonActivation.serverIds.slice()
+        },
         dataManagementModules,
         dataManagementRuntimeFactory: createDataManagementRuntime,
         trustedLocalActorFactory: createTrustedLocalActor,
