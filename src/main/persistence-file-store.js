@@ -15,13 +15,20 @@ function assertIdentity(identity) {
     throw new TypeError("Identity must be a strict plain object.");
   }
 
-  const keys = Object.keys(identity);
-  if (keys.length !== 2 || !Object.prototype.hasOwnProperty.call(identity, "seasonId") || !Object.prototype.hasOwnProperty.call(identity, "baseMapId")) {
-    throw new TypeError("Identity must contain exactly seasonId and baseMapId.");
-  }
-
-  if (!isNonEmptyString(identity.seasonId) || !isNonEmptyString(identity.baseMapId)) {
-    throw new TypeError("Identity seasonId and baseMapId must be non-empty strings.");
+  const keys = Object.keys(identity).sort();
+  const expectedFields = !Object.prototype.hasOwnProperty.call(identity, "scope")
+    ? ["baseMapId", "seasonId"]
+    : {
+        union_registry: ["registryId", "scope"],
+        strategic_domain: ["scope", "seasonId"],
+        evidence_domain: ["domainId", "scope"],
+        data_management: ["scope", "seasonId"]
+      }[identity.scope];
+  const matchesShape = Array.isArray(expectedFields)
+    && expectedFields.length === keys.length
+    && expectedFields.every((field, index) => field === keys[index]);
+  if (!matchesShape || keys.some((field) => !isNonEmptyString(identity[field]))) {
+    throw new TypeError("Identity must match one supported persistence identity shape.");
   }
 }
 
@@ -32,10 +39,12 @@ function assertEnvelope(envelope) {
 }
 
 function createIdentityHash(identity) {
-  const canonicalIdentity = JSON.stringify({
-    seasonId: identity.seasonId,
-    baseMapId: identity.baseMapId
-  });
+  const canonicalIdentity = JSON.stringify(
+    Object.keys(identity).sort().reduce((result, field) => {
+      result[field] = identity[field];
+      return result;
+    }, {})
+  );
 
   return crypto.createHash("sha256").update(canonicalIdentity, "utf8").digest("hex");
 }
@@ -96,8 +105,17 @@ function createPersistenceFileStore(options) {
     assertIdentity(identity);
     assertEnvelope(envelope);
 
-    if (envelope.seasonId !== identity.seasonId || envelope.baseMapId !== identity.baseMapId) {
-      throw new TypeError("Envelope seasonId and baseMapId must match identity.");
+    if (
+      Object.prototype.hasOwnProperty.call(identity, "seasonId")
+      && envelope.seasonId !== identity.seasonId
+    ) {
+      throw new TypeError("Envelope seasonId must match identity.");
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(identity, "baseMapId")
+      && envelope.baseMapId !== identity.baseMapId
+    ) {
+      throw new TypeError("Envelope baseMapId must match identity.");
     }
 
     const { resolvedBaseDirectory, resolvedFilePath, hashedName } = resolveEnvelopeFilePath(baseDirectory, identity);

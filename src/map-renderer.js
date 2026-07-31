@@ -7,17 +7,13 @@ let appServerConfig = null;
 let appUnionConfig = null;
 let appWorkspace = null;
 let appSummaryConfig = null;
-let unionRegistryServiceFactory = null;
-let strategicDomainModules = null;
-let strategicDomainRuntimeFactory = null;
-let evidenceDomainModules = null;
-let evidenceDomainRuntimeFactory = null;
 let dataManagementModules = null;
 let dataManagementRuntimeFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
 let serverStatePersistenceController = null;
+let dataManagementPersistenceController = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -1795,16 +1791,7 @@ function loadUnionRegistry() {
         throw new Error("Failed to load union registry");
       }
 
-      if (typeof unionRegistryServiceFactory !== "function") {
-        throw new Error("Renderer requires a union registry service factory.");
-      }
-
-      const unionRegistryService = unionRegistryServiceFactory(data.unions);
-      const unions = unionRegistryService.listUnionIdentities();
-
-      appState.unionRegistryService = unionRegistryService;
-      appState.unionRegistry = unions;
-      return unions;
+      return data.unions;
     });
 }
 
@@ -1824,38 +1811,6 @@ function initializeServerStateService(seasonServerState) {
   }
 
   serverStateService = serverStateServiceFactory(seasonServerState);
-}
-
-function initializeStrategicDomainRuntime() {
-  strategicDomainRuntime = strategicDomainRuntimeFactory({
-    modules: strategicDomainModules,
-    unionRegistryService: appState.unionRegistryService,
-    initialState: {
-      relations: [],
-      nativeAssignments: [],
-      activeStatuses: [],
-      combatStrengthObservations: [],
-      serverObservations: [],
-      territoryOwnershipRecords: [],
-      structureOwnershipRecords: [],
-      targetVerifications: [],
-      confirmedSnapshots: [],
-      confirmedPresenceFacts: [],
-      qualifyingFullMapConfirmations: []
-    }
-  });
-  appState.strategicDomainRuntime = strategicDomainRuntime;
-}
-
-function initializeEvidenceDomainRuntime() {
-  evidenceDomainRuntime = evidenceDomainRuntimeFactory({
-    modules: evidenceDomainModules,
-    initialState: {
-      assets: [],
-      evidenceRecords: []
-    }
-  });
-  appState.evidenceDomainRuntime = evidenceDomainRuntime;
 }
 
 function createRuntimeId(kind) {
@@ -1882,11 +1837,23 @@ function initializeDataManagementRuntime() {
   appState.dataManagementRuntime = dataManagementRuntime;
 }
 
+async function initializePersistedDataManagementDomains(bundledIdentities) {
+  const restored = await dataManagementPersistenceController.initialize({
+    seasonId: seasonIdentity.seasonId,
+    bundledIdentities
+  });
+  appState.unionRegistryService = restored.unionRegistryService;
+  appState.unionRegistry = restored.unionRegistryService.listUnionIdentities();
+  strategicDomainRuntime = restored.strategicDomainRuntime;
+  evidenceDomainRuntime = restored.evidenceDomainRuntime;
+  appState.strategicDomainRuntime = strategicDomainRuntime;
+  appState.evidenceDomainRuntime = evidenceDomainRuntime;
+}
+
 function initializeMap() {
   return Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
-    .then(async ([mapData, _unionRegistry, seasonServerState]) => {
-      initializeStrategicDomainRuntime();
-      initializeEvidenceDomainRuntime();
+    .then(async ([mapData, bundledIdentities, seasonServerState]) => {
+      await initializePersistedDataManagementDomains(bundledIdentities);
       initializeDataManagementRuntime();
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
@@ -1926,30 +1893,6 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a summary service factory.");
   }
 
-  if (typeof bootstrapContext.unionRegistryServiceFactory !== "function") {
-    throw new Error("Renderer requires a union registry service factory.");
-  }
-
-  if (!bootstrapContext.strategicDomainModules
-      || typeof bootstrapContext.strategicDomainModules !== "object"
-      || Array.isArray(bootstrapContext.strategicDomainModules)) {
-    throw new Error("Renderer requires strategic domain modules.");
-  }
-
-  if (typeof bootstrapContext.strategicDomainRuntimeFactory !== "function") {
-    throw new Error("Renderer requires a strategic domain runtime factory.");
-  }
-
-  if (!bootstrapContext.evidenceDomainModules
-      || typeof bootstrapContext.evidenceDomainModules !== "object"
-      || Array.isArray(bootstrapContext.evidenceDomainModules)) {
-    throw new Error("Renderer requires evidence domain modules.");
-  }
-
-  if (typeof bootstrapContext.evidenceDomainRuntimeFactory !== "function") {
-    throw new Error("Renderer requires an evidence domain runtime factory.");
-  }
-
   if (!bootstrapContext.dataManagementModules
       || typeof bootstrapContext.dataManagementModules !== "object"
       || Array.isArray(bootstrapContext.dataManagementModules)) {
@@ -1971,6 +1914,13 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a server state persistence controller.");
   }
 
+  if (!bootstrapContext.dataManagementPersistenceController
+      || typeof bootstrapContext.dataManagementPersistenceController !== "object"
+      || typeof bootstrapContext.dataManagementPersistenceController.initialize !== "function"
+      || typeof bootstrapContext.dataManagementPersistenceController.requestSave !== "function") {
+    throw new Error("Renderer requires a data management persistence controller.");
+  }
+
   gameRulesEngine = bootstrapContext.gameRulesEngine;
   seasonIdentity = gameRulesEngine.getSeasonIdentity();
   seasonMetadata = gameRulesEngine.getSeasonMetadata();
@@ -1980,17 +1930,13 @@ function configureRenderer(bootstrapContext) {
   appUnionConfig = applicationConfig.union && typeof applicationConfig.union === "object" ? applicationConfig.union : null;
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
-  unionRegistryServiceFactory = bootstrapContext.unionRegistryServiceFactory;
-  strategicDomainModules = bootstrapContext.strategicDomainModules;
-  strategicDomainRuntimeFactory = bootstrapContext.strategicDomainRuntimeFactory;
-  evidenceDomainModules = bootstrapContext.evidenceDomainModules;
-  evidenceDomainRuntimeFactory = bootstrapContext.evidenceDomainRuntimeFactory;
   dataManagementModules = bootstrapContext.dataManagementModules;
   dataManagementRuntimeFactory = bootstrapContext.dataManagementRuntimeFactory;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
   serverStatePersistenceController = bootstrapContext.serverStatePersistenceController;
+  dataManagementPersistenceController = bootstrapContext.dataManagementPersistenceController;
 
   if (!appMapConfig || !appMapConfig.dataUrl) {
     throw new Error("Renderer requires a map data URL from bootstrap.");

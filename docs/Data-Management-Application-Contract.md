@@ -250,7 +250,23 @@ the current in-memory management services. They belong with the hosted repositor
 and concurrency milestone. A correction screen must not be presented as complete
 until that audit transaction exists.
 
-## 12. Deferred Hosted Concerns
+## 12. Unified Persistence Boundary
+
+The desktop runtime persists the global Union Registry, active season Strategic
+Domain, and Evidence Domain in one versioned Data Management envelope. One
+storage identity selects the envelope by season. All three sub-envelopes share
+one `savedAt` value and are restored together before the Data Management Runtime
+is created.
+
+This prevents a completed multi-record Union Registration from being split
+across unrelated save files. The renderer sees only a persistence controller;
+it does not construct envelopes or access the Electron storage bridge.
+
+The current file adapter is a local implementation of that storage-neutral
+boundary. A hosted database may replace it without changing the runtime or UI
+operation contracts.
+
+## 13. Deferred Hosted Concerns
 
 The following are not embedded in these management services:
 
@@ -267,18 +283,16 @@ The following are not embedded in these management services:
 These concerns must call the established application operations rather than bypass
 them.
 
-## 13. Current Status
+## 14. Current Status
 
-The storage-neutral, authorized Data Management backend boundary is implemented
-and tested.
+The storage-neutral, authorized Data Management backend, atomic Union
+Registration transaction, unified durable state envelope, and renderer startup
+composition are implemented and tested.
 
 The first user-facing Data Management, responsive map, and prepared Season Setup
 designs are approved and documented.
 
-Renderer integration remains pending. Two application coordination gaps must be
-closed before the approved screens can be considered complete:
-
-- one atomic Union Registration operation spanning identity, known-server
-  association, and native assignment;
-- one canonical map-ownership operation that creates ownership history and
-  refreshes the current map projection without competing authorities.
+The remaining application coordination gap before the approved screens can be
+considered complete is one canonical map-ownership operation that creates
+ownership history and refreshes the current map projection without competing
+authorities. User-facing controls also remain unimplemented.

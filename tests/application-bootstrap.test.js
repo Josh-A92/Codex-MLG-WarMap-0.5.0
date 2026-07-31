@@ -175,6 +175,40 @@ function createValidScope(options) {
         callLog.push("createDataManagementRuntime");
         return Object.freeze({ runtimeOptions });
       }),
+    serializeUnionRegistry:
+      dependencyOverrides.serializeUnionRegistry || (() => ({ identities: [] })),
+    deserializeUnionRegistryEnvelope:
+      dependencyOverrides.deserializeUnionRegistryEnvelope || ((value) => value),
+    serializeStrategicDomainRuntime:
+      dependencyOverrides.serializeStrategicDomainRuntime || (() => ({ state: {} })),
+    deserializeStrategicDomainEnvelope:
+      dependencyOverrides.deserializeStrategicDomainEnvelope || ((value) => value),
+    createEvidenceDomainStateSerializer:
+      dependencyOverrides.createEvidenceDomainStateSerializer || (() => {
+        callLog.push("createEvidenceDomainStateSerializer");
+        return {
+          serializeRuntime() { return {}; },
+          deserializeEnvelope(value) { return value; }
+        };
+      }),
+    createDataManagementStatePersistenceService:
+      dependencyOverrides.createDataManagementStatePersistenceService || (() => {
+        callLog.push("createDataManagementStatePersistenceService");
+        return {
+          async load() { return {}; },
+          async save() { return {}; }
+        };
+      }),
+    createDataManagementPersistenceController:
+      dependencyOverrides.createDataManagementPersistenceController || (() => {
+        callLog.push("createDataManagementPersistenceController");
+        return {
+          async initialize() { return {}; },
+          requestSave() { return Promise.resolve(); },
+          flush() { return Promise.resolve(); },
+          isInitialized() { return false; }
+        };
+      }),
     createSummaryService: dependencyOverrides.createSummaryService || (() => {
       callLog.push("createSummaryService");
       return {};
@@ -293,49 +327,62 @@ runTest("renderer receives exact existing applicationConfig translation", async 
   });
 });
 
-runTest("renderer receives exact union registry service factory", async () => {
-  const { scope, rendererCalls } = createValidScope();
+runTest("bootstrap retains the union registry factory inside persistence composition", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
 
   await bootstrap.bootstrapApplication();
 
   assert.strictEqual(rendererCalls.length, 1);
-  assert.strictEqual(rendererCalls[0].unionRegistryServiceFactory, scope.createUnionRegistryService);
+  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(rendererCalls[0], "unionRegistryServiceFactory"),
+    false
+  );
 });
 
-runTest("renderer receives the grouped strategic domain module registry", async () => {
+runTest("bootstrap builds the grouped strategic domain module registry for persistence", async () => {
   const { scope, rendererCalls, callLog } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
   await bootstrap.bootstrapApplication();
   assert.strictEqual(rendererCalls.length, 1);
-  assert.strictEqual(rendererCalls[0].strategicDomainModules.sourceScope, scope);
   assert.ok(callLog.includes("createStrategicDomainModuleRegistry"));
-  assert.strictEqual(Object.isFrozen(rendererCalls[0].strategicDomainModules), true);
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(rendererCalls[0], "strategicDomainModules"),
+    false
+  );
 });
 
-runTest("renderer receives the strategic domain runtime factory unchanged", async () => {
-  const { scope, rendererCalls } = createValidScope();
+runTest("strategic and evidence factories remain behind persistence composition", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
   await bootstrap.bootstrapApplication();
   assert.strictEqual(rendererCalls.length, 1);
   assert.strictEqual(
-    rendererCalls[0].strategicDomainRuntimeFactory,
-    scope.createStrategicDomainRuntime
+    Object.prototype.hasOwnProperty.call(rendererCalls[0], "strategicDomainRuntimeFactory"),
+    false
   );
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(rendererCalls[0], "evidenceDomainRuntimeFactory"),
+    false
+  );
+  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
 });
 
-runTest("renderer receives evidence and data-management runtime composition", async () => {
+runTest("renderer receives data-management runtime and persistence composition", async () => {
   const { scope, rendererCalls, callLog } = createValidScope();
   const bootstrap = createApplicationBootstrap(scope);
   await bootstrap.bootstrapApplication();
 
   const context = rendererCalls[0];
-  assert.strictEqual(context.evidenceDomainModules.sourceScope, scope);
-  assert.strictEqual(context.evidenceDomainRuntimeFactory, scope.createEvidenceDomainRuntime);
   assert.strictEqual(context.dataManagementModules.sourceScope, scope);
   assert.strictEqual(context.dataManagementRuntimeFactory, scope.createDataManagementRuntime);
+  assert.strictEqual(typeof context.dataManagementPersistenceController.initialize, "function");
   assert.ok(callLog.includes("createEvidenceDomainModuleRegistry"));
   assert.ok(callLog.includes("createDataManagementModuleRegistry"));
+  assert.ok(callLog.includes("createEvidenceDomainStateSerializer"));
+  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
+  assert.ok(callLog.includes("createDataManagementPersistenceController"));
 });
 
 runTest("bootstrap fails clearly when evidence or data-management composition is missing", async () => {
@@ -343,7 +390,14 @@ runTest("bootstrap fails clearly when evidence or data-management composition is
     "createEvidenceDomainModuleRegistry",
     "createEvidenceDomainRuntime",
     "createDataManagementModuleRegistry",
-    "createDataManagementRuntime"
+    "createDataManagementRuntime",
+    "serializeUnionRegistry",
+    "deserializeUnionRegistryEnvelope",
+    "serializeStrategicDomainRuntime",
+    "deserializeStrategicDomainEnvelope",
+    "createEvidenceDomainStateSerializer",
+    "createDataManagementStatePersistenceService",
+    "createDataManagementPersistenceController"
   ]) {
     const { scope, rendererCalls } = createValidScope();
     delete scope[field];
@@ -712,6 +766,11 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/data-management-query-service.js"',
     'src="src/app/data-management-module-registry.js"',
     'src="src/app/data-management-runtime.js"',
+    'src="src/services/union-registry-state-serializer.js"',
+    'src="src/services/strategic-domain-state-serializer.js"',
+    'src="src/services/evidence-domain-state-serializer.js"',
+    'src="src/services/data-management-state-persistence-service.js"',
+    'src="src/app/data-management-persistence-controller.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',

@@ -536,60 +536,22 @@ runTest("renderer initializes summary service through server state ownership API
   assert.strictEqual(/server\.ownership/.test(rendererSource), false);
 });
 
-runTest("renderer initializes an empty canonical strategic runtime after union registry loading", () => {
-  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
-  const rendererSource = fs.readFileSync(rendererPath, "utf8");
-  const initializationMatch = rendererSource.match(
-    /function initializeStrategicDomainRuntime\(\) \{[\s\S]*?\n\}/
-  );
-
-  assert.ok(initializationMatch);
-  const initializationSource = initializationMatch[0];
-  assert.ok(/strategicDomainRuntimeFactory\(\{/.test(initializationSource));
-  assert.ok(/modules: strategicDomainModules/.test(initializationSource));
-  assert.ok(/unionRegistryService: appState\.unionRegistryService/.test(initializationSource));
-  [
-    "relations",
-    "nativeAssignments",
-    "activeStatuses",
-    "combatStrengthObservations",
-    "serverObservations",
-    "territoryOwnershipRecords",
-    "structureOwnershipRecords",
-    "targetVerifications",
-    "confirmedSnapshots",
-    "confirmedPresenceFacts",
-    "qualifyingFullMapConfirmations"
-  ].forEach((field) => {
-    assert.ok(new RegExp(`${field}: \\[\\]`).test(initializationSource), field);
-  });
-  assert.ok(/appState\.strategicDomainRuntime = strategicDomainRuntime/.test(initializationSource));
-
-  const loadUnionRegistryIndex = rendererSource.indexOf("loadUnionRegistry()");
-  const initializeRuntimeIndex = rendererSource.indexOf("initializeStrategicDomainRuntime();");
-  const initializeServerStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
-  assert.ok(loadUnionRegistryIndex > -1);
-  assert.ok(initializeRuntimeIndex > loadUnionRegistryIndex);
-  assert.ok(initializeServerStateIndex > initializeRuntimeIndex);
-  assert.strictEqual(/activeUnionId/.test(initializationSource), false);
-});
-
-runTest("renderer composes evidence and data management runtimes in dependency order", () => {
+runTest("renderer restores one coherent data management state before composing management runtime", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  assert.ok(/evidenceDomainRuntimeFactory\(\{[\s\S]*modules: evidenceDomainModules[\s\S]*assets: \[\][\s\S]*evidenceRecords: \[\]/.test(rendererSource));
+  assert.ok(/dataManagementPersistenceController\.initialize\(\{[\s\S]*seasonId: seasonIdentity\.seasonId,[\s\S]*bundledIdentities/.test(rendererSource));
+  assert.ok(/appState\.unionRegistryService = restored\.unionRegistryService/.test(rendererSource));
+  assert.ok(/strategicDomainRuntime = restored\.strategicDomainRuntime/.test(rendererSource));
+  assert.ok(/evidenceDomainRuntime = restored\.evidenceDomainRuntime/.test(rendererSource));
   assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
-  assert.ok(/appState\.evidenceDomainRuntime = evidenceDomainRuntime/.test(rendererSource));
   assert.ok(/appState\.dataManagementRuntime = dataManagementRuntime/.test(rendererSource));
 
-  const strategicIndex = rendererSource.indexOf("initializeStrategicDomainRuntime();");
-  const evidenceIndex = rendererSource.indexOf("initializeEvidenceDomainRuntime();");
+  const restoreIndex = rendererSource.indexOf("await initializePersistedDataManagementDomains(bundledIdentities);");
   const managementIndex = rendererSource.indexOf("initializeDataManagementRuntime();");
   const serverStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
-  assert.ok(strategicIndex > -1);
-  assert.ok(evidenceIndex > strategicIndex);
-  assert.ok(managementIndex > evidenceIndex);
+  assert.ok(restoreIndex > -1);
+  assert.ok(managementIndex > restoreIndex);
   assert.ok(serverStateIndex > managementIndex);
 });
 

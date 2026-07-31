@@ -10,6 +10,8 @@
     "test:application-bootstrap": "node tests/application-bootstrap.test.js",
     "test:application-module-registries": "node tests/application-module-registries.test.js",
     "test:data-management-runtime": "node tests/data-management-runtime.test.js",
+    "test:data-management-state-persistence": "node tests/data-management-state-persistence-service.test.js",
+    "test:data-management-persistence-controller": "node tests/data-management-persistence-controller.test.js",
     "test:data-management-query": "node tests/data-management-query-service.test.js",
   "test:strategic-domain-modules": "node tests/strategic-domain-module-registry.test.js",
   "test:strategic-domain-runtime": "node tests/strategic-domain-runtime.test.js",

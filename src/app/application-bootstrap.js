@@ -132,6 +132,34 @@
         safeScope.createDataManagementRuntime,
         "createDataManagementRuntime"
       );
+      const serializeUnionRegistry = requireFunction(
+        safeScope.serializeUnionRegistry,
+        "serializeUnionRegistry"
+      );
+      const deserializeUnionRegistryEnvelope = requireFunction(
+        safeScope.deserializeUnionRegistryEnvelope,
+        "deserializeUnionRegistryEnvelope"
+      );
+      const serializeStrategicDomainRuntime = requireFunction(
+        safeScope.serializeStrategicDomainRuntime,
+        "serializeStrategicDomainRuntime"
+      );
+      const deserializeStrategicDomainEnvelope = requireFunction(
+        safeScope.deserializeStrategicDomainEnvelope,
+        "deserializeStrategicDomainEnvelope"
+      );
+      const createEvidenceDomainStateSerializer = requireFunction(
+        safeScope.createEvidenceDomainStateSerializer,
+        "createEvidenceDomainStateSerializer"
+      );
+      const createDataManagementStatePersistenceService = requireFunction(
+        safeScope.createDataManagementStatePersistenceService,
+        "createDataManagementStatePersistenceService"
+      );
+      const createDataManagementPersistenceController = requireFunction(
+        safeScope.createDataManagementPersistenceController,
+        "createDataManagementPersistenceController"
+      );
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
@@ -171,6 +199,9 @@
       }
 
       const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
+      const strategicDomainModules = createStrategicDomainModuleRegistry(safeScope);
+      const evidenceDomainModules = createEvidenceDomainModuleRegistry(safeScope);
+      const dataManagementModules = createDataManagementModuleRegistry(safeScope);
 
       const persistenceService = createPersistenceService({
         storageAdapter,
@@ -182,21 +213,40 @@
       const serverStatePersistenceController = createServerStatePersistenceController({
         persistenceService
       });
+      const evidenceStateSerializer = createEvidenceDomainStateSerializer({
+        validateEvidenceAssetHistory: evidenceDomainModules.validateEvidenceAssetHistory,
+        validateEvidenceRecordHistory: evidenceDomainModules.validateEvidenceRecordHistory
+      });
+      const dataManagementStatePersistenceService =
+        createDataManagementStatePersistenceService({
+          storageAdapter,
+          serializeUnionRegistry,
+          deserializeUnionRegistryEnvelope,
+          serializeStrategicDomainRuntime,
+          deserializeStrategicDomainEnvelope,
+          evidenceStateSerializer,
+          createUnionRegistryService,
+          createStrategicDomainRuntime,
+          createEvidenceDomainRuntime,
+          strategicDomainModules,
+          evidenceDomainModules,
+          clock: () => new Date()
+        });
+      const dataManagementPersistenceController =
+        createDataManagementPersistenceController({
+          persistenceService: dataManagementStatePersistenceService
+        });
 
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
-        strategicDomainModules: createStrategicDomainModuleRegistry(safeScope),
-        strategicDomainRuntimeFactory: createStrategicDomainRuntime,
-        evidenceDomainModules: createEvidenceDomainModuleRegistry(safeScope),
-        evidenceDomainRuntimeFactory: createEvidenceDomainRuntime,
-        dataManagementModules: createDataManagementModuleRegistry(safeScope),
+        dataManagementModules,
         dataManagementRuntimeFactory: createDataManagementRuntime,
-        unionRegistryServiceFactory: createUnionRegistryService,
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,
         serverStateServiceFactory: createServerStateService,
-        serverStatePersistenceController
+        serverStatePersistenceController,
+        dataManagementPersistenceController
       };
     }
 

@@ -99,6 +99,23 @@ runTest("separate identities do not collide", async () => {
   });
 });
 
+runTest("data management domain identities round trip independently", async () => {
+  await withTempStore(async ({ store }) => {
+    const identity = { scope: "data_management", seasonId: "season-1" };
+    const envelope = {
+      schemaVersion: 1,
+      seasonId: "season-1",
+      savedAt: "2026-07-31T10:00:00.000Z",
+      unionRegistry: {},
+      strategicDomain: {},
+      evidenceDomain: {}
+    };
+    await store.saveEnvelope(identity, envelope);
+    assert.deepStrictEqual(await store.loadEnvelope(identity), envelope);
+    assert.strictEqual(await store.loadEnvelope(sampleIdentity()), null);
+  });
+});
+
 runTest("same identity overwrites the current envelope", async () => {
   await withTempStore(async ({ store, tempDirectory }) => {
     const identity = sampleIdentity();
@@ -166,6 +183,7 @@ runTest("invalid identity shapes, unknown fields, whitespace IDs, and mismatch a
     await assert.rejects(() => store.loadEnvelope([]), TypeError);
     await assert.rejects(() => store.loadEnvelope({ seasonId: "season-1" }), TypeError);
     await assert.rejects(() => store.loadEnvelope({ seasonId: "season-1", baseMapId: "map", extra: true }), TypeError);
+    await assert.rejects(() => store.loadEnvelope({ scope: "unknown", seasonId: "season-1" }), TypeError);
     await assert.rejects(() => store.loadEnvelope({ seasonId: "   ", baseMapId: "map" }), TypeError);
     await assert.rejects(() => store.loadEnvelope({ seasonId: "season-1", baseMapId: "   " }), TypeError);
 
