@@ -116,6 +116,27 @@ runTest("data management domain identities round trip independently", async () =
   });
 });
 
+runTest("season activation identity round trips independently", async () => {
+  await withTempStore(async ({ store }) => {
+    const identity = { scope: "season_activation" };
+    const envelope = {
+      schemaVersion: 1,
+      seasonId: "season-1",
+      packageVersion: "0.5.0",
+      serverIds: ["366", "367"],
+      confirmations: {
+        mapAndStructures: true,
+        resourcesAndValues: true
+      },
+      activatedAt: "2026-07-31T12:00:00.000Z",
+      activatedBy: "admin-1"
+    };
+    await store.saveEnvelope(identity, envelope);
+    assert.deepStrictEqual(await store.loadEnvelope(identity), envelope);
+    assert.strictEqual(await store.loadEnvelope(sampleIdentity()), null);
+  });
+});
+
 runTest("same identity overwrites the current envelope", async () => {
   await withTempStore(async ({ store, tempDirectory }) => {
     const identity = sampleIdentity();
