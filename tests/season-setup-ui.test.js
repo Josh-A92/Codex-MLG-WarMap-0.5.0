@@ -47,6 +47,18 @@ test("activation uses the authorized service with both confirmations and server 
   assert.match(renderer, /resourcesAndValues: seasonSetupState\.resourcesAndValuesConfirmed/);
 });
 
+test("Season Setup handlers attach during workspace initialization", () => {
+  const attachStart = renderer.indexOf("function attachWorkspaceShellHandlers()");
+  const nextFunction = renderer.indexOf("function createHeadCell(", attachStart);
+  const attachSource = renderer.slice(attachStart, nextFunction);
+  assert.match(attachSource, /seasonSetupView\.addEventListener\("click", handleSeasonSetupClick\)/);
+  assert.match(attachSource, /seasonSetupView\.addEventListener\("change", handleSeasonSetupChange\)/);
+
+  const footprintStart = renderer.indexOf("function getStructureFootprint(");
+  const footprintEnd = renderer.indexOf("async function handleSelectionPanelChange", footprintStart);
+  assert.doesNotMatch(renderer.slice(footprintStart, footprintEnd), /seasonSetupView\.addEventListener/);
+});
+
 test("persisted and newly activated contexts filter participating servers", () => {
   assert.match(renderer, /allowedServers\.has\(server\.id\)/);
   assert.match(renderer, /applyActivatedServerSelection\(activeSeason\)/);

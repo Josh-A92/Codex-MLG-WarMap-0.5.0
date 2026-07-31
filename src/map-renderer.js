@@ -740,6 +740,11 @@ function attachWorkspaceShellHandlers() {
     });
   }
 
+  if (seasonSetupView) {
+    seasonSetupView.addEventListener("click", handleSeasonSetupClick);
+    seasonSetupView.addEventListener("change", handleSeasonSetupChange);
+  }
+
   updateWorkspaceShellUI();
 }
 
@@ -1642,10 +1647,6 @@ function getStructureFootprint(structure) {
     }
   }
 
-  if (seasonSetupView) {
-    seasonSetupView.addEventListener("click", handleSeasonSetupClick);
-    seasonSetupView.addEventListener("change", handleSeasonSetupChange);
-  }
   return footprint;
 }
 
