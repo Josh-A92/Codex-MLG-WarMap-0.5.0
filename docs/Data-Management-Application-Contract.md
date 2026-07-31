@@ -40,8 +40,11 @@ It consumes the existing global Union Registry, Strategic Domain Runtime, and
 Evidence Domain Runtime. It does not replace them or create competing sources of
 truth.
 
-The runtime is not connected to the current renderer yet. That integration begins
-with the user-facing Data Management workspace milestone.
+The application bootstrap now supplies the Evidence Domain and Data Management
+module contracts and runtime factories to the renderer. The renderer composes
+the Data Management Runtime after the Union Registry, Strategic Domain Runtime,
+and Evidence Domain Runtime are available. User-facing controls remain a
+separate workspace milestone.
 
 ## 3. Actor and Capability Contract
 

@@ -155,6 +155,26 @@ function createValidScope(options) {
         callLog.push("createStrategicDomainRuntime");
         return Object.freeze({ runtimeOptions });
       }),
+    createEvidenceDomainModuleRegistry:
+      dependencyOverrides.createEvidenceDomainModuleRegistry || ((inputScope) => {
+        callLog.push("createEvidenceDomainModuleRegistry");
+        return Object.freeze({ sourceScope: inputScope });
+      }),
+    createEvidenceDomainRuntime:
+      dependencyOverrides.createEvidenceDomainRuntime || ((runtimeOptions) => {
+        callLog.push("createEvidenceDomainRuntime");
+        return Object.freeze({ runtimeOptions });
+      }),
+    createDataManagementModuleRegistry:
+      dependencyOverrides.createDataManagementModuleRegistry || ((inputScope) => {
+        callLog.push("createDataManagementModuleRegistry");
+        return Object.freeze({ sourceScope: inputScope });
+      }),
+    createDataManagementRuntime:
+      dependencyOverrides.createDataManagementRuntime || ((runtimeOptions) => {
+        callLog.push("createDataManagementRuntime");
+        return Object.freeze({ runtimeOptions });
+      }),
     createSummaryService: dependencyOverrides.createSummaryService || (() => {
       callLog.push("createSummaryService");
       return {};
@@ -302,6 +322,37 @@ runTest("renderer receives the strategic domain runtime factory unchanged", asyn
     rendererCalls[0].strategicDomainRuntimeFactory,
     scope.createStrategicDomainRuntime
   );
+});
+
+runTest("renderer receives evidence and data-management runtime composition", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
+  const bootstrap = createApplicationBootstrap(scope);
+  await bootstrap.bootstrapApplication();
+
+  const context = rendererCalls[0];
+  assert.strictEqual(context.evidenceDomainModules.sourceScope, scope);
+  assert.strictEqual(context.evidenceDomainRuntimeFactory, scope.createEvidenceDomainRuntime);
+  assert.strictEqual(context.dataManagementModules.sourceScope, scope);
+  assert.strictEqual(context.dataManagementRuntimeFactory, scope.createDataManagementRuntime);
+  assert.ok(callLog.includes("createEvidenceDomainModuleRegistry"));
+  assert.ok(callLog.includes("createDataManagementModuleRegistry"));
+});
+
+runTest("bootstrap fails clearly when evidence or data-management composition is missing", async () => {
+  for (const field of [
+    "createEvidenceDomainModuleRegistry",
+    "createEvidenceDomainRuntime",
+    "createDataManagementModuleRegistry",
+    "createDataManagementRuntime"
+  ]) {
+    const { scope, rendererCalls } = createValidScope();
+    delete scope[field];
+    await assert.rejects(
+      () => createApplicationBootstrap(scope).resolveBootstrapContext(),
+      new RegExp(field)
+    );
+    assert.strictEqual(rendererCalls.length, 0);
+  }
 });
 
 runTest("bootstrap fails clearly when strategic domain module registry factory is missing", async () => {
@@ -644,6 +695,23 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/server-history-service.js"',
     'src="src/app/strategic-domain-module-registry.js"',
     'src="src/app/strategic-domain-runtime.js"',
+    'src="src/services/evidence-asset-validator.js"',
+    'src="src/services/evidence-asset-service.js"',
+    'src="src/services/evidence-record-validator.js"',
+    'src="src/services/evidence-record-service.js"',
+    'src="src/app/evidence-domain-module-registry.js"',
+    'src="src/app/evidence-domain-runtime.js"',
+    'src="src/services/authorization-policy-service.js"',
+    'src="src/services/atomic-operation-executor.js"',
+    'src="src/services/union-registry-management-service.js"',
+    'src="src/services/server-intelligence-management-service.js"',
+    'src="src/services/union-registration-coordinator.js"',
+    'src="src/services/evidence-management-service.js"',
+    'src="src/services/proposal-review-management-service.js"',
+    'src="src/services/review-queue-service.js"',
+    'src="src/services/data-management-query-service.js"',
+    'src="src/app/data-management-module-registry.js"',
+    'src="src/app/data-management-runtime.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',

@@ -116,6 +116,22 @@
         safeScope.createStrategicDomainRuntime,
         "createStrategicDomainRuntime"
       );
+      const createEvidenceDomainModuleRegistry = requireFunction(
+        safeScope.createEvidenceDomainModuleRegistry,
+        "createEvidenceDomainModuleRegistry"
+      );
+      const createEvidenceDomainRuntime = requireFunction(
+        safeScope.createEvidenceDomainRuntime,
+        "createEvidenceDomainRuntime"
+      );
+      const createDataManagementModuleRegistry = requireFunction(
+        safeScope.createDataManagementModuleRegistry,
+        "createDataManagementModuleRegistry"
+      );
+      const createDataManagementRuntime = requireFunction(
+        safeScope.createDataManagementRuntime,
+        "createDataManagementRuntime"
+      );
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
@@ -172,6 +188,10 @@
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
         strategicDomainModules: createStrategicDomainModuleRegistry(safeScope),
         strategicDomainRuntimeFactory: createStrategicDomainRuntime,
+        evidenceDomainModules: createEvidenceDomainModuleRegistry(safeScope),
+        evidenceDomainRuntimeFactory: createEvidenceDomainRuntime,
+        dataManagementModules: createDataManagementModuleRegistry(safeScope),
+        dataManagementRuntimeFactory: createDataManagementRuntime,
         unionRegistryServiceFactory: createUnionRegistryService,
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,

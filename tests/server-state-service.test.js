@@ -574,6 +574,25 @@ runTest("renderer initializes an empty canonical strategic runtime after union r
   assert.strictEqual(/activeUnionId/.test(initializationSource), false);
 });
 
+runTest("renderer composes evidence and data management runtimes in dependency order", () => {
+  const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
+  const rendererSource = fs.readFileSync(rendererPath, "utf8");
+
+  assert.ok(/evidenceDomainRuntimeFactory\(\{[\s\S]*modules: evidenceDomainModules[\s\S]*assets: \[\][\s\S]*evidenceRecords: \[\]/.test(rendererSource));
+  assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
+  assert.ok(/appState\.evidenceDomainRuntime = evidenceDomainRuntime/.test(rendererSource));
+  assert.ok(/appState\.dataManagementRuntime = dataManagementRuntime/.test(rendererSource));
+
+  const strategicIndex = rendererSource.indexOf("initializeStrategicDomainRuntime();");
+  const evidenceIndex = rendererSource.indexOf("initializeEvidenceDomainRuntime();");
+  const managementIndex = rendererSource.indexOf("initializeDataManagementRuntime();");
+  const serverStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
+  assert.ok(strategicIndex > -1);
+  assert.ok(evidenceIndex > strategicIndex);
+  assert.ok(managementIndex > evidenceIndex);
+  assert.ok(serverStateIndex > managementIndex);
+});
+
 runTest("renderer requests exactly one save after completed ownership edit", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");

@@ -10,6 +10,10 @@ let appSummaryConfig = null;
 let unionRegistryServiceFactory = null;
 let strategicDomainModules = null;
 let strategicDomainRuntimeFactory = null;
+let evidenceDomainModules = null;
+let evidenceDomainRuntimeFactory = null;
+let dataManagementModules = null;
+let dataManagementRuntimeFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
@@ -103,6 +107,8 @@ let ownershipService = null;
 let summaryService = null;
 let serverStateService = null;
 let strategicDomainRuntime = null;
+let evidenceDomainRuntime = null;
+let dataManagementRuntime = null;
 let applicationStarted = false;
 const appState = {
   gameRulesEngine: null,
@@ -111,6 +117,8 @@ const appState = {
   unionRegistryService: null,
   unionRegistry: [],
   strategicDomainRuntime: null,
+  evidenceDomainRuntime: null,
+  dataManagementRuntime: null,
   ownershipService: null,
   servers: [],
   activeWorkspace: null,
@@ -1839,10 +1847,47 @@ function initializeStrategicDomainRuntime() {
   appState.strategicDomainRuntime = strategicDomainRuntime;
 }
 
+function initializeEvidenceDomainRuntime() {
+  evidenceDomainRuntime = evidenceDomainRuntimeFactory({
+    modules: evidenceDomainModules,
+    initialState: {
+      assets: [],
+      evidenceRecords: []
+    }
+  });
+  appState.evidenceDomainRuntime = evidenceDomainRuntime;
+}
+
+function createRuntimeId(kind) {
+  if (
+    typeof kind !== "string"
+    || kind.trim() === ""
+    || !globalThis.crypto
+    || typeof globalThis.crypto.randomUUID !== "function"
+  ) {
+    throw new Error("Renderer requires a runtime ID kind and crypto.randomUUID().");
+  }
+  return `${kind}-${globalThis.crypto.randomUUID()}`;
+}
+
+function initializeDataManagementRuntime() {
+  dataManagementRuntime = dataManagementRuntimeFactory({
+    modules: dataManagementModules,
+    unionRegistryService: appState.unionRegistryService,
+    strategicDomainRuntime,
+    evidenceDomainRuntime,
+    clock: () => new Date().toISOString(),
+    createId: createRuntimeId
+  });
+  appState.dataManagementRuntime = dataManagementRuntime;
+}
+
 function initializeMap() {
   return Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
     .then(async ([mapData, _unionRegistry, seasonServerState]) => {
       initializeStrategicDomainRuntime();
+      initializeEvidenceDomainRuntime();
+      initializeDataManagementRuntime();
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
       appState.servers = serverStateService.listServers();
@@ -1895,6 +1940,26 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a strategic domain runtime factory.");
   }
 
+  if (!bootstrapContext.evidenceDomainModules
+      || typeof bootstrapContext.evidenceDomainModules !== "object"
+      || Array.isArray(bootstrapContext.evidenceDomainModules)) {
+    throw new Error("Renderer requires evidence domain modules.");
+  }
+
+  if (typeof bootstrapContext.evidenceDomainRuntimeFactory !== "function") {
+    throw new Error("Renderer requires an evidence domain runtime factory.");
+  }
+
+  if (!bootstrapContext.dataManagementModules
+      || typeof bootstrapContext.dataManagementModules !== "object"
+      || Array.isArray(bootstrapContext.dataManagementModules)) {
+    throw new Error("Renderer requires data management modules.");
+  }
+
+  if (typeof bootstrapContext.dataManagementRuntimeFactory !== "function") {
+    throw new Error("Renderer requires a data management runtime factory.");
+  }
+
   if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
     throw new Error("Renderer requires a server state service factory.");
   }
@@ -1918,6 +1983,10 @@ function configureRenderer(bootstrapContext) {
   unionRegistryServiceFactory = bootstrapContext.unionRegistryServiceFactory;
   strategicDomainModules = bootstrapContext.strategicDomainModules;
   strategicDomainRuntimeFactory = bootstrapContext.strategicDomainRuntimeFactory;
+  evidenceDomainModules = bootstrapContext.evidenceDomainModules;
+  evidenceDomainRuntimeFactory = bootstrapContext.evidenceDomainRuntimeFactory;
+  dataManagementModules = bootstrapContext.dataManagementModules;
+  dataManagementRuntimeFactory = bootstrapContext.dataManagementRuntimeFactory;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
