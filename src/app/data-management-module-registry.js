@@ -5,6 +5,8 @@
     "createUnionRegistryManagementService",
     "createServerIntelligenceManagementService",
     "createUnionRegistrationCoordinator",
+    "createMapOwnershipCoordinator",
+    "createSelectedMapTargetViewService",
     "createEvidenceManagementService",
     "createProposalReviewManagementService",
     "createReviewQueueService",

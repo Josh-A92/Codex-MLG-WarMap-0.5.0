@@ -132,6 +132,10 @@
         safeScope.createDataManagementRuntime,
         "createDataManagementRuntime"
       );
+      const createTrustedLocalActor = requireFunction(
+        safeScope.createTrustedLocalActor,
+        "createTrustedLocalActor"
+      );
       const serializeUnionRegistry = requireFunction(
         safeScope.serializeUnionRegistry,
         "serializeUnionRegistry"
@@ -242,6 +246,7 @@
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
         dataManagementModules,
         dataManagementRuntimeFactory: createDataManagementRuntime,
+        trustedLocalActorFactory: createTrustedLocalActor,
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,
         serverStateServiceFactory: createServerStateService,

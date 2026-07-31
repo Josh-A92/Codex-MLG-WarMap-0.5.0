@@ -491,6 +491,20 @@
       return deepClone(record);
     }
 
+    function captureTransactionState() {
+      return cloneRecords();
+    }
+
+    function restoreTransactionState(snapshot) {
+      requireArray(snapshot, "snapshot");
+      validateHistory(config.validateHistory, snapshot, `${config.label} transaction snapshot`);
+      const nextRecords = snapshot.map((record) => deepClone(record));
+      const indexes = buildIndexes(nextRecords);
+      state.records = nextRecords;
+      state.recordIndexById = indexes.recordIndexById;
+      state.currentRecordByTarget = indexes.currentRecordByTarget;
+    }
+
     validateHistory(config.validateHistory, config.initialRecords, `${config.label} history`);
     const initialRecords = deepClone(config.initialRecords);
     const initialIndexes = buildIndexes(initialRecords);
@@ -498,7 +512,18 @@
     state.recordIndexById = initialIndexes.recordIndexById;
     state.currentRecordByTarget = initialIndexes.currentRecordByTarget;
 
-    return { list, get, has, getCurrent, propose, addConfirmedManual, confirmProposal, rejectProposal };
+    return {
+      list,
+      get,
+      has,
+      getCurrent,
+      propose,
+      addConfirmedManual,
+      confirmProposal,
+      rejectProposal,
+      captureTransactionState,
+      restoreTransactionState
+    };
   }
 
   function createOwnershipRecordService(options) {
@@ -549,7 +574,36 @@
       proposeStructureRecord: structure.propose,
       addConfirmedManualStructureRecord: structure.addConfirmedManual,
       confirmStructureProposal: structure.confirmProposal,
-      rejectStructureProposal: structure.rejectProposal
+      rejectStructureProposal: structure.rejectProposal,
+      captureTransactionState() {
+        return {
+          territoryRecords: territory.captureTransactionState(),
+          structureRecords: structure.captureTransactionState()
+        };
+      },
+      restoreTransactionState(snapshot) {
+        const input = requireRecordObject(snapshot, "snapshot");
+        requireKnownFields(
+          input,
+          new Set(["territoryRecords", "structureRecords"]),
+          "snapshot"
+        );
+        requireRequiredFields(
+          input,
+          new Set(["territoryRecords", "structureRecords"]),
+          "snapshot"
+        );
+        const currentTerritory = territory.captureTransactionState();
+        const currentStructure = structure.captureTransactionState();
+        try {
+          territory.restoreTransactionState(input.territoryRecords);
+          structure.restoreTransactionState(input.structureRecords);
+        } catch (error) {
+          territory.restoreTransactionState(currentTerritory);
+          structure.restoreTransactionState(currentStructure);
+          throw error;
+        }
+      }
     };
   }
 

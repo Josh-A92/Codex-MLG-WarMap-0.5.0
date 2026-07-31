@@ -26,6 +26,8 @@
     "test:union-registry": "node tests/union-registry-service.test.js",
     "test:union-registry-management": "node tests/union-registry-management-service.test.js",
     "test:union-registration": "node tests/union-registration-coordinator.test.js",
+    "test:map-ownership": "node tests/map-ownership-coordinator.test.js",
+    "test:selected-map-target-view": "node tests/selected-map-target-view-service.test.js",
     "test:atomic-operations": "node tests/atomic-operation-executor.test.js",
   "test:union-registry-state": "node tests/union-registry-state-serializer.test.js",
   "test:union-registry-persistence": "node tests/union-registry-persistence-service.test.js",

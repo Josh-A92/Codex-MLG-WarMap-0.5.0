@@ -9,6 +9,7 @@ let appWorkspace = null;
 let appSummaryConfig = null;
 let dataManagementModules = null;
 let dataManagementRuntimeFactory = null;
+let trustedLocalActorFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
@@ -105,6 +106,8 @@ let serverStateService = null;
 let strategicDomainRuntime = null;
 let evidenceDomainRuntime = null;
 let dataManagementRuntime = null;
+let mapOwnershipCoordinator = null;
+let localActor = null;
 let applicationStarted = false;
 const appState = {
   gameRulesEngine: null,
@@ -1283,11 +1286,8 @@ function buildTerritoryEditor(item) {
   selectionPanel.appendChild(territorySection);
 }
 
-function applyStructureFootprintOwner(structure, ownerId) {
-  if (!ownershipService || !structure) {
-    return;
-  }
-
+function getStructureFootprint(structure) {
+  const footprint = [];
   const rows = Number(structure.rows || 1);
   const cols = Number(structure.cols || 1);
   const startRow = Number(structure.row);
@@ -1295,16 +1295,16 @@ function applyStructureFootprintOwner(structure, ownerId) {
 
   for (let row = startRow; row < startRow + rows; row += 1) {
     for (let col = startCol; col < startCol + cols; col += 1) {
-      const tile = getTileDataAt(row, col);
-      ownershipService.setTileOwner(tile, ownerId);
+      footprint.push({ row, col });
     }
   }
+  return footprint;
 }
 
-function handleSelectionPanelChange(event) {
+async function handleSelectionPanelChange(event) {
   const ownerSelect = event.target.closest("[data-owner-select='true']");
 
-  if (!ownerSelect || !ownershipService) {
+  if (!ownerSelect || !ownershipService || !mapOwnershipCoordinator || !localActor) {
     return;
   }
 
@@ -1316,19 +1316,40 @@ function handleSelectionPanelChange(event) {
   }
 
   const ownerId = ownerSelect.value || null;
+  ownerSelect.disabled = true;
 
-  if (isStructure) {
-    applyStructureFootprintOwner(selectedItem, ownerId);
-  } else {
-    ownershipService.setTileOwner(selectedItem, ownerId);
+  try {
+    if (isStructure) {
+      await mapOwnershipCoordinator.setStructureOwnership(localActor, {
+        seasonId: seasonIdentity.seasonId,
+        serverId: appState.activeServer,
+        structureId: selectedItem.id,
+        footprint: getStructureFootprint(selectedItem),
+        ownerUnionId: ownerId
+      });
+    } else {
+      await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
+        seasonId: seasonIdentity.seasonId,
+        serverId: appState.activeServer,
+        row: Number(selectedItem.row),
+        col: Number(selectedItem.col),
+        ownerUnionId: ownerId
+      });
+    }
+
+    refreshOwnershipView();
+    refreshCommandCentreCards();
+    await Promise.all([
+      serverStatePersistenceController.requestSave(),
+      dataManagementPersistenceController.requestSave()
+    ]);
+  } catch (error) {
+    refreshOwnershipView();
+    refreshCommandCentreCards();
+    console.error("Unable to apply or persist updated map ownership", error);
+  } finally {
+    ownerSelect.disabled = false;
   }
-
-  refreshOwnershipView();
-  refreshCommandCentreCards();
-
-  serverStatePersistenceController.requestSave().catch((error) => {
-    console.error("Unable to persist updated server ownership state", error);
-  });
 }
 
 function attachSelectionPanelHandlers() {
@@ -1831,9 +1852,13 @@ function initializeDataManagementRuntime() {
     unionRegistryService: appState.unionRegistryService,
     strategicDomainRuntime,
     evidenceDomainRuntime,
+    serverStateService,
+    gameRulesEngine,
     clock: () => new Date().toISOString(),
     createId: createRuntimeId
   });
+  mapOwnershipCoordinator = dataManagementRuntime.mapOwnershipCoordinator;
+  localActor = trustedLocalActorFactory("desktop-user");
   appState.dataManagementRuntime = dataManagementRuntime;
 }
 
@@ -1854,9 +1879,9 @@ function initializeMap() {
   return Promise.all([loadMapData(), loadUnionRegistry(), loadSeasonServerState()])
     .then(async ([mapData, bundledIdentities, seasonServerState]) => {
       await initializePersistedDataManagementDomains(bundledIdentities);
-      initializeDataManagementRuntime();
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
+      initializeDataManagementRuntime();
       appState.servers = serverStateService.listServers();
       loadedMapData = mapData;
       initializeOwnershipService();
@@ -1903,6 +1928,10 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a data management runtime factory.");
   }
 
+  if (typeof bootstrapContext.trustedLocalActorFactory !== "function") {
+    throw new Error("Renderer requires a trusted local actor factory.");
+  }
+
   if (typeof bootstrapContext.serverStateServiceFactory !== "function") {
     throw new Error("Renderer requires a server state service factory.");
   }
@@ -1932,6 +1961,7 @@ function configureRenderer(bootstrapContext) {
   appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
   dataManagementModules = bootstrapContext.dataManagementModules;
   dataManagementRuntimeFactory = bootstrapContext.dataManagementRuntimeFactory;
+  trustedLocalActorFactory = bootstrapContext.trustedLocalActorFactory;
   ownershipServiceFactory = bootstrapContext.ownershipServiceFactory;
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;

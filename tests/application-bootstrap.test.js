@@ -175,6 +175,11 @@ function createValidScope(options) {
         callLog.push("createDataManagementRuntime");
         return Object.freeze({ runtimeOptions });
       }),
+    createTrustedLocalActor:
+      dependencyOverrides.createTrustedLocalActor || ((actorId) => ({
+        actorId,
+        grants: []
+      })),
     serializeUnionRegistry:
       dependencyOverrides.serializeUnionRegistry || (() => ({ identities: [] })),
     deserializeUnionRegistryEnvelope:

@@ -235,6 +235,20 @@
       });
     }
 
+    function captureTransactionState() {
+      const ownershipByServerId = {};
+      state.serverIds.forEach((serverId) => {
+        ownershipByServerId[serverId] = deepClone(
+          state.serversById.get(serverId).ownership || {}
+        );
+      });
+      return ownershipByServerId;
+    }
+
+    function restoreTransactionState(snapshot) {
+      replaceTerritoryOwnership(snapshot);
+    }
+
     return {
       getSeasonId,
       getBaseMapId,
@@ -245,7 +259,9 @@
       getTerritoryOwner,
       setTerritoryOwner,
       removeTerritoryOwnerOverride,
-      replaceTerritoryOwnership
+      replaceTerritoryOwnership,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

@@ -4,6 +4,8 @@
     "unionRegistryService",
     "strategicDomainRuntime",
     "evidenceDomainRuntime",
+    "serverStateService",
+    "gameRulesEngine",
     "clock",
     "createId"
   ]);
@@ -13,6 +15,8 @@
     "createUnionRegistryManagementService",
     "createServerIntelligenceManagementService",
     "createUnionRegistrationCoordinator",
+    "createMapOwnershipCoordinator",
+    "createSelectedMapTargetViewService",
     "createEvidenceManagementService",
     "createProposalReviewManagementService",
     "createReviewQueueService",
@@ -95,6 +99,7 @@
       "combatStrengthObservationService",
       "serverObservationService",
       "ownershipRecordService",
+      "targetVerificationService",
       "serverIntelligenceViewService"
     ].forEach((field) => {
       if (!strategic[field] || typeof strategic[field] !== "object") {
@@ -107,6 +112,16 @@
         fail(`Data Management Runtime requires options.evidenceDomainRuntime.${field}.`);
       }
     });
+    const serverState = requireInterface(
+      input.serverStateService,
+      "options.serverStateService",
+      ["getTerritoryOwner", "setTerritoryOwner", "captureTransactionState", "restoreTransactionState"]
+    );
+    const gameRules = requireInterface(
+      input.gameRulesEngine,
+      "options.gameRulesEngine",
+      ["getStructureCatalog", "getStructureResourceProfile"]
+    );
 
     const authorizationPolicyService = modules.createAuthorizationPolicyService();
     const unionRegistryManagementService = modules.createUnionRegistryManagementService({
@@ -142,6 +157,34 @@
       executeAtomically: atomicOperationExecutor.executeAtomically.bind(atomicOperationExecutor),
       createId: input.createId
     });
+    const mapOwnershipAtomicExecutor = requireInterface(
+      modules.createAtomicOperationExecutor({
+        participants: [
+          strategic.relationService,
+          strategic.ownershipRecordService,
+          strategic.targetVerificationService,
+          serverState
+        ]
+      }),
+      "created map ownership atomicOperationExecutor",
+      ["executeAtomically"]
+    );
+    const mapOwnershipCoordinator = modules.createMapOwnershipCoordinator({
+      relationService: strategic.relationService,
+      serverIntelligenceManagementService,
+      targetVerificationService: strategic.targetVerificationService,
+      serverStateService: serverState,
+      executeAtomically:
+        mapOwnershipAtomicExecutor.executeAtomically.bind(mapOwnershipAtomicExecutor),
+      createId: input.createId
+    });
+    const selectedMapTargetViewService =
+      modules.createSelectedMapTargetViewService({
+        ownershipRecordService: strategic.ownershipRecordService,
+        targetVerificationService: strategic.targetVerificationService,
+        unionRegistryService: registry,
+        gameRulesEngine: gameRules
+      });
     const evidenceManagementService = modules.createEvidenceManagementService({
       authorizationPolicyService,
       evidenceAssetService: evidence.evidenceAssetService,
@@ -185,6 +228,8 @@
       unionRegistryManagementService,
       serverIntelligenceManagementService,
       unionRegistrationCoordinator,
+      mapOwnershipCoordinator,
+      selectedMapTargetViewService,
       evidenceManagementService,
       reviewQueueService,
       proposalReviewManagementService,

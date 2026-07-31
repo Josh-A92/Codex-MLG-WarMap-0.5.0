@@ -304,6 +304,21 @@ runTest("replaceTerritoryOwnership accepts null-prototype ownership dictionaries
   assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0004");
 });
 
+runTest("transaction snapshot restores every server ownership projection safely", () => {
+  const service = createServerStateService(createValidSeasonState());
+  service.setTerritoryOwner("server-366", "10-11", "union-0001");
+  const snapshot = service.captureTransactionState();
+
+  service.setTerritoryOwner("server-366", "10-11", "union-0002");
+  service.setTerritoryOwner("server-367", "5-5", "union-0003");
+  service.restoreTransactionState(snapshot);
+
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0001");
+  assert.strictEqual(service.getTerritoryOwner("server-367", "5-5", null), null);
+  snapshot["server-366"]["10-11"] = "mutated";
+  assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0001");
+});
+
 runTest("unknown servers are rejected without changing any server", () => {
   const service = createServerStateService(createValidSeasonState());
 
@@ -544,36 +559,35 @@ runTest("renderer restores one coherent data management state before composing m
   assert.ok(/appState\.unionRegistryService = restored\.unionRegistryService/.test(rendererSource));
   assert.ok(/strategicDomainRuntime = restored\.strategicDomainRuntime/.test(rendererSource));
   assert.ok(/evidenceDomainRuntime = restored\.evidenceDomainRuntime/.test(rendererSource));
-  assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
+  assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*serverStateService,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
   assert.ok(/appState\.dataManagementRuntime = dataManagementRuntime/.test(rendererSource));
 
   const restoreIndex = rendererSource.indexOf("await initializePersistedDataManagementDomains(bundledIdentities);");
   const managementIndex = rendererSource.indexOf("initializeDataManagementRuntime();");
   const serverStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
   assert.ok(restoreIndex > -1);
-  assert.ok(managementIndex > restoreIndex);
-  assert.ok(serverStateIndex > managementIndex);
+  assert.ok(serverStateIndex > restoreIndex);
+  assert.ok(managementIndex > serverStateIndex);
 });
 
-runTest("renderer requests exactly one save after completed ownership edit", () => {
+runTest("renderer routes ownership through the canonical coordinator and saves both state domains", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  const changeHandlerMatch = rendererSource.match(/function handleSelectionPanelChange\(event\) \{[\s\S]*?\n\}/);
+  const changeHandlerMatch = rendererSource.match(/async function handleSelectionPanelChange\(event\) \{[\s\S]*?\n\}/);
   assert.ok(changeHandlerMatch);
 
   const changeHandlerSource = changeHandlerMatch[0];
   const requestSaveMatches = changeHandlerSource.match(/requestSave\(/g) || [];
   const refreshCardsMatches = changeHandlerSource.match(/refreshCommandCentreCards\(/g) || [];
 
-  assert.strictEqual(requestSaveMatches.length, 1);
-  assert.strictEqual(refreshCardsMatches.length, 1);
-  assert.ok(/refreshOwnershipView\(\);[\s\S]*refreshCommandCentreCards\(\);[\s\S]*requestSave\(\)/.test(changeHandlerSource));
-  assert.ok(/requestSave\(\)\.catch\(\(error\) => \{[\s\S]*console\.error/.test(changeHandlerSource));
-
-  const footprintMatch = rendererSource.match(/function applyStructureFootprintOwner\(structure, ownerId\) \{[\s\S]*?\n\}/);
-  assert.ok(footprintMatch);
-  assert.strictEqual(/requestSave\(/.test(footprintMatch[0]), false);
+  assert.strictEqual(requestSaveMatches.length, 2);
+  assert.strictEqual(refreshCardsMatches.length, 2);
+  assert.ok(/mapOwnershipCoordinator\.setStructureOwnership\(localActor/.test(changeHandlerSource));
+  assert.ok(/mapOwnershipCoordinator\.setTerritoryOwnership\(localActor/.test(changeHandlerSource));
+  assert.ok(/serverStatePersistenceController\.requestSave\(\)/.test(changeHandlerSource));
+  assert.ok(/dataManagementPersistenceController\.requestSave\(\)/.test(changeHandlerSource));
+  assert.strictEqual(/ownershipService\.setTileOwner/.test(changeHandlerSource), false);
 
   const tileSetterMatch = rendererSource.match(/function setServerTileOwner\(tile, ownerId\) \{[\s\S]*?\n\}/);
   assert.ok(tileSetterMatch);

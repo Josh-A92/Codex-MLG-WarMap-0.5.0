@@ -292,6 +292,32 @@ runTest("validator failures and malformed results roll back state", () => {
   assert.deepStrictEqual(malformed.listVerifications(), []);
 });
 
+runTest("transaction snapshots restore verification history and current selection", () => {
+  const service = createService({
+    initialVerifications: [verification()]
+  });
+  const snapshot = service.captureTransactionState();
+
+  service.addConfirmedVerification(verification({
+    verificationId: "verification-2",
+    observedAt: "2026-07-02T00:00:00Z",
+    confirmedAt: "2026-07-02T00:10:00Z"
+  }));
+  service.restoreTransactionState(snapshot);
+
+  assert.strictEqual(service.listVerifications().length, 1);
+  assert.strictEqual(
+    service.getCurrentVerification(
+      "server-366",
+      "season-1",
+      { type: "normal_map_cell", row: 1, col: 1 }
+    ).verificationId,
+    "verification-1"
+  );
+  snapshot[0].observedAt = "mutated";
+  assert.strictEqual(service.getVerification("verification-1").observedAt, "2026-07-01T00:00:00Z");
+});
+
 runTest("plain-object and target boundaries reject unsupported values", () => {
   class RecordInput {}
   const service = createService();

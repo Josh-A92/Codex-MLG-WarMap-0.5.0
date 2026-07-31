@@ -495,6 +495,45 @@ runTest("territory and structure mutation failures remain isolated", () => {
   assert.deepStrictEqual(service.listStructureRecords(), structureBefore);
 });
 
+runTest("transaction snapshots restore territory and structure history atomically", () => {
+  const service = createService({
+    initialTerritoryRecords: [territoryRecord()],
+    initialStructureRecords: [structureRecord()]
+  });
+  const snapshot = service.captureTransactionState();
+
+  service.addConfirmedManualTerritoryRecord(territoryManualInput({
+    ownershipRecordId: "territory-2",
+    territoryRef: { type: "normal_map_cell", row: 2, col: 2 }
+  }));
+  service.addConfirmedManualStructureRecord(structureManualInput({
+    structureOwnershipId: "structure-ownership-2",
+    structureId: "town-2"
+  }));
+  service.restoreTransactionState(snapshot);
+
+  assert.deepStrictEqual(service.listTerritoryRecords(), [territoryRecord()]);
+  assert.deepStrictEqual(service.listStructureRecords(), [structureRecord()]);
+  snapshot.territoryRecords[0].ownerUnionId = "mutated";
+  assert.strictEqual(service.getTerritoryRecord("territory-1").ownerUnionId, "union-1");
+});
+
+runTest("invalid transaction snapshot leaves both ownership collections unchanged", () => {
+  const service = createService({
+    initialTerritoryRecords: [territoryRecord()],
+    initialStructureRecords: [structureRecord()]
+  });
+  const before = service.captureTransactionState();
+  const invalid = clone(before);
+  invalid.structureRecords[0].structureId = "";
+
+  expectServiceError(
+    () => service.restoreTransactionState(invalid),
+    "invalid_history"
+  );
+  assert.deepStrictEqual(service.captureTransactionState(), before);
+});
+
 runTest("plain-object boundaries reject class instances and invalid targets", () => {
   class InputRecord {}
   const service = createService();

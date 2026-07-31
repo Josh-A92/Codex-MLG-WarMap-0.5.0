@@ -377,6 +377,25 @@
       return deepClone(replacement);
     }
 
+    function captureTransactionState() {
+      return state.records.map((record) => deepClone(record));
+    }
+
+    function restoreTransactionState(snapshot) {
+      if (!Array.isArray(snapshot)) {
+        throwServiceError(
+          "invalid_input",
+          "Target Verification Service requires snapshot to be an array."
+        );
+      }
+      validateHistory(validateTargetVerificationHistory, snapshot);
+      const nextRecords = deepClone(snapshot);
+      const indexes = buildIndexes(nextRecords);
+      state.records = nextRecords;
+      state.recordIndexById = indexes.recordIndexById;
+      state.currentRecordByTarget = indexes.currentRecordByTarget;
+    }
+
     validateHistory(validateTargetVerificationHistory, input.initialVerifications);
     const initialRecords = deepClone(input.initialVerifications);
     const initialIndexes = buildIndexes(initialRecords);
@@ -390,7 +409,9 @@
       hasVerification,
       getCurrentVerification,
       addConfirmedVerification,
-      correctVerification
+      correctVerification,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

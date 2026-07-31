@@ -21,6 +21,8 @@ function factory() {
   created.registryManagement = { createUnionIdentity() {} };
   created.serverManagement = { addKnownUnion() {} };
   created.unionRegistration = { registerUnion() {} };
+  created.mapOwnership = { setTerritoryOwnership() {}, setStructureOwnership() {} };
+  created.selectedMapTargetView = { getTerritoryView() {}, getStructureView() {} };
   created.evidenceManagement = { resolveEvidenceScope() { return {}; } };
   created.reviewQueue = { listPendingReviews() { return []; } };
   created.proposalReview = { confirmProposal() {} };
@@ -31,6 +33,9 @@ function factory() {
     createUnionRegistryManagementService: creator("registryManagement", created.registryManagement),
     createServerIntelligenceManagementService: creator("serverManagement", created.serverManagement),
     createUnionRegistrationCoordinator: creator("unionRegistration", created.unionRegistration),
+    createMapOwnershipCoordinator: creator("mapOwnership", created.mapOwnership),
+    createSelectedMapTargetViewService:
+      creator("selectedMapTargetView", created.selectedMapTargetView),
     createEvidenceManagementService: creator("evidenceManagement", created.evidenceManagement),
     createProposalReviewManagementService: creator("proposalReview", created.proposalReview),
     createReviewQueueService: creator("reviewQueue", created.reviewQueue),
@@ -44,16 +49,36 @@ function factory() {
     restoreUnionIdentity() {}
   };
   const strategic = {
-    relationService: {},
+    relationService: {
+      captureTransactionState() {},
+      restoreTransactionState() {}
+    },
     nativeAssignmentService: {},
     combatStrengthObservationService: {},
     serverObservationService: {},
-    ownershipRecordService: {},
+    ownershipRecordService: {
+      captureTransactionState() {},
+      restoreTransactionState() {}
+    },
+    targetVerificationService: {
+      captureTransactionState() {},
+      restoreTransactionState() {}
+    },
     serverIntelligenceViewService: {}
   };
   const evidence = {
     evidenceAssetService: {},
     evidenceRecordService: {}
+  };
+  const serverState = {
+    getTerritoryOwner() {},
+    setTerritoryOwner() {},
+    captureTransactionState() {},
+    restoreTransactionState() {}
+  };
+  const gameRules = {
+    getStructureCatalog() { return []; },
+    getStructureResourceProfile() { return null; }
   };
   return {
     calls,
@@ -63,6 +88,8 @@ function factory() {
       unionRegistryService: registry,
       strategicDomainRuntime: strategic,
       evidenceDomainRuntime: evidence,
+      serverStateService: serverState,
+      gameRulesEngine: gameRules,
       clock() { return "2026-07-31T10:00:00Z"; },
       createId(kind) { return `${kind}-1`; }
     }
@@ -77,6 +104,8 @@ test("composes the union registration coordinator with the screen-facing service
     "unionRegistryManagementService",
     "serverIntelligenceManagementService",
     "unionRegistrationCoordinator",
+    "mapOwnershipCoordinator",
+    "selectedMapTargetViewService",
     "evidenceManagementService",
     "reviewQueueService",
     "proposalReviewManagementService",
@@ -91,6 +120,9 @@ test("composes the union registration coordinator with the screen-facing service
     "serverManagement",
     "atomicExecutor",
     "unionRegistration",
+    "atomicExecutor",
+    "mapOwnership",
+    "selectedMapTargetView",
     "evidenceManagement",
     "reviewQueue",
     "proposalReview",
@@ -113,7 +145,7 @@ test("threads one authorization policy through all mutation boundaries", () => {
   });
 });
 
-test("builds registration transaction support from the three mutable domain participants", () => {
+test("builds registration and map ownership transaction support from their mutable participants", () => {
   const setup = factory();
   const runtime = createDataManagementRuntime(setup.options);
   const registration = setup.calls.find((call) => call[0] === "unionRegistration")[1];
@@ -134,12 +166,32 @@ test("builds registration transaction support from the three mutable domain part
   assert.strictEqual(typeof registration.executeAtomically, "function");
   assert.strictEqual(runtime.unionRegistrationCoordinator, setup.created.unionRegistration);
 
-  const atomic = setup.calls.find((call) => call[0] === "atomicExecutor")[1];
-  assert.deepStrictEqual(atomic.participants, [
+  const atomicCalls = setup.calls.filter((call) => call[0] === "atomicExecutor");
+  assert.deepStrictEqual(atomicCalls[0][1].participants, [
     setup.options.unionRegistryService,
     setup.options.strategicDomainRuntime.relationService,
     setup.options.strategicDomainRuntime.nativeAssignmentService
   ]);
+  assert.deepStrictEqual(atomicCalls[1][1].participants, [
+    setup.options.strategicDomainRuntime.relationService,
+    setup.options.strategicDomainRuntime.ownershipRecordService,
+    setup.options.strategicDomainRuntime.targetVerificationService,
+    setup.options.serverStateService
+  ]);
+  const mapOwnership = setup.calls.find((call) => call[0] === "mapOwnership")[1];
+  assert.strictEqual(mapOwnership.relationService, setup.options.strategicDomainRuntime.relationService);
+  assert.strictEqual(mapOwnership.serverIntelligenceManagementService, setup.created.serverManagement);
+  assert.strictEqual(mapOwnership.targetVerificationService, setup.options.strategicDomainRuntime.targetVerificationService);
+  assert.strictEqual(mapOwnership.serverStateService, setup.options.serverStateService);
+  assert.strictEqual(typeof mapOwnership.executeAtomically, "function");
+  assert.strictEqual(mapOwnership.createId, setup.options.createId);
+  assert.strictEqual(runtime.mapOwnershipCoordinator, setup.created.mapOwnership);
+  const selectedView = setup.calls.find((call) => call[0] === "selectedMapTargetView")[1];
+  assert.strictEqual(selectedView.ownershipRecordService, setup.options.strategicDomainRuntime.ownershipRecordService);
+  assert.strictEqual(selectedView.targetVerificationService, setup.options.strategicDomainRuntime.targetVerificationService);
+  assert.strictEqual(selectedView.unionRegistryService, setup.options.unionRegistryService);
+  assert.strictEqual(selectedView.gameRulesEngine, setup.options.gameRulesEngine);
+  assert.strictEqual(runtime.selectedMapTargetViewService, setup.created.selectedMapTargetView);
 });
 
 test("threads strategic and evidence services into management and review composition", () => {
