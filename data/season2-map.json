@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "seasonId": "season-2",
+  "baseMapId": "season2-strategic-node-network",
+  "status": "geometry_verified",
+  "coordinateSystem": {
+    "kind": "rectangular_node_grid_with_interstitial_center",
+    "rows": 12,
+    "columns": 12,
+    "rowOrigin": "top",
+    "columnOrigin": "left",
+    "gridNodeIdFormat": "s2-r{row:2}-c{column:2}"
+  },
+  "sourceEvidence": {
+    "geometryAuthority": "in_game_screenshot_sweep",
+    "screenshots": [
+      "IMG_7618.PNG",
+      "IMG_7619.PNG",
+      "IMG_7620.PNG",
+      "IMG_7621.PNG",
+      "IMG_7622.PNG",
+      "IMG_7623.PNG",
+      "IMG_7624.PNG",
+      "IMG_7625.PNG",
+      "IMG_7626.PNG",
+      "IMG_7627.PNG"
+    ],
+    "communityReference": "S2_Comprehensive_Map_02.jpg",
+    "communityReferenceRole": "transcription_guide_only",
+    "verificationNote": "The overlapping in-game sweep is authoritative for node placement, displayed structure identity, and connections. Community-only resource and speed attributes remain provisional."
+  },
+  "nodeTypes": {
+    "V1": { "type": "Village", "level": 1, "capturable": true },
+    "M2": { "type": "Mine", "level": 2, "capturable": true },
+    "MN3": { "type": "Manor", "level": 3, "capturable": true },
+    "F4": { "type": "Factory", "level": 4, "capturable": true },
+    "T5": { "type": "Town", "level": 5, "capturable": true },
+    "MP6": { "type": "Metropolis", "level": 6, "capturable": true },
+    "BG6": { "type": "Building Guild", "level": 6, "capturable": true },
+    "TC": { "type": "Trade Centre", "levelMode": "position_derived", "capturable": true },
+    "MP7": { "type": "Metropolis", "level": 7, "capturable": true }
+  },
+  "nodeTypeGrid": [
+    ["V1", "V1", "V1", "V1", "V1", "V1", "TC", "V1", "V1", "V1", "V1", "V1"],
+    ["V1", "M2", "M2", "M2", "M2", "M2", "TC", "M2", "M2", "M2", "M2", "V1"],
+    ["V1", "M2", "MN3", "MN3", "MN3", "MN3", "TC", "MN3", "MN3", "MN3", "M2", "V1"],
+    ["V1", "M2", "MN3", "F4", "F4", "F4", "TC", "F4", "F4", "MN3", "M2", "V1"],
+    ["V1", "M2", "MN3", "F4", "T5", "T5", "TC", "T5", "F4", "MN3", "M2", "V1"],
+    ["TC", "TC", "TC", "TC", "TC", "BG6", "MP6", "T5", "F4", "MN3", "M2", "V1"],
+    ["V1", "M2", "MN3", "F4", "T5", "MP6", "MP6", "TC", "TC", "TC", "TC", "TC"],
+    ["V1", "M2", "MN3", "F4", "T5", "TC", "T5", "T5", "F4", "MN3", "M2", "V1"],
+    ["V1", "M2", "MN3", "F4", "F4", "TC", "F4", "F4", "F4", "MN3", "M2", "V1"],
+    ["V1", "M2", "MN3", "MN3", "MN3", "TC", "MN3", "MN3", "MN3", "MN3", "M2", "V1"],
+    ["V1", "M2", "M2", "M2", "M2", "TC", "M2", "M2", "M2", "M2", "M2", "V1"],
+    ["V1", "V1", "V1", "V1", "V1", "TC", "V1", "V1", "V1", "V1", "V1", "V1"]
+  ],
+  "specialNodes": [
+    {
+      "nodeId": "s2-center-metropolis",
+      "typeCode": "MP7",
+      "position": { "row": 6.5, "column": 6.5 },
+      "verification": "in_game_confirmed"
+    }
+  ],
+  "connectionModel": {
+    "kind": "orthogonal_grid_with_special_connections",
+    "gridAdjacency": "orthogonal",
+    "specialConnections": [
+      ["s2-center-metropolis", "s2-r06-c06"],
+      ["s2-center-metropolis", "s2-r06-c07"],
+      ["s2-center-metropolis", "s2-r07-c06"],
+      ["s2-center-metropolis", "s2-r07-c07"]
+    ],
+    "ownershipTarget": false
+  },
+  "provisionalCommunityClaims": [
+    {
+      "claim": "Non-Trade-Centre nodes provide Gold, Food, Iron, output-speed, or collection-speed modifiers according to position.",
+      "status": "unverified",
+      "calculationEligible": false
+    },
+    {
+      "claim": "The three Level 6 Metropolises provide training-speed, research-speed, and healing-speed modifiers.",
+      "status": "unverified",
+      "calculationEligible": false
+    }
+  ],
+  "resolvedDiscrepancies": [
+    {
+      "communityClaim": "The central objective is a Level 7 City.",
+      "inGameFinding": "The central objective is labelled Metropolis.",
+      "resolution": "Use Level 7 Metropolis (MP7)."
+    },
+    {
+      "communityClaim": "Grid node r06-c06 is a Level 6 Metropolis with a building-speed modifier.",
+      "inGameFinding": "The node is labelled Building Guild.",
+      "resolution": "Use Level 6 Building Guild (BG6); do not infer its modifier yet."
+    }
+  ]
+}
