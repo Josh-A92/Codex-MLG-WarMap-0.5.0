@@ -4,13 +4,13 @@
 
 The Season 2 strategic-node geometry has been reconstructed from ten overlapping in-game screenshots (`IMG_7618.PNG` through `IMG_7627.PNG`). The reconstruction is stored in `data/season2-map.json`.
 
-This milestone records verified geometry only. It does not integrate Season 2 into application startup or the renderer.
+This milestone records verified geometry in canonical loader-ready network form (`nodes` and `connections`). It does not yet integrate Season 2 into runtime startup, loader wiring, or renderer behavior.
 
 ## Confirmed Geometry
 
 - The regular network contains 12 rows and 12 columns (144 grid nodes).
 - One Level 7 Metropolis sits between the four central Level 6 nodes, producing 145 ownership targets in total.
-- The grid contains 20 Trade Centres.
+- The grid contains 20 Trade Centres: four each at Level 1, Level 2, Level 3, Level 4, and Level 5.
 - Regular grid connections are orthogonal: each grid node connects to its immediate horizontal and vertical neighbours.
 - The central Level 7 Metropolis connects to the four surrounding Level 6 nodes.
 - Connections are navigation relationships and are not independent ownership targets.
@@ -25,7 +25,11 @@ This milestone records verified geometry only. It does not integrate Season 2 in
 | `MN3` | Level 3 Manor | 24 |
 | `F4` | Level 4 Factory | 16 |
 | `T5` | Level 5 Town | 8 |
-| `TC` | Trade Centre | 20 |
+| `TC1` | Level 1 Trade Centre | 4 |
+| `TC2` | Level 2 Trade Centre | 4 |
+| `TC3` | Level 3 Trade Centre | 4 |
+| `TC4` | Level 4 Trade Centre | 4 |
+| `TC5` | Level 5 Trade Centre | 4 |
 | `BG6` | Level 6 Building Guild | 1 |
 | `MP6` | Level 6 Metropolis | 3 |
 | `MP7` | Level 7 Metropolis | 1 |
@@ -39,6 +43,8 @@ The in-game screenshot sweep is authoritative for:
 - displayed structure type;
 - central-objective identity;
 - Trade Centres as independently ownable nodes.
+
+Trade Centre levels are explicit in canonical data (`TC1` through `TC5`) and are not inferred by renderer logic or coordinate-derived rules.
 
 `S2_Comprehensive_Map_02.jpg` was used as a transcription guide because it presents the same network without ownership overlays. It is not authoritative where it conflicts with the in-game screenshots.
 
@@ -56,6 +62,8 @@ They remain recorded as provisional claims and must not drive summaries, scoring
 ## Runtime Boundary
 
 Season 1 remains a rectangular territory-cell map. Season 2 is a strategic node-and-connection network. The current renderer and package contract must therefore gain an explicit map-topology distinction before this dataset is wired into runtime behavior.
+
+The canonical Season 2 map data is now loader-ready, but runtime loading/rendering integration remains future work.
 
 The recommended boundary is:
 
