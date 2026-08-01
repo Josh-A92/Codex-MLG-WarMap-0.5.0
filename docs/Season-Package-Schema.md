@@ -232,18 +232,38 @@ It must support season-defined:
 
 Required fields:
 - a stable map identifier
+- `topologyType`
 - `dimensions.rows`
 - `dimensions.columns`
-- cell classification rules
-- structure footprint rules
-- cell and structure identifiers that remain stable across the season package
 - `mapDataContract`
 - `mapDataRef`
 
-The map-data contract is nested and discriminated so cell collections and logical structure collections can be described independently:
+Shared required map-definition fields across both topology types:
+- `baseMapId`
+- `topologyType`
+- `dimensions.rows`
+- `dimensions.columns`
+- `mapDataContract`
+- `mapDataRef`
+
+Shared optional map-definition metadata fields:
+- `additionalMapAnnotations`
+- `decorativeMetadata`
+- `regionLabels`
+- `seasonNotes`
+
+`topologyType` is a required discriminator and must be one of:
+- `territory_grid`
+- `strategic_node_network`
+
+No fallback inference is allowed. Missing or unknown `topologyType` values fail validation.
+
+### 7.1 `territory_grid` map-data contract
+This is the current Season 1 contract. It preserves the existing canonical cell and structure sections:
 
 ```json
 {
+  "topologyType": "territory_grid",
   "mapDataContract": {
     "cells": {
       "collectionField": "tiles",
@@ -271,11 +291,49 @@ The map-data contract is nested and discriminated so cell collections and logica
 }
 ```
 
-Both supported representations normalize into the same internal model:
-- stable logical cell identity
-- stable logical structure identity
-- structure-type references
-- resolved footprint cell identities
+For `territory_grid`:
+- `mapDataContract.cells` and `mapDataContract.structures` are required plain objects
+- `cellClassification` is required and validated
+- `structureFootprints` is required and must be an object
+- existing identity and footprint mode rules remain unchanged
+- unknown fields are rejected
+- network-only fields (`nodes`, `connections`) are rejected
+
+### 7.2 `strategic_node_network` map-data contract
+This is the planned Season 2 contract shape.
+
+```json
+{
+  "topologyType": "strategic_node_network",
+  "mapDataContract": {
+    "nodes": {
+      "collectionField": "nodes",
+      "identityField": "nodeId",
+      "typeRefField": "typeCode",
+      "positionField": "position"
+    },
+    "connections": {
+      "collectionField": "connections",
+      "identityField": "connectionId",
+      "fromNodeRefField": "fromNodeId",
+      "toNodeRefField": "toNodeId"
+    }
+  }
+}
+```
+
+For `strategic_node_network`:
+- `mapDataContract.nodes` and `mapDataContract.connections` are required plain objects
+- every listed field is required and must be a non-empty, non-whitespace string
+- unknown fields are rejected
+- territory-grid fields (`cells`, `structures`) are rejected
+- `cellClassification` is not part of the network contract and is rejected when present
+- `structureFootprints` is not part of the network contract and is rejected when present
+
+Topology model notes:
+- territory grids expose cells and logical structures
+- strategic networks expose nodes and connections
+- both topology types require stable map-target identity within the package contract
 
 Optional fields:
 - additional map annotations
@@ -286,18 +344,24 @@ Optional fields:
 Expected types:
 - identifier fields: strings
 - dimensions: object with numeric `rows` and `columns`
-- cell and structure lists: arrays of objects
 - rule definitions: objects
 - `mapDataContract`: object defining how external map data collections and identity/footprint modes are interpreted
 
+Dimensions remain required positive integers for both topology types.
+For `strategic_node_network`, `dimensions.rows` and `dimensions.columns` describe layout coordinates, not territory cells.
+
+Current rollout notes:
+- Season 1 explicitly uses `territory_grid`.
+- Season 2 will use `strategic_node_network` in the canonical package contract.
+- shared ownership, evidence, and history services may operate across both topology types.
+- loading and rendering of network map data remain future integration work.
+
 Identifier uniqueness:
-- cell IDs must be unique and stable within the map definition
-- structure IDs must be unique and stable within the map definition
-- footprint cells must resolve to one logical structure where applicable
+- topology-specific identifiers must be unique and stable within the map definition contract
 
 Reference integrity:
-- structure footprints must resolve to valid cell identifiers
-- capturable-cell rules must resolve to map cells defined in the package
+- territory-grid structure footprints must resolve to valid cell identifiers where footprint references are used
+- territory-grid capturable-cell rules must resolve to map cells defined in the package
 - the map-data reference must resolve to a declared map asset or file
 - `mapDataContract` only declares field names and modes; it does not validate the referenced map file contents
 

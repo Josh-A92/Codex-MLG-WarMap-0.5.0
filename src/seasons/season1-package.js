@@ -58,6 +58,7 @@
       },
       mapDefinition: {
         baseMapId: "season1-map",
+        topologyType: "territory_grid",
         dimensions: {
           rows: 20,
           columns: 20

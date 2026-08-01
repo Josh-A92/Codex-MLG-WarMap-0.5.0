@@ -24,6 +24,7 @@ function createMinimalValidPackage() {
       },
       mapDefinition: {
         baseMapId: "season1-map",
+        topologyType: "territory_grid",
         dimensions: {
           rows: 20,
           columns: 20
@@ -120,6 +121,29 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function createValidStrategicNodeNetworkPackage() {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.mapDefinition.topologyType = "strategic_node_network";
+  delete candidate.rulesDefinition.mapDefinition.cellClassification;
+  delete candidate.rulesDefinition.mapDefinition.structureFootprints;
+  candidate.rulesDefinition.mapDefinition.mapDataContract = {
+    nodes: {
+      collectionField: "nodes",
+      identityField: "nodeId",
+      typeRefField: "typeCode",
+      positionField: "position"
+    },
+    connections: {
+      collectionField: "connections",
+      identityField: "connectionId",
+      fromNodeRefField: "fromNodeId",
+      toNodeRefField: "toNodeId"
+    }
+  };
+
+  return candidate;
+}
+
 function assertError(result, code, path) {
   assert.ok(result.errors.some((error) => error.code === code && error.path === path), `Expected ${code} at ${path}`);
 }
@@ -176,6 +200,41 @@ runTest("valid coordinate-based cell identity", () => {
   assert.deepStrictEqual(result.errors, []);
 });
 
+runTest("valid strategic-node-network package", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.errors, []);
+  assert.deepStrictEqual(result.warnings, []);
+});
+
+runTest("network package containing cellClassification is rejected at exact path", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+  candidate.rulesDefinition.mapDefinition.cellClassification = {
+    capturable: true,
+    blockedCellRefs: [],
+    decorativeCellRefs: [],
+    nonPlayableCellRefs: []
+  };
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.cellClassification");
+});
+
+runTest("network package containing structureFootprints is rejected at exact path", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+  candidate.rulesDefinition.mapDefinition.structureFootprints = {};
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.structureFootprints");
+});
+
 runTest("valid cell-reference footprint", () => {
   const candidate = createMinimalValidPackage();
   candidate.rulesDefinition.mapDefinition.mapDataContract.structures.footprint = {
@@ -225,6 +284,120 @@ runTest("missing required top-level section", () => {
 
   assert.strictEqual(result.valid, false);
   assertError(result, "MISSING_REQUIRED_FIELD", "applicationConfig");
+});
+
+runTest("missing topologyType", () => {
+  const candidate = createMinimalValidPackage();
+  delete candidate.rulesDefinition.mapDefinition.topologyType;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.topologyType");
+});
+
+runTest("unknown topologyType", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.mapDefinition.topologyType = "hex_tessellation";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_TOPOLOGY_TYPE", "rulesDefinition.mapDefinition.topologyType");
+});
+
+runTest("network contract using territory-grid fields", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.mapDefinition.topologyType = "strategic_node_network";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.mapDataContract.cells");
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.mapDataContract.structures");
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.nodes");
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.connections");
+});
+
+runTest("territory-grid contract using network fields", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.mapDefinition.topologyType = "territory_grid";
+  candidate.rulesDefinition.mapDefinition.mapDataContract = {
+    nodes: {
+      collectionField: "nodes",
+      identityField: "nodeId",
+      typeRefField: "typeCode",
+      positionField: "position"
+    },
+    connections: {
+      collectionField: "connections",
+      identityField: "connectionId",
+      fromNodeRefField: "fromNodeId",
+      toNodeRefField: "toNodeId"
+    }
+  };
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.mapDataContract.nodes");
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.mapDataContract.connections");
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.cells");
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.structures");
+});
+
+runTest("territory-grid package missing cellClassification fails", () => {
+  const candidate = createMinimalValidPackage();
+  delete candidate.rulesDefinition.mapDefinition.cellClassification;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.cellClassification");
+});
+
+runTest("territory-grid package missing structureFootprints fails", () => {
+  const candidate = createMinimalValidPackage();
+  delete candidate.rulesDefinition.mapDefinition.structureFootprints;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.structureFootprints");
+});
+
+runTest("missing required network node and connection fields", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+  delete candidate.rulesDefinition.mapDefinition.mapDataContract.nodes.identityField;
+  delete candidate.rulesDefinition.mapDefinition.mapDataContract.connections.toNodeRefField;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.nodes.identityField");
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract.connections.toNodeRefField");
+});
+
+runTest("whitespace-only network contract field values are rejected", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+  candidate.rulesDefinition.mapDefinition.mapDataContract.nodes.positionField = "   ";
+  candidate.rulesDefinition.mapDefinition.mapDataContract.connections.collectionField = "\t\n ";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "rulesDefinition.mapDefinition.mapDataContract.nodes.positionField");
+  assertError(result, "INVALID_STRING", "rulesDefinition.mapDefinition.mapDataContract.connections.collectionField");
+});
+
+runTest("unknown nested network fields are rejected", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
+  candidate.rulesDefinition.mapDefinition.mapDataContract.nodes.extraField = "unexpected";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.mapDataContract.nodes.extraField");
 });
 
 runTest("unsupported schema version", () => {
@@ -665,6 +838,16 @@ runTest("unknown top-level field", () => {
 
 runTest("candidate remains unchanged after validation", () => {
   const candidate = createMinimalValidPackage();
+  const before = clone(candidate);
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(candidate, before);
+});
+
+runTest("strategic-node-network input remains unchanged after validation", () => {
+  const candidate = createValidStrategicNodeNetworkPackage();
   const before = clone(candidate);
 
   const result = validateSeasonPackage(candidate);

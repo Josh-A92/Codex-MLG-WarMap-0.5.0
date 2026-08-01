@@ -4,13 +4,17 @@
   const ALLOWED_PACKAGE_IDENTITY_KEYS = ["schemaVersion", "packageVersion", "seasonId", "displayName", "description", "seasonStatus", "startDate", "endDate"];
   const ALLOWED_RULES_KEYS = ["seasonIdentity", "metadata", "mapDefinition", "structureCatalog", "resourceModel", "scoringModel", "phaseModel", "structureUnlocks", "captureRules", "buffDefinitions"];
   const ALLOWED_SEASON_IDENTITY_KEYS = ["seasonId", "seasonName", "kingdomNumber"];
-  const ALLOWED_MAP_DEFINITION_KEYS = ["baseMapId", "dimensions", "mapDataContract", "cellClassification", "structureFootprints", "mapDataRef", "additionalMapAnnotations", "decorativeMetadata", "regionLabels", "seasonNotes"];
+  const ALLOWED_MAP_DEFINITION_KEYS = ["baseMapId", "topologyType", "dimensions", "mapDataContract", "cellClassification", "structureFootprints", "mapDataRef", "additionalMapAnnotations", "decorativeMetadata", "regionLabels", "seasonNotes"];
   const ALLOWED_DIMENSIONS_KEYS = ["rows", "columns"];
-  const ALLOWED_MAP_DATA_CONTRACT_KEYS = ["cells", "structures"];
+  const ALLOWED_MAP_DATA_CONTRACT_TERRITORY_GRID_KEYS = ["cells", "structures"];
   const ALLOWED_MAP_DATA_CELL_KEYS = ["collectionField", "collectionShape", "identity", "structureTypeRefField"];
   const ALLOWED_MAP_DATA_CELL_IDENTITY_KEYS = ["mode", "idField", "rowField", "columnField"];
   const ALLOWED_MAP_DATA_STRUCTURE_KEYS = ["collectionField", "idField", "typeRefField", "footprint"];
   const ALLOWED_MAP_DATA_STRUCTURE_FOOTPRINT_KEYS = ["mode", "cellRefsField", "rowField", "columnField", "rowSpanField", "columnSpanField"];
+  const ALLOWED_MAP_DATA_CONTRACT_STRATEGIC_NODE_NETWORK_KEYS = ["nodes", "connections"];
+  const ALLOWED_NETWORK_NODE_CONTRACT_KEYS = ["collectionField", "identityField", "typeRefField", "positionField"];
+  const ALLOWED_NETWORK_CONNECTION_CONTRACT_KEYS = ["collectionField", "identityField", "fromNodeRefField", "toNodeRefField"];
+  const ALLOWED_TOPOLOGY_TYPES = ["territory_grid", "strategic_node_network"];
   const ALLOWED_COLLECTION_SHAPES = ["flat_array", "row_arrays"];
   const ALLOWED_CELL_IDENTITY_MODES = ["field", "coordinates"];
   const ALLOWED_FOOTPRINT_MODES = ["cell_refs", "rectangle"];
@@ -275,35 +279,63 @@
       }
     }
 
+    let topologyType = null;
+    if (!Object.prototype.hasOwnProperty.call(mapDefinition, "topologyType")) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.topologyType", "rulesDefinition.mapDefinition.topologyType is required.");
+    } else if (validateStringEnum(
+      errors,
+      mapDefinition.topologyType,
+      "rulesDefinition.mapDefinition.topologyType",
+      "rulesDefinition.mapDefinition.topologyType",
+      ALLOWED_TOPOLOGY_TYPES,
+      "INVALID_TOPOLOGY_TYPE"
+    )) {
+      topologyType = mapDefinition.topologyType;
+    }
+
     if (!Object.prototype.hasOwnProperty.call(mapDefinition, "mapDataContract") || !isPlainObject(mapDefinition.mapDataContract)) {
       pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.mapDataContract", "rulesDefinition.mapDefinition.mapDataContract is required and must be an object.");
-    } else {
-      validateMapDataContract(mapDefinition.mapDataContract, errors, "rulesDefinition.mapDefinition.mapDataContract");
+    } else if (topologyType === "territory_grid") {
+      validateTerritoryGridMapDataContract(mapDefinition.mapDataContract, errors, "rulesDefinition.mapDefinition.mapDataContract");
+    } else if (topologyType === "strategic_node_network") {
+      validateStrategicNodeNetworkMapDataContract(mapDefinition.mapDataContract, errors, "rulesDefinition.mapDefinition.mapDataContract");
     }
 
-    if (!Object.prototype.hasOwnProperty.call(mapDefinition, "cellClassification") || !isPlainObject(mapDefinition.cellClassification)) {
-      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.cellClassification", "rulesDefinition.mapDefinition.cellClassification is required and must be an object.");
-    } else {
-      checkUnknownFields(errors, mapDefinition.cellClassification, ALLOWED_CELL_CLASSIFICATION_KEYS, "rulesDefinition.mapDefinition.cellClassification");
-
-      if (!Object.prototype.hasOwnProperty.call(mapDefinition.cellClassification, "capturable")) {
-        pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.cellClassification.capturable", "rulesDefinition.mapDefinition.cellClassification.capturable is required.");
+    if (topologyType === "territory_grid") {
+      if (!Object.prototype.hasOwnProperty.call(mapDefinition, "cellClassification") || !isPlainObject(mapDefinition.cellClassification)) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.cellClassification", "rulesDefinition.mapDefinition.cellClassification is required and must be an object.");
       } else {
-        validateBoolean(errors, mapDefinition.cellClassification.capturable, "rulesDefinition.mapDefinition.cellClassification.capturable", "rulesDefinition.mapDefinition.cellClassification.capturable");
-      }
+        checkUnknownFields(errors, mapDefinition.cellClassification, ALLOWED_CELL_CLASSIFICATION_KEYS, "rulesDefinition.mapDefinition.cellClassification");
 
-      ["blockedCellRefs", "decorativeCellRefs", "nonPlayableCellRefs"].forEach((fieldName) => {
-        if (!Object.prototype.hasOwnProperty.call(mapDefinition.cellClassification, fieldName)) {
-          pushError(errors, "MISSING_REQUIRED_FIELD", `rulesDefinition.mapDefinition.cellClassification.${fieldName}`, `rulesDefinition.mapDefinition.cellClassification.${fieldName} is required.`);
-          return;
+        if (!Object.prototype.hasOwnProperty.call(mapDefinition.cellClassification, "capturable")) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.cellClassification.capturable", "rulesDefinition.mapDefinition.cellClassification.capturable is required.");
+        } else {
+          validateBoolean(errors, mapDefinition.cellClassification.capturable, "rulesDefinition.mapDefinition.cellClassification.capturable", "rulesDefinition.mapDefinition.cellClassification.capturable");
         }
 
-        validateStringArray(errors, mapDefinition.cellClassification[fieldName], `rulesDefinition.mapDefinition.cellClassification.${fieldName}`, `rulesDefinition.mapDefinition.cellClassification.${fieldName}`);
-      });
+        ["blockedCellRefs", "decorativeCellRefs", "nonPlayableCellRefs"].forEach((fieldName) => {
+          if (!Object.prototype.hasOwnProperty.call(mapDefinition.cellClassification, fieldName)) {
+            pushError(errors, "MISSING_REQUIRED_FIELD", `rulesDefinition.mapDefinition.cellClassification.${fieldName}`, `rulesDefinition.mapDefinition.cellClassification.${fieldName} is required.`);
+            return;
+          }
+
+          validateStringArray(errors, mapDefinition.cellClassification[fieldName], `rulesDefinition.mapDefinition.cellClassification.${fieldName}`, `rulesDefinition.mapDefinition.cellClassification.${fieldName}`);
+        });
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(mapDefinition, "structureFootprints") || !isPlainObject(mapDefinition.structureFootprints)) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.structureFootprints", "rulesDefinition.mapDefinition.structureFootprints is required and must be an object.");
+      }
     }
 
-    if (!Object.prototype.hasOwnProperty.call(mapDefinition, "structureFootprints") || !isPlainObject(mapDefinition.structureFootprints)) {
-      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.mapDefinition.structureFootprints", "rulesDefinition.mapDefinition.structureFootprints is required and must be an object.");
+    if (topologyType === "strategic_node_network") {
+      if (Object.prototype.hasOwnProperty.call(mapDefinition, "cellClassification")) {
+        pushError(errors, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.cellClassification", "cellClassification is not allowed for strategic_node_network topology.");
+      }
+
+      if (Object.prototype.hasOwnProperty.call(mapDefinition, "structureFootprints")) {
+        pushError(errors, "UNKNOWN_FIELD", "rulesDefinition.mapDefinition.structureFootprints", "structureFootprints is not allowed for strategic_node_network topology.");
+      }
     }
 
     if (!Object.prototype.hasOwnProperty.call(mapDefinition, "mapDataRef")) {
@@ -531,8 +563,8 @@
     }
   }
 
-  function validateMapDataContract(mapDataContract, errors, path) {
-    checkUnknownFields(errors, mapDataContract, ALLOWED_MAP_DATA_CONTRACT_KEYS, path);
+  function validateTerritoryGridMapDataContract(mapDataContract, errors, path) {
+    checkUnknownFields(errors, mapDataContract, ALLOWED_MAP_DATA_CONTRACT_TERRITORY_GRID_KEYS, path);
 
     if (!Object.prototype.hasOwnProperty.call(mapDataContract, "cells") || !isPlainObject(mapDataContract.cells)) {
       pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.cells`, `${path}.cells is required and must be an object.`);
@@ -544,6 +576,45 @@
       pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.structures`, `${path}.structures is required and must be an object.`);
     } else {
       validateMapDataContractStructures(mapDataContract.structures, errors, `${path}.structures`);
+    }
+  }
+
+  function validateStrategicNodeNetworkSection(section, errors, path, requiredFields) {
+    checkUnknownFields(errors, section, requiredFields, path);
+
+    requiredFields.forEach((fieldName) => {
+      if (!Object.prototype.hasOwnProperty.call(section, fieldName)) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.${fieldName}`, `${path}.${fieldName} is required.`);
+        return;
+      }
+
+      validateNonEmptyString(errors, section[fieldName], `${path}.${fieldName}`, `${path}.${fieldName}`);
+    });
+  }
+
+  function validateStrategicNodeNetworkMapDataContract(mapDataContract, errors, path) {
+    checkUnknownFields(errors, mapDataContract, ALLOWED_MAP_DATA_CONTRACT_STRATEGIC_NODE_NETWORK_KEYS, path);
+
+    if (!Object.prototype.hasOwnProperty.call(mapDataContract, "nodes") || !isPlainObject(mapDataContract.nodes)) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.nodes`, `${path}.nodes is required and must be an object.`);
+    } else {
+      validateStrategicNodeNetworkSection(
+        mapDataContract.nodes,
+        errors,
+        `${path}.nodes`,
+        ALLOWED_NETWORK_NODE_CONTRACT_KEYS
+      );
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(mapDataContract, "connections") || !isPlainObject(mapDataContract.connections)) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.connections`, `${path}.connections is required and must be an object.`);
+    } else {
+      validateStrategicNodeNetworkSection(
+        mapDataContract.connections,
+        errors,
+        `${path}.connections`,
+        ALLOWED_NETWORK_CONNECTION_CONTRACT_KEYS
+      );
     }
   }
 

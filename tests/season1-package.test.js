@@ -95,6 +95,10 @@ runTest("SEASON_1_PACKAGE validates with no errors", () => {
   assert.deepStrictEqual(result.warnings, []);
 });
 
+runTest("SEASON_1_PACKAGE explicitly uses territory_grid topology", () => {
+  assert.strictEqual(SEASON_1_PACKAGE.rulesDefinition.mapDefinition.topologyType, "territory_grid");
+});
+
 runTest("createSeasonLoader resolves and loads season-1 package object", async () => {
   const loader = createSeasonLoader({
     resolvePackage: async (seasonId) => {
@@ -193,6 +197,7 @@ runTest("package shape is canonical nested and excludes legacy fields", () => {
   assert.deepStrictEqual(topLevelKeys, ["applicationConfig", "externalRegistries", "packageIdentity", "rulesDefinition"]);
 
   const mapDefinition = SEASON_1_PACKAGE.rulesDefinition.mapDefinition;
+  assert.strictEqual(mapDefinition.topologyType, "territory_grid");
   assert.strictEqual(Object.prototype.hasOwnProperty.call(SEASON_1_PACKAGE, "appConfig"), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(mapDefinition, "gridSize"), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(SEASON_1_PACKAGE.rulesDefinition.resourceModel, "primaryResource"), false);
