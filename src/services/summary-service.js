@@ -166,7 +166,12 @@
 
           const fallbackOwnerId = normalizeOwnerId(tile.ownerId);
           fallbackOwnerByTerritoryKey.set(territoryKey, fallbackOwnerId);
-          capturableTiles.push({ territoryKey, fallbackOwnerId });
+          capturableTiles.push({
+            territoryKey,
+            fallbackOwnerId,
+            code: typeof tile.code === "string" ? tile.code : null,
+            type: typeof tile.type === "string" ? tile.type : null
+          });
         });
       });
 
@@ -179,6 +184,69 @@
 
     function resolveTerritoryOwner(serverId, territoryKey, fallbackOwnerId) {
       return normalizeOwnerId(getTerritoryOwner(serverId, territoryKey, fallbackOwnerId));
+    }
+
+    function getStructureFootprintKeys(structure) {
+      const startRow = toFiniteNumber(structure && structure.row, NaN);
+      const startCol = toFiniteNumber(structure && structure.col, NaN);
+      if (!Number.isFinite(startRow) || !Number.isFinite(startCol)) return [];
+
+      const rowSpan = normalizeSpan(structure.rows);
+      const colSpan = normalizeSpan(structure.cols);
+      const keys = [];
+      for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+        for (let colOffset = 0; colOffset < colSpan; colOffset += 1) {
+          keys.push(getTileKey(startRow + rowOffset, startCol + colOffset));
+        }
+      }
+      return keys;
+    }
+
+    function isStructureOwnedBy(serverId, unionId, structure, tileContext) {
+      if (!unionId) return false;
+      const footprintKeys = getStructureFootprintKeys(structure);
+      return footprintKeys.length > 0 && footprintKeys.every((territoryKey) => {
+        const fallbackOwnerId = tileContext.fallbackOwnerByTerritoryKey.has(territoryKey)
+          ? tileContext.fallbackOwnerByTerritoryKey.get(territoryKey)
+          : null;
+        return resolveTerritoryOwner(serverId, territoryKey, fallbackOwnerId) === unionId;
+      });
+    }
+
+    function getStructureResourceValue(structureCodeOrType) {
+      const engine = getGameRulesEngine();
+      if (!engine || typeof engine.getStructureResourceProfile !== "function") return 0;
+      const profile = engine.getStructureResourceProfile(structureCodeOrType);
+      if (typeof profile === "number") return Number.isFinite(profile) && profile >= 0 ? profile : 0;
+      if (!isObject(profile)) return 0;
+      const value = Number(profile.value ?? profile.amount);
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    }
+
+    function getDesignatedUnionResourceValue(server) {
+      const tileContext = buildTileContext();
+      const serverId = isObject(server) ? server.id : null;
+      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
+      if (!designatedUnionId) return 0;
+
+      let total = 0;
+      const logicalStructureFootprints = new Set();
+
+      toSafeArray(tileContext.structures).forEach((structure) => {
+        if (!isObject(structure)) return;
+        getStructureFootprintKeys(structure).forEach((key) => logicalStructureFootprints.add(key));
+        if (!isStructureOwnedBy(serverId, designatedUnionId, structure, tileContext)) return;
+        total += getStructureResourceValue(structure.code || structure.type);
+      });
+
+      tileContext.capturableTiles.forEach((tile) => {
+        if (logicalStructureFootprints.has(tile.territoryKey)) return;
+        const ownerId = resolveTerritoryOwner(serverId, tile.territoryKey, tile.fallbackOwnerId);
+        if (ownerId !== designatedUnionId) return;
+        total += getStructureResourceValue(tile.code || tile.type);
+      });
+
+      return total;
     }
 
     function getUnionLabel(unionId) {
@@ -203,7 +271,18 @@
       const scoringModel = getResolvedScoringModel();
       const resourceModel = getResolvedResourceModel();
 
-      void server;
+      if (scoringModel.configured) {
+        const value = getDesignatedUnionResourceValue(server);
+        return {
+          text: new Intl.NumberFormat("en-GB").format(value),
+          configured: true,
+          resourceLabel: scoringModel.resourceLabel || resourceModel.displayName,
+          metricType: resourceModel.metricType,
+          unit: resourceModel.unit,
+          value,
+          serverField: scoringModel.serverField
+        };
+      }
 
       return {
         text: scoringModel.unconfiguredLabel,
@@ -267,34 +346,15 @@
         const type = typeof structure.type === "string" && structure.type.trim() !== ""
           ? structure.type
           : "Unknown";
-        const startRow = toFiniteNumber(structure.row, NaN);
-        const startCol = toFiniteNumber(structure.col, NaN);
-
-        if (!Number.isFinite(startRow) || !Number.isFinite(startCol)) {
+        if (getStructureFootprintKeys(structure).length === 0) {
           return;
         }
 
-        const rowSpan = normalizeSpan(structure.rows);
-        const colSpan = normalizeSpan(structure.cols);
-
-        const ownerIds = [];
-        for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
-          for (let colOffset = 0; colOffset < colSpan; colOffset += 1) {
-            const row = startRow + rowOffset;
-            const col = startCol + colOffset;
-            const territoryKey = getTileKey(row, col);
-            const fallbackOwnerId = tileContext.fallbackOwnerByTerritoryKey.has(territoryKey)
-              ? tileContext.fallbackOwnerByTerritoryKey.get(territoryKey)
-              : null;
-
-            ownerIds.push(resolveTerritoryOwner(serverId, territoryKey, fallbackOwnerId));
-          }
-        }
-
-        const isDesignatedOwned = Boolean(
-          designatedUnionId
-          && ownerIds.length > 0
-          && ownerIds.every((ownerId) => ownerId === designatedUnionId)
+        const isDesignatedOwned = isStructureOwnedBy(
+          serverId,
+          designatedUnionId,
+          structure,
+          tileContext
         );
 
         const bucket = summaryByType.get(type) || {

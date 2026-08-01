@@ -50,6 +50,26 @@ const EXPECTED_PHASES = [
   { id: "phase-3", label: "Territory Ownership", status: "partial" }
 ];
 
+const EXPECTED_STRUCTURE_FACTS = {
+  V1: { expectedCount: 24, firstCaptureReward: 10, unlockWeek: 1, iceCrystalValue: 100000 },
+  FM1: { expectedCount: 52, firstCaptureReward: 5, iceCrystalValue: 5000 },
+  FM2: { expectedCount: 68, firstCaptureReward: 10, iceCrystalValue: 10000 },
+  FM3: { expectedCount: 28, firstCaptureReward: 15, iceCrystalValue: 15000 },
+  FM4: { expectedCount: 52, firstCaptureReward: 20, iceCrystalValue: 20000 },
+  FM5: { expectedCount: 26, firstCaptureReward: 25, iceCrystalValue: 25000 },
+  FM6: { expectedCount: 32, firstCaptureReward: 30, iceCrystalValue: 30000 },
+  FM7: { expectedCount: 16, firstCaptureReward: 35, iceCrystalValue: 35000 },
+  FM8: { expectedCount: 12, firstCaptureReward: 40, iceCrystalValue: 40000 },
+  FM9: { expectedCount: 14, firstCaptureReward: 45, iceCrystalValue: 45000 },
+  FM10: { expectedCount: 8, firstCaptureReward: 50, iceCrystalValue: 50000 },
+  C2: { expectedCount: 20, firstCaptureReward: 20, unlockWeek: 1, iceCrystalValue: 200000 },
+  MN3: { expectedCount: 15, firstCaptureReward: 30, unlockWeek: 2, iceCrystalValue: 300000 },
+  F4: { expectedCount: 12, firstCaptureReward: 40, unlockWeek: 2, iceCrystalValue: 400000 },
+  T5: { expectedCount: 4, firstCaptureReward: 50, unlockWeek: 3, iceCrystalValue: 500000 },
+  MP6: { expectedCount: 4, firstCaptureReward: 60, unlockWeek: 3, iceCrystalValue: 1000000 },
+  RC7: { expectedCount: 1, firstCaptureReward: 200, unlockWeek: 4, iceCrystalValue: 0 }
+};
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -106,7 +126,26 @@ runTest("structure catalog and unlocks preserve all current entries", () => {
   entries.forEach((entry) => {
     assert.strictEqual(entry.structureTypeId, `structure-type-${entry.code.toLowerCase()}`);
     assert.strictEqual(entry.capturable, true);
+    assert.strictEqual(entry.expectedCount, EXPECTED_STRUCTURE_FACTS[entry.code].expectedCount);
+    assert.strictEqual(entry.firstCaptureReward, EXPECTED_STRUCTURE_FACTS[entry.code].firstCaptureReward);
+    if (Object.prototype.hasOwnProperty.call(EXPECTED_STRUCTURE_FACTS[entry.code], "unlockWeek")) {
+      assert.strictEqual(entry.unlockWeek, EXPECTED_STRUCTURE_FACTS[entry.code].unlockWeek);
+    } else {
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(entry, "unlockWeek"), false);
+    }
   });
+});
+
+runTest("Season 1 structure values are explicit and Royal City scores zero", () => {
+  const outputs = SEASON_1_PACKAGE.rulesDefinition.resourceModel.structureOutputs;
+  Object.entries(EXPECTED_STRUCTURE_FACTS).forEach(([code, fact]) => {
+    assert.deepStrictEqual(outputs[code], {
+      resourceId: "ice-crystals",
+      value: fact.iceCrystalValue,
+      unit: "crystals"
+    });
+  });
+  assert.strictEqual(outputs.RC7.value, 0);
 });
 
 runTest("data URLs, workspace, phases, capture rules, and scoring labels are preserved", () => {
@@ -135,11 +174,14 @@ runTest("data URLs, workspace, phases, capture rules, and scoring labels are pre
     displayName: "Ice Crystals",
     unit: "crystals",
     metricType: "season-resource",
-    structureOutputs: {}
+    structureOutputs: Object.fromEntries(Object.entries(EXPECTED_STRUCTURE_FACTS).map(([code, fact]) => [
+      code,
+      { resourceId: "ice-crystals", value: fact.iceCrystalValue, unit: "crystals" }
+    ]))
   });
   assert.deepStrictEqual(SEASON_1_PACKAGE.rulesDefinition.scoringModel, {
     calculationModelId: "season1-scoring-model",
-    configured: false,
+    configured: true,
     resourceLabel: "Ice Crystals",
     serverField: "iceCrystals",
     unconfiguredLabel: "Scoring rules not configured"

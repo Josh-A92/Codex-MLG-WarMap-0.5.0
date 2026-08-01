@@ -561,6 +561,31 @@ runTest("invalid optional catalogue-field type", () => {
   assertError(result, "INVALID_ARRAY", "rulesDefinition.structureCatalog[0].categories");
 });
 
+runTest("catalogue count, reward, and unlock fields use strict integer rules", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.structureCatalog[0].expectedCount = 0;
+  candidate.rulesDefinition.structureCatalog[0].firstCaptureReward = -1;
+  candidate.rulesDefinition.structureCatalog[0].unlockWeek = 1.5;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_INTEGER", "rulesDefinition.structureCatalog[0].expectedCount");
+  assertError(result, "INVALID_INTEGER", "rulesDefinition.structureCatalog[0].firstCaptureReward");
+  assertError(result, "INVALID_INTEGER", "rulesDefinition.structureCatalog[0].unlockWeek");
+});
+
+runTest("catalogue permits zero first-capture reward", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.structureCatalog[0].expectedCount = 1;
+  candidate.rulesDefinition.structureCatalog[0].firstCaptureReward = 0;
+  candidate.rulesDefinition.structureCatalog[0].unlockWeek = 1;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+});
+
 runTest("catalogue entry containing structureTypeRef", () => {
   const candidate = createMinimalValidPackage();
   candidate.rulesDefinition.structureCatalog[0].structureTypeRef = "structure-type-v1";

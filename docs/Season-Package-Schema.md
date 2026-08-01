@@ -319,6 +319,9 @@ It must support structure catalogue entries with:
 
 Optional fields:
 - `level`
+- `expectedCount` for the authoritative number of logical structures or map cells of that catalogue type
+- `firstCaptureReward` for the season-defined first-capture reward value
+- `unlockWeek` for a structure type that becomes capturable during a numbered season week
 - `categories`
 - `assetKeys`
 - `spriteKeys`
@@ -330,6 +333,8 @@ Expected types:
 - object records in an array catalogue
 - string identifiers for cross references
 - numeric `level` values where present
+- positive-integer `expectedCount` and `unlockWeek` values where present
+- non-negative-integer `firstCaptureReward` values where present
 - arrays of non-empty strings for `categories`, `assetKeys`, `spriteKeys`, `resourceReferences`, and `scoringReferences`
 - plain-object `metadata` containers with free-form contents
 

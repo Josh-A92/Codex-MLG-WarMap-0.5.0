@@ -58,7 +58,7 @@ test("lists validated prepared seasons using package-driven summaries", () => {
   assert.deepStrictEqual(listed[0].map, { baseMapId: "season1-map", rows: 20, columns: 20 });
   assert.strictEqual(listed[0].structures.length, 17);
   assert.strictEqual(listed[0].resource.displayName, "Ice Crystals");
-  assert.strictEqual(listed[0].resource.scoringConfigured, false);
+  assert.strictEqual(listed[0].resource.scoringConfigured, true);
   listed[0].map.rows = 1;
   assert.strictEqual(service.listPreparedSeasons()[0].map.rows, 20);
 });

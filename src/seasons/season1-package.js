@@ -1,22 +1,22 @@
 (function initializeSeasonOnePackage(globalScope) {
   const STRUCTURE_CATALOG = [
-    { code: "V1", type: "Village", level: 1 },
-    { code: "FM1", type: "Frost Mine", level: 1 },
-    { code: "FM2", type: "Frost Mine", level: 2 },
-    { code: "FM3", type: "Frost Mine", level: 3 },
-    { code: "FM4", type: "Frost Mine", level: 4 },
-    { code: "FM5", type: "Frost Mine", level: 5 },
-    { code: "FM6", type: "Frost Mine", level: 6 },
-    { code: "FM7", type: "Frost Mine", level: 7 },
-    { code: "FM8", type: "Frost Mine", level: 8 },
-    { code: "FM9", type: "Frost Mine", level: 9 },
-    { code: "FM10", type: "Frost Mine", level: 10 },
-    { code: "C2", type: "City", level: 2 },
-    { code: "MN3", type: "Manor", level: 3 },
-    { code: "F4", type: "Factory", level: 4 },
-    { code: "T5", type: "Town", level: 5 },
-    { code: "MP6", type: "Metropolis", level: 6 },
-    { code: "RC7", type: "Royal City", level: 7 }
+    { code: "V1", type: "Village", level: 1, expectedCount: 24, firstCaptureReward: 10, unlockWeek: 1, iceCrystalValue: 100000 },
+    { code: "FM1", type: "Frost Mine", level: 1, expectedCount: 52, firstCaptureReward: 5, iceCrystalValue: 5000 },
+    { code: "FM2", type: "Frost Mine", level: 2, expectedCount: 68, firstCaptureReward: 10, iceCrystalValue: 10000 },
+    { code: "FM3", type: "Frost Mine", level: 3, expectedCount: 28, firstCaptureReward: 15, iceCrystalValue: 15000 },
+    { code: "FM4", type: "Frost Mine", level: 4, expectedCount: 52, firstCaptureReward: 20, iceCrystalValue: 20000 },
+    { code: "FM5", type: "Frost Mine", level: 5, expectedCount: 26, firstCaptureReward: 25, iceCrystalValue: 25000 },
+    { code: "FM6", type: "Frost Mine", level: 6, expectedCount: 32, firstCaptureReward: 30, iceCrystalValue: 30000 },
+    { code: "FM7", type: "Frost Mine", level: 7, expectedCount: 16, firstCaptureReward: 35, iceCrystalValue: 35000 },
+    { code: "FM8", type: "Frost Mine", level: 8, expectedCount: 12, firstCaptureReward: 40, iceCrystalValue: 40000 },
+    { code: "FM9", type: "Frost Mine", level: 9, expectedCount: 14, firstCaptureReward: 45, iceCrystalValue: 45000 },
+    { code: "FM10", type: "Frost Mine", level: 10, expectedCount: 8, firstCaptureReward: 50, iceCrystalValue: 50000 },
+    { code: "C2", type: "City", level: 2, expectedCount: 20, firstCaptureReward: 20, unlockWeek: 1, iceCrystalValue: 200000 },
+    { code: "MN3", type: "Manor", level: 3, expectedCount: 15, firstCaptureReward: 30, unlockWeek: 2, iceCrystalValue: 300000 },
+    { code: "F4", type: "Factory", level: 4, expectedCount: 12, firstCaptureReward: 40, unlockWeek: 2, iceCrystalValue: 400000 },
+    { code: "T5", type: "Town", level: 5, expectedCount: 4, firstCaptureReward: 50, unlockWeek: 3, iceCrystalValue: 500000 },
+    { code: "MP6", type: "Metropolis", level: 6, expectedCount: 4, firstCaptureReward: 60, unlockWeek: 3, iceCrystalValue: 1000000 },
+    { code: "RC7", type: "Royal City", level: 7, expectedCount: 1, firstCaptureReward: 200, unlockWeek: 4, iceCrystalValue: 0 }
   ];
 
   const STRUCTURE_UNLOCKS = {
@@ -101,7 +101,10 @@
           code: entry.code,
           type: entry.type,
           level: entry.level,
-          capturable: true
+          capturable: true,
+          expectedCount: entry.expectedCount,
+          firstCaptureReward: entry.firstCaptureReward,
+          ...(entry.unlockWeek ? { unlockWeek: entry.unlockWeek } : {})
         };
       }),
       resourceModel: {
@@ -109,11 +112,18 @@
         displayName: "Ice Crystals",
         unit: "crystals",
         metricType: "season-resource",
-        structureOutputs: {}
+        structureOutputs: Object.fromEntries(STRUCTURE_CATALOG.map((entry) => [
+          entry.code,
+          {
+            resourceId: "ice-crystals",
+            value: entry.iceCrystalValue,
+            unit: "crystals"
+          }
+        ]))
       },
       scoringModel: {
         calculationModelId: "season1-scoring-model",
-        configured: false,
+        configured: true,
         resourceLabel: "Ice Crystals",
         serverField: "iceCrystals",
         unconfiguredLabel: "Scoring rules not configured"

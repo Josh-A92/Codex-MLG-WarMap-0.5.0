@@ -36,6 +36,12 @@ function createGameRulesEngine(options) {
     },
     getResourceModel() {
       return { ...resourceModel };
+    },
+    getStructureResourceProfile(codeOrType) {
+      const outputs = resourceModel.structureOutputs || {};
+      return Object.prototype.hasOwnProperty.call(outputs, codeOrType)
+        ? outputs[codeOrType]
+        : null;
     }
   };
 }
@@ -421,7 +427,7 @@ runTest("unconfigured scoring uses season-defined unconfigured label", () => {
   assert.strictEqual(summary.scoringDisplay.value, null);
 });
 
-runTest("configured scoring still ignores stored server totals and returns unconfigured label", () => {
+runTest("configured scoring derives the designated union total from package structure values", () => {
   const server = {
     id: "server-1",
     label: "Server 1",
@@ -443,19 +449,76 @@ runTest("configured scoring still ignores stored server totals and returns uncon
         displayName: "Season Currency",
         unit: "points",
         metricType: "season-resource",
-        structureOutputs: {}
+        structureOutputs: {
+          V1: { resourceId: "season-currency", value: 100, unit: "points" },
+          FM1: { resourceId: "season-currency", value: 5, unit: "points" }
+        }
       }
-    })
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "V1", type: "Village", ownerId: null },
+        { row: 1, col: 2, code: "FM1", type: "Frost Mine", ownerId: null }
+      ]],
+      structures: [
+        { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": {
+        "1-1": "union-a",
+        "1-2": "union-a"
+      }
+    },
+    designatedByServerId: {
+      "server-1": "union-a"
+    }
   });
 
   const summary = service.getServerSummary(server);
 
-  assert.strictEqual(summary.scoringDisplay.text, "Season scoring unavailable");
-  assert.strictEqual(summary.scoringDisplay.configured, false);
-  assert.strictEqual(summary.scoringDisplay.value, null);
+  assert.strictEqual(summary.scoringDisplay.text, "105");
+  assert.strictEqual(summary.scoringDisplay.configured, true);
+  assert.strictEqual(summary.scoringDisplay.value, 105);
   assert.strictEqual(summary.scoringDisplay.resourceLabel, "Season Currency");
   assert.strictEqual(summary.scoringDisplay.metricType, "season-resource");
   assert.strictEqual(summary.scoringDisplay.unit, "points");
+});
+
+runTest("configured scoring counts a merged structure once and requires its full footprint", () => {
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      resourceModel: {
+        resourceId: "ice-crystals",
+        displayName: "Ice Crystals",
+        unit: "crystals",
+        metricType: "season-resource",
+        structureOutputs: {
+          T5: { resourceId: "ice-crystals", value: 500000, unit: "crystals" }
+        }
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "T5", type: "Town", ownerId: null },
+        { row: 1, col: 2, code: "T5", type: "Town", ownerId: null }
+      ]],
+      structures: [
+        { code: "T5", type: "Town", row: 1, col: 1, rows: 1, cols: 2 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": { "1-1": "union-a", "1-2": "union-a" },
+      "server-2": { "1-1": "union-a", "1-2": "union-b" }
+    },
+    designatedByServerId: {
+      "server-1": "union-a",
+      "server-2": "union-a"
+    }
+  });
+
+  assert.strictEqual(service.getServerSummary({ id: "server-1" }).scoringDisplay.value, 500000);
+  assert.strictEqual(service.getServerSummary({ id: "server-2" }).scoringDisplay.value, 0);
 });
 
 runTest("malformed map entries are safely ignored", () => {

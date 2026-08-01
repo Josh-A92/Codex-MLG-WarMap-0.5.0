@@ -15,7 +15,7 @@
   const ALLOWED_CELL_IDENTITY_MODES = ["field", "coordinates"];
   const ALLOWED_FOOTPRINT_MODES = ["cell_refs", "rectangle"];
   const ALLOWED_CELL_CLASSIFICATION_KEYS = ["capturable", "blockedCellRefs", "decorativeCellRefs", "nonPlayableCellRefs"];
-  const ALLOWED_STRUCTURE_CATALOG_KEYS = ["structureTypeId", "code", "type", "level", "capturable", "categories", "assetKeys", "spriteKeys", "resourceReferences", "scoringReferences", "metadata"];
+  const ALLOWED_STRUCTURE_CATALOG_KEYS = ["structureTypeId", "code", "type", "level", "capturable", "expectedCount", "firstCaptureReward", "unlockWeek", "categories", "assetKeys", "spriteKeys", "resourceReferences", "scoringReferences", "metadata"];
   const ALLOWED_RESOURCE_MODEL_KEYS = ["resourceId", "displayName", "unit", "metricType", "structureOutputs"];
   const ALLOWED_SCORING_MODEL_KEYS = ["calculationModelId", "configured", "resourceLabel", "serverField", "unconfiguredLabel"];
   const ALLOWED_PHASE_KEYS = ["id", "label", "status", "activationMode", "startAt", "endAt", "notes"];
@@ -75,6 +75,15 @@
   function validatePositiveInteger(errors, value, path, label) {
     if (!Number.isInteger(value) || value <= 0) {
       pushError(errors, "INVALID_INTEGER", path, `${label} must be a positive integer.`);
+      return false;
+    }
+
+    return true;
+  }
+
+  function validateNonNegativeInteger(errors, value, path, label) {
+    if (!Number.isInteger(value) || value < 0) {
+      pushError(errors, "INVALID_INTEGER", path, `${label} must be a non-negative integer.`);
       return false;
     }
 
@@ -357,6 +366,18 @@
 
       if (Object.prototype.hasOwnProperty.call(entry, "level") && entry.level !== undefined) {
         validatePositiveInteger(errors, entry.level, `${path}.level`, `${path}.level`);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "expectedCount") && entry.expectedCount !== undefined) {
+        validatePositiveInteger(errors, entry.expectedCount, `${path}.expectedCount`, `${path}.expectedCount`);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "firstCaptureReward") && entry.firstCaptureReward !== undefined) {
+        validateNonNegativeInteger(errors, entry.firstCaptureReward, `${path}.firstCaptureReward`, `${path}.firstCaptureReward`);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "unlockWeek") && entry.unlockWeek !== undefined) {
+        validatePositiveInteger(errors, entry.unlockWeek, `${path}.unlockWeek`, `${path}.unlockWeek`);
       }
 
       if (!Object.prototype.hasOwnProperty.call(entry, "capturable")) {
