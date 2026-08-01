@@ -121,12 +121,12 @@
         ? null
         : registry.getUnionIdentity(ownerUnionId);
       let structureMetadata = null;
-      let seasonDefinedValue = null;
+      let seasonDefinedValues = null;
       if (structureCode !== null) {
         structureMetadata = rules.getStructureCatalog().find((entry) => (
           entry && (entry.code === structureCode || entry.type === structureCode)
         )) || null;
-        seasonDefinedValue = rules.getStructureResourceProfile(structureCode);
+        seasonDefinedValues = rules.getStructureResourceProfile(structureCode);
       }
 
       return {
@@ -141,7 +141,7 @@
         confirmationState: currentVerification
           ? "confirmed"
           : (currentOwnershipRecord ? "unverified" : "unknown"),
-        seasonDefinedValue: clone(seasonDefinedValue)
+        seasonDefinedValues: clone(seasonDefinedValues)
       };
     }
 

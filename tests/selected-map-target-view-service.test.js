@@ -64,7 +64,7 @@ function setup(overrides = {}) {
         }];
       },
       getStructureResourceProfile(code) {
-        return code === "T5" ? { resourceId: "season-resource", value: 25 } : null;
+        return code === "T5" ? [{ resourceId: "season-resource", value: 25 }] : null;
       }
     }
   });
@@ -85,7 +85,7 @@ test("territory view separates last confirmation from last ownership change", ()
   assert.strictEqual(view.lastOwnershipChangeAt, "2026-07-31T08:00:00.000Z");
   assert.strictEqual(view.confirmationState, "confirmed");
   assert.strictEqual(view.structureMetadata, null);
-  assert.strictEqual(view.seasonDefinedValue, null);
+  assert.strictEqual(view.seasonDefinedValues, null);
 });
 
 test("structure view includes package metadata and season-defined value", () => {
@@ -102,10 +102,12 @@ test("structure view includes package metadata and season-defined value", () => 
   });
   assert.strictEqual(view.structureMetadata.type, "Town");
   assert.strictEqual(view.structureMetadata.level, 5);
-  assert.deepStrictEqual(view.seasonDefinedValue, {
-    resourceId: "season-resource",
-    value: 25
-  });
+  assert.deepStrictEqual(view.seasonDefinedValues, [
+    {
+      resourceId: "season-resource",
+      value: 25
+    }
+  ]);
   assert.strictEqual(view.currentUnionIdentity, null);
 });
 

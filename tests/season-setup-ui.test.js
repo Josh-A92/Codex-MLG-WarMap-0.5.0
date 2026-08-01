@@ -29,8 +29,24 @@ test("approved three-step labels and package-driven confirmation areas are prese
   assert.match(renderer, /Review & Activate/);
   assert.match(renderer, /Map & Structures/);
   assert.match(renderer, /Resources & Values/);
-  assert.match(renderer, /summary\.resource\.displayName/);
+  assert.match(renderer, /summary\.resourceModel\.resources/);
+  assert.doesNotMatch(renderer, /summary\.resource\.displayName/);
   assert.doesNotMatch(renderer, /Ice Crystal Value/);
+});
+
+test("selection panel uses plural season-defined value arrays from the target view", () => {
+  assert.match(renderer, /seasonDefinedValues/);
+  assert.doesNotMatch(renderer, /\bformatSeasonDefinedValue\b/);
+});
+
+test("empty scoring displays do not render a fallback scoring row", () => {
+  assert.match(renderer, /scoringDisplays\.length > 0/);
+  assert.doesNotMatch(renderer, /Scoring rules not configured/);
+});
+
+test("renderer does not invent generic territory value labels", () => {
+  assert.doesNotMatch(renderer, /Territory Value/);
+  assert.doesNotMatch(renderer, /Territory Values/);
 });
 
 test("screen confirms loaded rules without exposing rule editing controls", () => {

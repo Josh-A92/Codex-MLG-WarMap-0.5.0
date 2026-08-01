@@ -175,15 +175,6 @@ function formatPercent(value) {
   return `${finiteValue.toFixed(1)}%`;
 }
 
-function getSummaryResourceLabel(summary) {
-  const scoringDisplay = summary && typeof summary === "object" ? summary.scoringDisplay : null;
-  if (scoringDisplay && typeof scoringDisplay.resourceLabel === "string" && scoringDisplay.resourceLabel.trim() !== "") {
-    return scoringDisplay.resourceLabel;
-  }
-
-  return "Territory Value";
-}
-
 function getStructureAggregate(summary) {
   const byType = summary && Array.isArray(summary.structureOwnershipByType)
     ? summary.structureOwnershipByType
@@ -219,18 +210,27 @@ function createCommandCentreCard(server) {
   const designatedUnionControlledTileCount = Number(summary && summary.designatedUnionControlledTileCount);
   const controlledTerritoryPercent = summary ? summary.controlledTerritoryPercent : 0;
   const designatedUnionTerritoryPercent = summary ? summary.designatedUnionTerritoryPercent : 0;
-  const scoringDisplay = summary && summary.scoringDisplay && typeof summary.scoringDisplay === "object"
-    ? summary.scoringDisplay
-    : null;
-  const scoringDisplayText = scoringDisplay
-    && typeof scoringDisplay.text === "string"
-    && scoringDisplay.text.trim() !== ""
-    ? scoringDisplay.text
-    : "Scoring rules not configured";
+  const scoringDisplays = summary && Array.isArray(summary.scoringDisplays) ? summary.scoringDisplays : [];
   const structureAggregate = getStructureAggregate(summary);
   const totalTiles = Number.isFinite(totalCapturableTileCount) ? totalCapturableTileCount : 0;
   const controlledTiles = Number.isFinite(controlledTileCount) ? controlledTileCount : 0;
   const designatedTiles = Number.isFinite(designatedUnionControlledTileCount) ? designatedUnionControlledTileCount : 0;
+  const scoringDisplayMarkup = scoringDisplays.length > 0
+    ? scoringDisplays.map((display) => {
+      const label = typeof display.displayLabel === "string" && display.displayLabel.trim() !== ""
+        ? display.displayLabel
+        : (typeof display.resourceId === "string" && display.resourceId.trim() !== ""
+          ? display.resourceId
+          : null);
+      if (!label) {
+        return "";
+      }
+      const text = typeof display.text === "string" && display.text.trim() !== ""
+        ? display.text
+        : "";
+      return `<div><span>${label}</span><strong>${text}</strong></div>`;
+    }).join("")
+    : "";
 
   const card = document.createElement("article");
   card.className = "command-centre-card";
@@ -251,7 +251,7 @@ function createCommandCentreCard(server) {
     <div><span>Designated Union</span><strong>${designatedUnionLabel}</strong></div>
     <div><span>Territory Controlled</span><strong>${controlledTiles} / ${totalTiles} (${formatPercent(controlledTerritoryPercent)})</strong></div>
     <div><span>${designatedUnionLabel} Territory</span><strong>${designatedTiles} / ${totalTiles} (${formatPercent(designatedUnionTerritoryPercent)})</strong></div>
-    <div><span>${getSummaryResourceLabel(summary)}</span><strong>${scoringDisplayText}</strong></div>
+    ${scoringDisplayMarkup}
     <div><span>Structures</span><strong>${structureAggregate.designatedUnionControlledCount} controlled · ${structureAggregate.availableCount} available</strong></div>
   `;
 
@@ -314,10 +314,42 @@ function appendSeasonSetupFact(parent, label, value) {
 }
 
 function formatStructureValue(summary, structure) {
-  const outputs = summary.resource && summary.resource.structureOutputs;
-  if (!outputs || !Object.prototype.hasOwnProperty.call(outputs, structure.code)) return "Not configured";
-  const value = outputs[structure.code];
-  return `${value} ${summary.resource.unit}`;
+  const resourceModel = summary && summary.resourceModel && typeof summary.resourceModel === "object"
+    ? summary.resourceModel
+    : null;
+  const resources = resourceModel && Array.isArray(resourceModel.resources) ? resourceModel.resources : [];
+  const outputs = resourceModel && resourceModel.structureOutputs && typeof resourceModel.structureOutputs === "object"
+    ? resourceModel.structureOutputs
+    : null;
+  const configuredOutputs = outputs && Object.prototype.hasOwnProperty.call(outputs, structure.code)
+    ? outputs[structure.code]
+    : null;
+  if (!Array.isArray(configuredOutputs) || configuredOutputs.length === 0) return "Not configured";
+
+  const resourceById = new Map();
+  resources.forEach((resource) => {
+    if (resource && typeof resource.resourceId === "string") {
+      resourceById.set(resource.resourceId, resource);
+    }
+  });
+
+  const formattedOutputs = configuredOutputs.map((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+
+    const resource = resourceById.get(entry.resourceId) || null;
+    const value = Number(entry.value);
+    if (!resource || !Number.isFinite(value)) {
+      return null;
+    }
+
+    const label = resource.displayName || resource.resourceId;
+    const unit = resource.unit ? ` ${resource.unit}` : "";
+    return `${value} ${label}${unit}`;
+  }).filter(Boolean);
+
+  return formattedOutputs.length > 0 ? formattedOutputs.join(" · ") : "Not configured";
 }
 
 function renderSeasonSetupHeader(container, activeSeason) {
@@ -362,13 +394,13 @@ function renderSeasonSetupPackageSummary(container, preparedView, includeStructu
 
   const resourceCard = createSeasonSetupElement("section", "season-setup-card");
   resourceCard.appendChild(createSeasonSetupElement("h3", null, "Resources & Values"));
-  appendSeasonSetupFact(resourceCard, "Resource", summary.resource.displayName);
-  appendSeasonSetupFact(resourceCard, "Unit", summary.resource.unit);
-  appendSeasonSetupFact(
-    resourceCard,
-    "Scoring",
-    summary.resource.scoringConfigured ? "Configured" : "Not configured in package"
-  );
+  const resourceEntries = summary.resourceModel && Array.isArray(summary.resourceModel.resources)
+    ? summary.resourceModel.resources
+    : [];
+  appendSeasonSetupFact(resourceCard, "Resources", resourceEntries.length === 0 ? "None" : resourceEntries.map((entry) => entry.displayName).join(", "));
+  appendSeasonSetupFact(resourceCard, "Scoring", Array.isArray(summary.scoringModel && summary.scoringModel.calculations)
+    ? `${summary.scoringModel.calculations.length} calculation(s)`
+    : "Not configured in package");
   overview.appendChild(resourceCard);
   container.appendChild(overview);
 
@@ -1758,17 +1790,28 @@ function formatRecordedTime(value, emptyLabel) {
   return `${relative} · ${exact}`;
 }
 
-function formatSeasonDefinedValue(value) {
-  if (value === null || value === undefined) return "Not configured";
-  if (typeof value === "string" || typeof value === "number") return String(value);
-  if (typeof value === "object") {
-    const amount = Object.prototype.hasOwnProperty.call(value, "value")
-      ? value.value
-      : (Object.prototype.hasOwnProperty.call(value, "amount") ? value.amount : null);
-    const unit = value.unit || value.resourceLabel || value.resourceId || "";
-    if (amount !== null) return `${amount}${unit ? ` ${unit}` : ""}`;
+function formatSeasonDefinedValues(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return "Not configured";
   }
-  return "Configured";
+
+  const formattedValues = values.map((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+
+    const amount = Object.prototype.hasOwnProperty.call(entry, "value")
+      ? entry.value
+      : (Object.prototype.hasOwnProperty.call(entry, "amount") ? entry.amount : null);
+    const unit = entry.unit || entry.resourceLabel || entry.resourceId || "";
+    if (amount === null || amount === undefined) {
+      return null;
+    }
+
+    return `${amount}${unit ? ` ${unit}` : ""}`;
+  }).filter(Boolean);
+
+  return formattedValues.length > 0 ? formattedValues.join(" · ") : "Not configured";
 }
 
 function getOwnerPattern(union) {
@@ -1809,7 +1852,7 @@ function renderSelectionPanel(tile) {
     ? `${tile.type || "Structure"}${tile.level ? ` · Level ${tile.level}` : ""}`
     : terrainValue;
   const structureValue = targetView
-    ? formatSeasonDefinedValue(targetView.seasonDefinedValue)
+    ? formatSeasonDefinedValues(targetView.seasonDefinedValues)
     : "Not configured";
   const lastConfirmed = formatRecordedTime(
     targetView && targetView.lastConfirmedAt,

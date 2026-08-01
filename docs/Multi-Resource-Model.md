@@ -50,7 +50,8 @@ The approved version-2 target shape is:
     "scoringModel": {
       "calculations": [
         {
-          "calculationModelId": "season1-ice-crystal-holdings",
+          "calculationId": "ice-crystal-holdings",
+          "calculationModelId": "structure-output-holdings-total",
           "resourceId": "ice-crystals",
           "configured": true,
           "displayLabel": "Ice Crystals",
@@ -97,9 +98,10 @@ These rules define the intended version-2 validator behavior.
 
 ### Scoring model
 - `calculations` must be an array.
-- Each calculation requires `calculationModelId`, `resourceId`, and `configured`.
+- Each calculation requires a unique `calculationId`, a required `calculationModelId`, a required `resourceId`, and a required `configured` flag.
 - `displayLabel`, `serverField`, and `unconfiguredLabel` are optional strings unless runtime behavior genuinely requires them.
-- Calculation IDs must be unique.
+- `calculationId` identifies one configured calculation and must be unique.
+- `calculationModelId` identifies the calculation method and may repeat across multiple calculations.
 - Every calculation `resourceId` must resolve to a declared resource.
 - `configured` must remain an explicit boolean decision.
 - When `configured: false`, the calculation is structurally valid but must not invent derived totals.
@@ -114,7 +116,8 @@ These rules define the intended version-2 validator behavior.
 
 ### Versioning
 - This is a breaking contract change and requires `packageIdentity.schemaVersion: 2`.
-- All active packages, validator, loader fixtures, engine, summary, administration, selected-target view, renderer, and tests migrate together before version 1 is rejected.
+- The validator now accepts only schema version 2 and rejects the version-1 singular contract.
+- The migration stages are complete, including validator, loader fixtures, engine, summary, administration, selected-target view, renderer, and tests.
 - Do not add a permanent version-1 compatibility branch.
 - Do not silently convert legacy fields into the new shape.
 - Version 1 must fail clearly after migration is completed.
@@ -134,52 +137,51 @@ Required API implications:
 Implementation must preserve purity and clone safety, because downstream services expect immutable snapshots.
 
 ## Summary Service Implications
-The summary layer currently resolves a singular resource model and a singular scoring model in [src/services/summary-service.js](../src/services/summary-service.js).
+The summary layer in [src/services/summary-service.js](../src/services/summary-service.js) now consumes plural resources and plural calculations from the Game Rules Engine and returns ordered `scoringDisplays` entries.
 
-Version 2 implies the summary service must:
-- stop assuming one global resource name.
-- show resource summaries in package order.
-- consume plural calculations instead of a single scoring model.
-- avoid inventing totals when a calculation is unconfigured.
-- keep designated-union calculations separate from the resource-model shape.
+Current reality:
+- resource summaries are rendered in package order.
+- scoring displays are derived from plural calculations rather than a singular scoring model.
+- unconfigured calculations remain visible as non-total-producing entries.
+- designated-union calculations remain separate from the resource-model shape.
 
-Summary views must be able to present multiple season resources without collapsing them into a fallback primary label.
+Summary views now present multiple season resources without collapsing them into a fallback primary label.
 
 ## Season Administration Implications
-The season administration flow in [src/services/season-administration-service.js](../src/services/season-administration-service.js) currently serializes a single resource summary from the canonical package.
+The season administration flow in [src/services/season-administration-service.js](../src/services/season-administration-service.js) now returns plural `resourceModel` and `scoringModel.calculations` data from the canonical package.
 
-Version 2 implies the admin service must:
-- preserve package-order resource display.
-- show multiple resources when they exist.
-- treat unconfigured scoring as valid but not total-producing.
-- avoid assuming a single `resourceId` as the season-wide truth source.
-- continue to keep persistence and live server ownership unchanged.
+Current reality:
+- package-order resource display is preserved.
+- multiple resources are exposed when they exist.
+- unconfigured scoring is treated as valid but non-total-producing.
+- the service no longer assumes a single `resourceId` as the season-wide truth source.
+- persistence and live server ownership remain unchanged.
 
-The service should remain a consumer of package facts, not the place where resource semantics are invented.
+The service remains a consumer of package facts rather than the place where resource semantics are invented.
 
 ## Selected-Map Detail Implications
-The selected-map detail surface in [src/services/selected-map-target-view-service.js](../src/services/selected-map-target-view-service.js) currently exposes a single season-defined value for a selected structure.
+The selected-map detail surface in [src/services/selected-map-target-view-service.js](../src/services/selected-map-target-view-service.js) now returns `seasonDefinedValues` for a selected structure.
 
-Version 2 implies selected-map detail views must:
-- show per-resource outputs when a structure affects multiple resources.
-- preserve package order when presenting resource effects.
-- avoid collapsing multiple outputs into a single primary value.
-- distinguish explicit season-defined outputs from absent or unconfigured ones.
+Current reality:
+- per-resource outputs are surfaced when a structure affects multiple resources.
+- package order is preserved when presenting resource effects.
+- multiple outputs are not collapsed into a single primary value.
+- explicit season-defined outputs are distinguished from absent or unconfigured ones.
 
-This view must remain a detail surface, not a source of invented gameplay formulas.
+This view remains a detail surface rather than a source of invented gameplay formulas.
 
 ## Renderer/UI Implications
-Renderer and UI consumers must treat resources as plural and ordered.
+Renderer and UI consumers now treat resources as plural and ordered.
 
-Implications:
-- resource badges, panels, and summaries should iterate package resources in order.
-- structures with zero outputs should render as having no resource effect rather than as having a default effect.
-- unconfigured calculations should display their unconfigured label rather than invented totals.
-- Season 2 UI must be able to show Red Copper and Holy Water context without assuming one of them is a hidden primary.
-- no UI layer should infer fallback values from resource absence.
+Current reality:
+- resource badges, panels, and summaries iterate package resources in order.
+- structures with zero outputs render as having no resource effect rather than a default effect.
+- unconfigured calculations display their unconfigured label rather than invented totals.
+- the UI presents plural ordered values without inferring an implicit primary resource.
+- no UI layer infers fallback values from resource absence.
 
 ## Season 1 Migration Example
-Season 1 should migrate to a single explicit Ice Crystal resource.
+Season 1 has already migrated to schema version 2 with a single explicit Ice Crystal resource.
 
 Example target for Season 1:
 
@@ -210,7 +212,8 @@ Example target for Season 1:
     "scoringModel": {
       "calculations": [
         {
-          "calculationModelId": "season1-ice-crystal-holdings",
+          "calculationId": "ice-crystal-holdings",
+          "calculationModelId": "structure-output-holdings-total",
           "resourceId": "ice-crystals",
           "configured": true,
           "displayLabel": "Ice Crystals",
@@ -223,20 +226,19 @@ Example target for Season 1:
 }
 ```
 
-Season 1 already has a canonical single-resource narrative, but under version 2 it becomes explicit and array-backed rather than a hidden single-resource assumption.
+Season 1 now uses the explicit array-backed resource shape under schema version 2 rather than a hidden single-resource assumption.
 
 ## Season 2 Readiness Implications
 The resource-plurality architecture decision is resolved.
-Season 2 may declare both Red Copper and Holy Water.
-The remaining gaps are their precise roles, structure-output relationships, modifiers, and scoring formulas.
+Season 2 remains not ready for runtime integration because the required structure-output relationships, modifiers, scoring formulas, and runtime configuration are still not fully evidenced.
 
 Readiness implication:
 - geometry is ready.
 - the canonical structure catalogue is ready.
-- the resource-output and scoring evidence is not yet ready.
+- the resource-output and scoring evidence is still incomplete.
 - runtime configuration still depends on deployment inputs.
 
-The approved replacement therefore cannot be published for Season 2 until the outstanding evidence gaps are closed.
+No Season 2 runtime integration claim is made until those evidence and configuration gaps are closed.
 
 ## Exact Affected-File Inventory
 The version-2 migration will touch these implementation surfaces:
@@ -259,22 +261,12 @@ The version-2 migration will touch these implementation surfaces:
 - [tests/server-state-service.test.js](../tests/server-state-service.test.js) for renderer source-boundary coverage
 - `tests/game-rules-engine.test.js` (new dedicated Game Rules Engine test file if none currently exists)
 
-## Staged Implementation and Test Plan
-1. Update schema documentation and all active packages to the plural resource contract with `packageIdentity.schemaVersion: 2`.
-2. Update validator rules, loader fixtures, and tests to enforce plural resource, calculation, and output arrays.
-3. Update the Game Rules Engine, summary, administration, selected-map detail, and renderer layers to consume plural resource and calculation data in package order.
-4. Update Season 1 package data to the explicit single-resource Ice Crystal shape.
-5. Reject version 1 only after the full migration lands together across packages, validator, loader fixtures, engine, summary, administration, selected-target view, renderer, and tests.
-6. Add tests for:
-- plural resource definitions
-- duplicate resource IDs
-- calculation resource resolution
-- per-structure multi-resource outputs
-- empty collections where genuinely allowed
-- immutability
-- version-1 failure after migration
-- Season 1 migration example
-- Season 2 multi-resource readiness boundaries
+## Completed Migration Stages
+- Schema documentation and active packages were updated to the plural resource contract with `packageIdentity.schemaVersion: 2`.
+- Validator rules, loader fixtures, and tests now enforce plural resource, calculation, and output arrays.
+- The Game Rules Engine, summary, administration, selected-map detail, and renderer layers now consume plural resource and calculation data in package order.
+- Season 1 package data now uses the explicit single-resource Ice Crystal shape under schema version 2.
+- Version 1 is rejected by the validator after the migration completed.
 
 ## Explicit Exclusions
 - No permanent version-1 compatibility shim.

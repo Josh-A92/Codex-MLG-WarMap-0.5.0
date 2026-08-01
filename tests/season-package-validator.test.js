@@ -4,7 +4,7 @@ const { validateSeasonPackage } = require("../src/services/season-package-valida
 function createMinimalValidPackage() {
   return {
     packageIdentity: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       packageVersion: "1.0.0",
       seasonId: "season-1",
       displayName: "Season 1",
@@ -72,18 +72,28 @@ function createMinimalValidPackage() {
         }
       ],
       resourceModel: {
-        resourceId: "ice-crystals",
-        displayName: "Ice Crystals",
-        unit: "crystals",
-        metricType: "season-resource",
+        resources: [
+          {
+            resourceId: "ice-crystals",
+            displayName: "Ice Crystals",
+            unit: "crystals",
+            metricType: "season-resource"
+          }
+        ],
         structureOutputs: {}
       },
       scoringModel: {
-        calculationModelId: "season1-scoring-model",
-        configured: false,
-        resourceLabel: "Ice Crystals",
-        serverField: "iceCrystals",
-        unconfiguredLabel: "Scoring rules not configured"
+        calculations: [
+          {
+            calculationId: "ice-crystal-holdings",
+            calculationModelId: "structure-output-holdings-total",
+            resourceId: "ice-crystals",
+            configured: false,
+            displayLabel: "Ice Crystals",
+            serverField: "iceCrystals",
+            unconfiguredLabel: "Scoring rules not configured"
+          }
+        ]
       },
       phaseModel: [
         {
@@ -402,7 +412,7 @@ runTest("unknown nested network fields are rejected", () => {
 
 runTest("unsupported schema version", () => {
   const candidate = createMinimalValidPackage();
-  candidate.packageIdentity.schemaVersion = 2;
+  candidate.packageIdentity.schemaVersion = 1;
 
   const result = validateSeasonPackage(candidate);
 
@@ -443,6 +453,66 @@ runTest("missing application-config field", () => {
 runTest("valid configured designated union id", () => {
   const candidate = createMinimalValidPackage();
   candidate.applicationConfig.designatedUnionId = "union-0001";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.errors, []);
+});
+
+runTest("missing calculationId is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  delete candidate.rulesDefinition.scoringModel.calculations[0].calculationId;
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "MISSING_REQUIRED_FIELD", "rulesDefinition.scoringModel.calculations[0].calculationId");
+});
+
+runTest("empty calculationId is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.scoringModel.calculations[0].calculationId = "   ";
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "rulesDefinition.scoringModel.calculations[0].calculationId");
+});
+
+runTest("duplicate calculationId is rejected", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.scoringModel.calculations.push({
+    calculationId: "ice-crystal-holdings",
+    calculationModelId: "structure-output-holdings-total",
+    resourceId: "ice-crystals",
+    configured: true
+  });
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, false);
+  assertError(result, "DUPLICATE_IDENTIFIER", "rulesDefinition.scoringModel.calculations[1].calculationId");
+});
+
+runTest("repeated calculationModelId is allowed when references are valid", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.scoringModel.calculations.push({
+    calculationId: "ice-crystal-holdings-2",
+    calculationModelId: "structure-output-holdings-total",
+    resourceId: "ice-crystals",
+    configured: true
+  });
+
+  const result = validateSeasonPackage(candidate);
+
+  assert.strictEqual(result.valid, true);
+  assert.deepStrictEqual(result.errors, []);
+});
+
+runTest("unknown non-empty calculationModelId is accepted", () => {
+  const candidate = createMinimalValidPackage();
+  candidate.rulesDefinition.scoringModel.calculations[0].calculationModelId = "future-model";
 
   const result = validateSeasonPackage(candidate);
 

@@ -143,13 +143,37 @@ runTest("structure catalog and unlocks preserve all current entries", () => {
 runTest("Season 1 structure values are explicit and Royal City scores zero", () => {
   const outputs = SEASON_1_PACKAGE.rulesDefinition.resourceModel.structureOutputs;
   Object.entries(EXPECTED_STRUCTURE_FACTS).forEach(([code, fact]) => {
-    assert.deepStrictEqual(outputs[code], {
-      resourceId: "ice-crystals",
-      value: fact.iceCrystalValue,
-      unit: "crystals"
-    });
+    assert.deepStrictEqual(outputs[code], [
+      {
+        resourceId: "ice-crystals",
+        value: fact.iceCrystalValue
+      }
+    ]);
   });
-  assert.strictEqual(outputs.RC7.value, 0);
+  assert.strictEqual(outputs.RC7[0].value, 0);
+});
+
+runTest("resource and scoring models use the Version 2 plural contract", () => {
+  assert.deepStrictEqual(SEASON_1_PACKAGE.rulesDefinition.resourceModel.resources, [
+    {
+      resourceId: "ice-crystals",
+      displayName: "Ice Crystals",
+      unit: "crystals",
+      metricType: "season-resource"
+    }
+  ]);
+
+  assert.deepStrictEqual(SEASON_1_PACKAGE.rulesDefinition.scoringModel.calculations, [
+    {
+      calculationId: "ice-crystal-holdings",
+      calculationModelId: "structure-output-holdings-total",
+      resourceId: "ice-crystals",
+      configured: true,
+      displayLabel: "Ice Crystals",
+      serverField: "iceCrystals",
+      unconfiguredLabel: "Scoring rules not configured"
+    }
+  ]);
 });
 
 runTest("data URLs, workspace, phases, capture rules, and scoring labels are preserved", () => {
@@ -174,21 +198,31 @@ runTest("data URLs, workspace, phases, capture rules, and scoring labels are pre
   });
 
   assert.deepStrictEqual(SEASON_1_PACKAGE.rulesDefinition.resourceModel, {
-    resourceId: "ice-crystals",
-    displayName: "Ice Crystals",
-    unit: "crystals",
-    metricType: "season-resource",
+    resources: [
+      {
+        resourceId: "ice-crystals",
+        displayName: "Ice Crystals",
+        unit: "crystals",
+        metricType: "season-resource"
+      }
+    ],
     structureOutputs: Object.fromEntries(Object.entries(EXPECTED_STRUCTURE_FACTS).map(([code, fact]) => [
       code,
-      { resourceId: "ice-crystals", value: fact.iceCrystalValue, unit: "crystals" }
+      [{ resourceId: "ice-crystals", value: fact.iceCrystalValue }]
     ]))
   });
   assert.deepStrictEqual(SEASON_1_PACKAGE.rulesDefinition.scoringModel, {
-    calculationModelId: "season1-scoring-model",
-    configured: true,
-    resourceLabel: "Ice Crystals",
-    serverField: "iceCrystals",
-    unconfiguredLabel: "Scoring rules not configured"
+    calculations: [
+      {
+        calculationId: "ice-crystal-holdings",
+        calculationModelId: "structure-output-holdings-total",
+        resourceId: "ice-crystals",
+        configured: true,
+        displayLabel: "Ice Crystals",
+        serverField: "iceCrystals",
+        unconfiguredLabel: "Scoring rules not configured"
+      }
+    ]
   });
 });
 

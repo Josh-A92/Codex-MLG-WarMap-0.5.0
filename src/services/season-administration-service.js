@@ -191,13 +191,12 @@
         level: Object.prototype.hasOwnProperty.call(entry, "level") ? entry.level : null,
         capturable: entry.capturable
       })),
-      resource: {
-        resourceId: resourceModel.resourceId,
-        displayName: resourceModel.displayName,
-        unit: resourceModel.unit,
-        metricType: resourceModel.metricType,
-        structureOutputs: safeClone(resourceModel.structureOutputs),
-        scoringConfigured: scoringModel.configured === true
+      resourceModel: {
+        resources: safeClone(resourceModel.resources || []),
+        structureOutputs: safeClone(resourceModel.structureOutputs || {})
+      },
+      scoringModel: {
+        calculations: safeClone(scoringModel.calculations || [])
       }
     };
   }

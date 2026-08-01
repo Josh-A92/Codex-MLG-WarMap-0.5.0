@@ -64,76 +64,151 @@
       ? config.getDesignatedUnionId
       : () => null;
 
-    function getResolvedScoringModel() {
-      const engine = getGameRulesEngine();
-      if (!engine || typeof engine.getScoringModel !== "function") {
-        return {
-          configured: false,
-          serverField: null,
-          resourceLabel: null,
-          unconfiguredLabel: DEFAULT_SCORING_UNCONFIGURED_LABEL
-        };
-      }
-
-      const scoringModel = engine.getScoringModel();
-      if (!isObject(scoringModel)) {
-        return {
-          configured: false,
-          serverField: null,
-          resourceLabel: null,
-          unconfiguredLabel: DEFAULT_SCORING_UNCONFIGURED_LABEL
-        };
-      }
-
-      return {
-        configured: Boolean(scoringModel.configured),
-        serverField: typeof scoringModel.serverField === "string" && scoringModel.serverField.trim() !== ""
-          ? scoringModel.serverField
-          : null,
-        resourceLabel: typeof scoringModel.resourceLabel === "string" && scoringModel.resourceLabel.trim() !== ""
-          ? scoringModel.resourceLabel
-          : null,
-        unconfiguredLabel: typeof scoringModel.unconfiguredLabel === "string" && scoringModel.unconfiguredLabel.trim() !== ""
-          ? scoringModel.unconfiguredLabel
-          : DEFAULT_SCORING_UNCONFIGURED_LABEL
-      };
-    }
-
     function getResolvedResourceModel() {
       const engine = getGameRulesEngine();
       if (!engine || typeof engine.getResourceModel !== "function") {
         return {
-          displayName: null,
-          unit: null,
-          metricType: null,
-          resourceId: null
+          resources: [],
+          structureOutputs: {}
         };
       }
 
       const resourceModel = engine.getResourceModel();
       if (!isObject(resourceModel)) {
         return {
-          displayName: null,
-          unit: null,
-          metricType: null,
-          resourceId: null
+          resources: [],
+          structureOutputs: {}
         };
       }
 
       return {
-        displayName: typeof resourceModel.displayName === "string" && resourceModel.displayName.trim() !== ""
-          ? resourceModel.displayName
-          : null,
-        unit: typeof resourceModel.unit === "string" && resourceModel.unit.trim() !== ""
-          ? resourceModel.unit
-          : null,
-        metricType: typeof resourceModel.metricType === "string" && resourceModel.metricType.trim() !== ""
-          ? resourceModel.metricType
-          : null,
-        resourceId: typeof resourceModel.resourceId === "string" && resourceModel.resourceId.trim() !== ""
-          ? resourceModel.resourceId
-          : null
+        resources: Array.isArray(resourceModel.resources) ? resourceModel.resources.map((entry) => ({ ...entry })) : [],
+        structureOutputs: isObject(resourceModel.structureOutputs) ? { ...resourceModel.structureOutputs } : {}
       };
+    }
+
+    function getResolvedScoringCalculations() {
+      const engine = getGameRulesEngine();
+      if (!engine || typeof engine.listScoringCalculations !== "function") {
+        return [];
+      }
+
+      const calculations = engine.listScoringCalculations();
+      return Array.isArray(calculations) ? calculations.map((entry) => ({ ...entry })) : [];
+    }
+
+    function getResourceById(resourceId) {
+      const resourceModel = getResolvedResourceModel();
+      return resourceModel.resources.find((entry) => entry && entry.resourceId === resourceId) || null;
+    }
+
+    function getOwnedStructureOutputsForResource(server, resourceId) {
+      const engine = getGameRulesEngine();
+      if (!engine || typeof engine.getStructureResourceProfile !== "function" || typeof resourceId !== "string" || resourceId.trim() === "") {
+        return 0;
+      }
+
+      const tileContext = buildTileContext();
+      const serverId = isObject(server) ? server.id : null;
+      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
+      if (!designatedUnionId) {
+        return 0;
+      }
+
+      let total = 0;
+      const logicalStructureFootprints = new Set();
+
+      toSafeArray(tileContext.structures).forEach((structure) => {
+        if (!isObject(structure)) {
+          return;
+        }
+
+        getStructureFootprintKeys(structure).forEach((key) => logicalStructureFootprints.add(key));
+        if (!isStructureOwnedBy(serverId, designatedUnionId, structure, tileContext)) {
+          return;
+        }
+
+        const profile = engine.getStructureResourceProfile(structure.code || structure.type || structure.structureTypeId);
+        if (!Array.isArray(profile)) {
+          return;
+        }
+
+        profile.forEach((entry) => {
+          if (!isObject(entry) || entry.resourceId !== resourceId) {
+            return;
+          }
+
+          const value = Number(entry.value);
+          if (Number.isFinite(value)) {
+            total += value;
+          }
+        });
+      });
+
+      tileContext.capturableTiles.forEach((tile) => {
+        if (logicalStructureFootprints.has(tile.territoryKey)) {
+          return;
+        }
+
+        const ownerId = resolveTerritoryOwner(serverId, tile.territoryKey, tile.fallbackOwnerId);
+        if (ownerId !== designatedUnionId) {
+          return;
+        }
+
+        const profile = engine.getStructureResourceProfile(tile.code || tile.type);
+        if (!Array.isArray(profile)) {
+          return;
+        }
+
+        profile.forEach((entry) => {
+          if (!isObject(entry) || entry.resourceId !== resourceId) {
+            return;
+          }
+
+          const value = Number(entry.value);
+          if (Number.isFinite(value)) {
+            total += value;
+          }
+        });
+      });
+
+      return total;
+    }
+
+    function getScoringDisplays(server) {
+      const calculations = getResolvedScoringCalculations();
+
+      return calculations.map((calculation) => {
+        const resource = getResourceById(calculation.resourceId);
+        const configured = calculation.configured === true;
+        const supportedModel = calculation.calculationModelId === "structure-output-holdings-total";
+        const canResolve = configured && supportedModel && resource !== null;
+        const value = canResolve ? getOwnedStructureOutputsForResource(server, calculation.resourceId) : null;
+        const text = value === null
+          ? (typeof calculation.unconfiguredLabel === "string" && calculation.unconfiguredLabel.trim() !== ""
+            ? calculation.unconfiguredLabel
+            : DEFAULT_SCORING_UNCONFIGURED_LABEL)
+          : new Intl.NumberFormat("en-GB").format(value);
+
+        return {
+          calculationId: typeof calculation.calculationId === "string" && calculation.calculationId.trim() !== ""
+            ? calculation.calculationId
+            : null,
+          calculationModelId: calculation.calculationModelId,
+          resourceId: calculation.resourceId,
+          text,
+          configured,
+          displayLabel: typeof calculation.displayLabel === "string" && calculation.displayLabel.trim() !== ""
+            ? calculation.displayLabel
+            : resource ? resource.displayName : null,
+          metricType: resource ? resource.metricType : null,
+          unit: resource ? resource.unit : null,
+          value,
+          serverField: typeof calculation.serverField === "string" && calculation.serverField.trim() !== ""
+            ? calculation.serverField
+            : null
+        };
+      });
     }
 
     function buildTileContext() {
@@ -213,42 +288,6 @@
       });
     }
 
-    function getStructureResourceValue(structureCodeOrType) {
-      const engine = getGameRulesEngine();
-      if (!engine || typeof engine.getStructureResourceProfile !== "function") return 0;
-      const profile = engine.getStructureResourceProfile(structureCodeOrType);
-      if (typeof profile === "number") return Number.isFinite(profile) && profile >= 0 ? profile : 0;
-      if (!isObject(profile)) return 0;
-      const value = Number(profile.value ?? profile.amount);
-      return Number.isFinite(value) && value >= 0 ? value : 0;
-    }
-
-    function getDesignatedUnionResourceValue(server) {
-      const tileContext = buildTileContext();
-      const serverId = isObject(server) ? server.id : null;
-      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
-      if (!designatedUnionId) return 0;
-
-      let total = 0;
-      const logicalStructureFootprints = new Set();
-
-      toSafeArray(tileContext.structures).forEach((structure) => {
-        if (!isObject(structure)) return;
-        getStructureFootprintKeys(structure).forEach((key) => logicalStructureFootprints.add(key));
-        if (!isStructureOwnedBy(serverId, designatedUnionId, structure, tileContext)) return;
-        total += getStructureResourceValue(structure.code || structure.type);
-      });
-
-      tileContext.capturableTiles.forEach((tile) => {
-        if (logicalStructureFootprints.has(tile.territoryKey)) return;
-        const ownerId = resolveTerritoryOwner(serverId, tile.territoryKey, tile.fallbackOwnerId);
-        if (ownerId !== designatedUnionId) return;
-        total += getStructureResourceValue(tile.code || tile.type);
-      });
-
-      return total;
-    }
-
     function getUnionLabel(unionId) {
       if (!unionId) {
         return DEFAULT_UNASSIGNED_UNION_LABEL;
@@ -265,34 +304,6 @@
       }
 
       return union.tag || union.displayName || union.unionId;
-    }
-
-    function getScoringDisplay(server) {
-      const scoringModel = getResolvedScoringModel();
-      const resourceModel = getResolvedResourceModel();
-
-      if (scoringModel.configured) {
-        const value = getDesignatedUnionResourceValue(server);
-        return {
-          text: new Intl.NumberFormat("en-GB").format(value),
-          configured: true,
-          resourceLabel: scoringModel.resourceLabel || resourceModel.displayName,
-          metricType: resourceModel.metricType,
-          unit: resourceModel.unit,
-          value,
-          serverField: scoringModel.serverField
-        };
-      }
-
-      return {
-        text: scoringModel.unconfiguredLabel,
-        configured: false,
-        resourceLabel: scoringModel.resourceLabel || resourceModel.displayName,
-        metricType: resourceModel.metricType,
-        unit: resourceModel.unit,
-        value: null,
-        serverField: scoringModel.serverField
-      };
     }
 
     function getTileOwnershipStats(server) {
@@ -384,6 +395,7 @@
       const designatedUnionLabel = tileStats.designatedUnionId
         ? getUnionLabel(tileStats.designatedUnionId)
         : DEFAULT_UNASSIGNED_UNION_LABEL;
+      const resourceModel = getResolvedResourceModel();
 
       return {
         serverId: isObject(server) ? (server.id ?? null) : null,
@@ -396,7 +408,8 @@
         designatedUnionControlledTileCount: tileStats.designatedUnionControlledTileCount,
         designatedUnionTerritoryPercent: tileStats.designatedUnionTerritoryPercent,
         structureOwnershipByType,
-        scoringDisplay: getScoringDisplay(server)
+        resourceModel,
+        scoringDisplays: getScoringDisplays(server)
       };
     }
 

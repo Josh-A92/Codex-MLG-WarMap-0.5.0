@@ -7,7 +7,7 @@ const { validateSeasonPackage } = require("../src/services/season-package-valida
 function createCanonicalPackage() {
   return {
     packageIdentity: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       packageVersion: "1.0.0",
       seasonId: "season-1",
       displayName: "Season 1",
@@ -27,6 +27,7 @@ function createCanonicalPackage() {
       },
       mapDefinition: {
         baseMapId: "season1-map",
+        topologyType: "territory_grid",
         dimensions: {
           rows: 20,
           columns: 20
@@ -74,18 +75,28 @@ function createCanonicalPackage() {
         }
       ],
       resourceModel: {
-        resourceId: "ice-crystals",
-        displayName: "Ice Crystals",
-        unit: "crystals",
-        metricType: "season-resource",
+        resources: [
+          {
+            resourceId: "ice-crystals",
+            displayName: "Ice Crystals",
+            unit: "crystals",
+            metricType: "season-resource"
+          }
+        ],
         structureOutputs: {}
       },
       scoringModel: {
-        calculationModelId: "season1-scoring-model",
-        configured: false,
-        resourceLabel: "Ice Crystals",
-        serverField: "iceCrystals",
-        unconfiguredLabel: "Scoring rules not configured"
+        calculations: [
+          {
+            calculationId: "ice-crystal-holdings",
+            calculationModelId: "structure-output-holdings-total",
+            resourceId: "ice-crystals",
+            configured: false,
+            displayLabel: "Ice Crystals",
+            serverField: "iceCrystals",
+            unconfiguredLabel: "Scoring rules not configured"
+          }
+        ]
       },
       phaseModel: [
         {

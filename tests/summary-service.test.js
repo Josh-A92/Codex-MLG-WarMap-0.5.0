@@ -16,31 +16,44 @@ runTest.tests = [];
 
 function createGameRulesEngine(options) {
   const config = options || {};
-  const scoringModel = config.scoringModel || {
-    configured: true,
-    resourceLabel: "Ice Crystals",
-    serverField: "iceCrystals",
-    unconfiguredLabel: "Scoring rules not configured"
-  };
-  const resourceModel = config.resourceModel || {
-    resourceId: "ice-crystals",
-    displayName: "Ice Crystals",
-    unit: "crystals",
-    metricType: "season-resource",
-    structureOutputs: {}
-  };
+  const resources = config.resources || [
+    {
+      resourceId: "ice-crystals",
+      displayName: "Ice Crystals",
+      unit: "crystals",
+      metricType: "season-resource"
+    }
+  ];
+  const calculations = config.calculations || [
+    {
+      calculationId: "ice-crystal-holdings",
+      calculationModelId: "structure-output-holdings-total",
+      resourceId: resources[0].resourceId,
+      configured: true,
+      displayLabel: "Ice Crystals",
+      serverField: "iceCrystals",
+      unconfiguredLabel: "Scoring rules not configured"
+    }
+  ];
+  const structureOutputs = config.structureOutputs || {};
 
   return {
-    getScoringModel() {
-      return { ...scoringModel };
-    },
     getResourceModel() {
-      return { ...resourceModel };
+      return {
+        resources: resources.map((entry) => ({ ...entry })),
+        structureOutputs: Object.fromEntries(Object.entries(structureOutputs).map(([structureCode, outputs]) => [
+          structureCode,
+          Array.isArray(outputs) ? outputs.map((entry) => ({ ...entry })) : []
+        ]))
+      };
+    },
+    listScoringCalculations() {
+      return calculations.map((entry) => ({ ...entry }));
     },
     getStructureResourceProfile(codeOrType) {
-      const outputs = resourceModel.structureOutputs || {};
+      const outputs = structureOutputs || {};
       return Object.prototype.hasOwnProperty.call(outputs, codeOrType)
-        ? outputs[codeOrType]
+        ? (Array.isArray(outputs[codeOrType]) ? outputs[codeOrType].map((entry) => ({ ...entry })) : [])
         : null;
     }
   };
@@ -400,7 +413,109 @@ runTest("designated union label is resolved from registry", () => {
   assert.strictEqual(summary.designatedUnionLabel, "Alpha");
 });
 
-runTest("unconfigured scoring uses season-defined unconfigured label", () => {
+runTest("configured scoring uses calculationId and supports two independent totals for one model", () => {
+  const server = { id: "server-1", label: "Server 1" };
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [
+        {
+          calculationId: "ice-crystal-holdings",
+          calculationModelId: "structure-output-holdings-total",
+          configured: true,
+          resourceId: "ice-crystals",
+          displayLabel: "Ice Crystals",
+          serverField: "iceCrystals",
+          unconfiguredLabel: "Scoring rules not configured"
+        },
+        {
+          calculationId: "holy-water-holdings",
+          calculationModelId: "structure-output-holdings-total",
+          configured: true,
+          resourceId: "holy-water",
+          displayLabel: "Holy Water",
+          serverField: "holyWater",
+          unconfiguredLabel: "Scoring rules not configured"
+        }
+      ],
+      resources: [
+        {
+          resourceId: "ice-crystals",
+          displayName: "Ice Crystals",
+          unit: "crystals",
+          metricType: "season-resource"
+        },
+        {
+          resourceId: "holy-water",
+          displayName: "Holy Water",
+          unit: "vials",
+          metricType: "season-resource"
+        }
+      ],
+      structureOutputs: {
+        V1: [
+          { resourceId: "ice-crystals", value: 100 },
+          { resourceId: "holy-water", value: 20 }
+        ]
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "V1", type: "Village", ownerId: null }
+      ]],
+      structures: [
+        { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": {
+        "1-1": "union-a"
+      }
+    },
+    designatedByServerId: {
+      "server-1": "union-a"
+    }
+  });
+
+  const summary = service.getServerSummary(server);
+  assert.strictEqual(summary.scoringDisplays[0].calculationId, "ice-crystal-holdings");
+  assert.strictEqual(summary.scoringDisplays[0].value, 100);
+  assert.strictEqual(summary.scoringDisplays[1].calculationId, "holy-water-holdings");
+  assert.strictEqual(summary.scoringDisplays[1].value, 20);
+  assert.strictEqual(summary.scoringDisplays[0].calculationModelId, "structure-output-holdings-total");
+  assert.strictEqual(summary.scoringDisplays[1].calculationModelId, "structure-output-holdings-total");
+});
+
+runTest("unknown model returns a null total and preserves calculation metadata", () => {
+  const server = { id: "server-1", label: "Server 1" };
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "future-model-holdings",
+        calculationModelId: "future-model",
+        configured: true,
+        resourceId: "season-currency",
+        displayLabel: "Future Model",
+        serverField: "futureModel",
+        unconfiguredLabel: "Future model unavailable"
+      }],
+      resources: [{
+        resourceId: "season-currency",
+        displayName: "Season Currency",
+        unit: "points",
+        metricType: "season-resource"
+      }]
+    })
+  });
+
+  const summary = service.getServerSummary(server);
+  assert.strictEqual(summary.scoringDisplays[0].calculationId, "future-model-holdings");
+  assert.strictEqual(summary.scoringDisplays[0].calculationModelId, "future-model");
+  assert.strictEqual(summary.scoringDisplays[0].resourceId, "season-currency");
+  assert.strictEqual(summary.scoringDisplays[0].value, null);
+  assert.strictEqual(summary.scoringDisplays[0].text, "Future model unavailable");
+});
+
+runTest("unconfigured scoring remains null and uses the configured label", () => {
   const server = {
     id: "server-1",
     label: "Server 1",
@@ -411,23 +526,33 @@ runTest("unconfigured scoring uses season-defined unconfigured label", () => {
 
   const { service } = createSummaryServiceFixture({
     gameRulesEngine: createGameRulesEngine({
-      scoringModel: {
+      calculations: [{
+        calculationId: "season-currency-holdings",
+        calculationModelId: "structure-output-holdings-total",
         configured: false,
-        resourceLabel: "Season Currency",
+        resourceId: "season-currency",
+        displayLabel: "Season Currency",
         serverField: "iceCrystals",
         unconfiguredLabel: "Season scoring unavailable"
-      }
+      }],
+      resources: [{
+        resourceId: "season-currency",
+        displayName: "Season Currency",
+        unit: "points",
+        metricType: "season-resource"
+      }]
     })
   });
 
   const summary = service.getServerSummary(server);
 
-  assert.strictEqual(summary.scoringDisplay.text, "Season scoring unavailable");
-  assert.strictEqual(summary.scoringDisplay.configured, false);
-  assert.strictEqual(summary.scoringDisplay.value, null);
+  assert.strictEqual(summary.scoringDisplays[0].calculationId, "season-currency-holdings");
+  assert.strictEqual(summary.scoringDisplays[0].text, "Season scoring unavailable");
+  assert.strictEqual(summary.scoringDisplays[0].configured, false);
+  assert.strictEqual(summary.scoringDisplays[0].value, null);
 });
 
-runTest("configured scoring derives the designated union total from package structure values", () => {
+runTest("existing Season 1 summary behavior remains unchanged", () => {
   const server = {
     id: "server-1",
     label: "Server 1",
@@ -438,21 +563,23 @@ runTest("configured scoring derives the designated union total from package stru
 
   const { service } = createSummaryServiceFixture({
     gameRulesEngine: createGameRulesEngine({
-      scoringModel: {
+      calculations: [{
+        calculationModelId: "structure-output-holdings-total",
         configured: true,
-        resourceLabel: "Season Currency",
+        resourceId: "season-currency",
+        displayLabel: "Season Currency",
         serverField: "iceCrystals",
         unconfiguredLabel: "Season scoring unavailable"
-      },
-      resourceModel: {
+      }],
+      resources: [{
         resourceId: "season-currency",
         displayName: "Season Currency",
         unit: "points",
-        metricType: "season-resource",
-        structureOutputs: {
-          V1: { resourceId: "season-currency", value: 100, unit: "points" },
-          FM1: { resourceId: "season-currency", value: 5, unit: "points" }
-        }
+        metricType: "season-resource"
+      }],
+      structureOutputs: {
+        V1: [{ resourceId: "season-currency", value: 100 }],
+        FM1: [{ resourceId: "season-currency", value: 5 }]
       }
     }),
     mapData: {
@@ -477,25 +604,19 @@ runTest("configured scoring derives the designated union total from package stru
 
   const summary = service.getServerSummary(server);
 
-  assert.strictEqual(summary.scoringDisplay.text, "105");
-  assert.strictEqual(summary.scoringDisplay.configured, true);
-  assert.strictEqual(summary.scoringDisplay.value, 105);
-  assert.strictEqual(summary.scoringDisplay.resourceLabel, "Season Currency");
-  assert.strictEqual(summary.scoringDisplay.metricType, "season-resource");
-  assert.strictEqual(summary.scoringDisplay.unit, "points");
+  assert.strictEqual(summary.scoringDisplays[0].text, "105");
+  assert.strictEqual(summary.scoringDisplays[0].configured, true);
+  assert.strictEqual(summary.scoringDisplays[0].value, 105);
+  assert.strictEqual(summary.scoringDisplays[0].displayLabel, "Season Currency");
+  assert.strictEqual(summary.scoringDisplays[0].metricType, "season-resource");
+  assert.strictEqual(summary.scoringDisplays[0].unit, "points");
 });
 
 runTest("configured scoring counts a merged structure once and requires its full footprint", () => {
   const { service } = createSummaryServiceFixture({
     gameRulesEngine: createGameRulesEngine({
-      resourceModel: {
-        resourceId: "ice-crystals",
-        displayName: "Ice Crystals",
-        unit: "crystals",
-        metricType: "season-resource",
-        structureOutputs: {
-          T5: { resourceId: "ice-crystals", value: 500000, unit: "crystals" }
-        }
+      structureOutputs: {
+        T5: [{ resourceId: "ice-crystals", value: 500000 }]
       }
     }),
     mapData: {
@@ -517,8 +638,8 @@ runTest("configured scoring counts a merged structure once and requires its full
     }
   });
 
-  assert.strictEqual(service.getServerSummary({ id: "server-1" }).scoringDisplay.value, 500000);
-  assert.strictEqual(service.getServerSummary({ id: "server-2" }).scoringDisplay.value, 0);
+  assert.strictEqual(service.getServerSummary({ id: "server-1" }).scoringDisplays[0].value, 500000);
+  assert.strictEqual(service.getServerSummary({ id: "server-2" }).scoringDisplays[0].value, 0);
 });
 
 runTest("malformed map entries are safely ignored", () => {

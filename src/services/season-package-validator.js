@@ -1,5 +1,5 @@
 (function initializeSeasonPackageValidator(globalScope) {
-  const SUPPORTED_SCHEMA_VERSION = 1;
+  const SUPPORTED_SCHEMA_VERSION = 2;
   const ALLOWED_TOP_LEVEL_KEYS = ["packageIdentity", "rulesDefinition", "applicationConfig", "externalRegistries", "extensions"];
   const ALLOWED_PACKAGE_IDENTITY_KEYS = ["schemaVersion", "packageVersion", "seasonId", "displayName", "description", "seasonStatus", "startDate", "endDate"];
   const ALLOWED_RULES_KEYS = ["seasonIdentity", "metadata", "mapDefinition", "structureCatalog", "resourceModel", "scoringModel", "phaseModel", "structureUnlocks", "captureRules", "buffDefinitions"];
@@ -20,8 +20,11 @@
   const ALLOWED_FOOTPRINT_MODES = ["cell_refs", "rectangle"];
   const ALLOWED_CELL_CLASSIFICATION_KEYS = ["capturable", "blockedCellRefs", "decorativeCellRefs", "nonPlayableCellRefs"];
   const ALLOWED_STRUCTURE_CATALOG_KEYS = ["structureTypeId", "code", "type", "level", "capturable", "expectedCount", "firstCaptureReward", "unlockWeek", "categories", "assetKeys", "spriteKeys", "resourceReferences", "scoringReferences", "metadata"];
-  const ALLOWED_RESOURCE_MODEL_KEYS = ["resourceId", "displayName", "unit", "metricType", "structureOutputs"];
-  const ALLOWED_SCORING_MODEL_KEYS = ["calculationModelId", "configured", "resourceLabel", "serverField", "unconfiguredLabel"];
+  const ALLOWED_RESOURCE_MODEL_KEYS = ["resources", "structureOutputs"];
+  const ALLOWED_RESOURCE_ENTRY_KEYS = ["resourceId", "displayName", "unit", "metricType"];
+  const ALLOWED_STRUCTURE_OUTPUT_ENTRY_KEYS = ["resourceId", "value"];
+  const ALLOWED_SCORING_MODEL_KEYS = ["calculations"];
+  const ALLOWED_SCORING_CALCULATION_KEYS = ["calculationId", "calculationModelId", "resourceId", "configured", "displayLabel", "serverField", "unconfiguredLabel"];
   const ALLOWED_PHASE_KEYS = ["id", "label", "status", "activationMode", "startAt", "endAt", "notes"];
   const ALLOWED_CAPTURE_RULES_KEYS = ["defaultCapturable", "byCode", "byType", "phaseRestrictions"];
   const ALLOWED_APPLICATION_CONFIG_KEYS = ["dataSources", "workspace", "designatedUnionId"];
@@ -618,51 +621,6 @@
     }
   }
 
-  function validateResourceModel(resourceModel, errors) {
-    checkUnknownFields(errors, resourceModel, ALLOWED_RESOURCE_MODEL_KEYS, "rulesDefinition.resourceModel");
-
-    ["resourceId", "displayName", "unit", "metricType"].forEach((fieldName) => {
-      if (!Object.prototype.hasOwnProperty.call(resourceModel, fieldName)) {
-        pushError(errors, "MISSING_REQUIRED_FIELD", `rulesDefinition.resourceModel.${fieldName}`, `rulesDefinition.resourceModel.${fieldName} is required.`);
-        return;
-      }
-
-      validateNonEmptyString(errors, resourceModel[fieldName], `rulesDefinition.resourceModel.${fieldName}`, `rulesDefinition.resourceModel.${fieldName}`);
-    });
-
-    if (!Object.prototype.hasOwnProperty.call(resourceModel, "structureOutputs") || !isPlainObject(resourceModel.structureOutputs)) {
-      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.resourceModel.structureOutputs", "rulesDefinition.resourceModel.structureOutputs is required and must be an object.");
-    }
-  }
-
-  function validateScoringModel(scoringModel, errors) {
-    checkUnknownFields(errors, scoringModel, ALLOWED_SCORING_MODEL_KEYS, "rulesDefinition.scoringModel");
-
-    if (!Object.prototype.hasOwnProperty.call(scoringModel, "calculationModelId")) {
-      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.scoringModel.calculationModelId", "rulesDefinition.scoringModel.calculationModelId is required.");
-    } else {
-      validateNonEmptyString(errors, scoringModel.calculationModelId, "rulesDefinition.scoringModel.calculationModelId", "rulesDefinition.scoringModel.calculationModelId");
-    }
-
-    if (!Object.prototype.hasOwnProperty.call(scoringModel, "configured")) {
-      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.scoringModel.configured", "rulesDefinition.scoringModel.configured is required.");
-    } else {
-      validateBoolean(errors, scoringModel.configured, "rulesDefinition.scoringModel.configured", "rulesDefinition.scoringModel.configured");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(scoringModel, "resourceLabel") && scoringModel.resourceLabel !== undefined) {
-      validateString(errors, scoringModel.resourceLabel, "rulesDefinition.scoringModel.resourceLabel", "rulesDefinition.scoringModel.resourceLabel");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(scoringModel, "serverField") && scoringModel.serverField !== undefined) {
-      validateString(errors, scoringModel.serverField, "rulesDefinition.scoringModel.serverField", "rulesDefinition.scoringModel.serverField");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(scoringModel, "unconfiguredLabel") && scoringModel.unconfiguredLabel !== undefined) {
-      validateString(errors, scoringModel.unconfiguredLabel, "rulesDefinition.scoringModel.unconfiguredLabel", "rulesDefinition.scoringModel.unconfiguredLabel");
-    }
-  }
-
   function validatePhaseModel(phaseModel, errors) {
     if (!Array.isArray(phaseModel)) {
       pushError(errors, "INVALID_ARRAY", "rulesDefinition.phaseModel", "rulesDefinition.phaseModel must be an array.");
@@ -817,6 +775,218 @@
     });
   }
 
+  function validateResourceEntries(resources, errors) {
+    if (!Array.isArray(resources)) {
+      pushError(errors, "INVALID_ARRAY", "rulesDefinition.resourceModel.resources", "rulesDefinition.resourceModel.resources must be an array.");
+      return {
+        resourcesById: new Map(),
+        resourceOrder: []
+      };
+    }
+
+    const seenResourceIds = new Set();
+    const resourcesById = new Map();
+    const resourceOrder = [];
+
+    resources.forEach((entry, index) => {
+      const path = `rulesDefinition.resourceModel.resources[${index}]`;
+
+      if (!isPlainObject(entry)) {
+        pushError(errors, "INVALID_OBJECT", path, "Resource entries must be objects.");
+        return;
+      }
+
+      checkUnknownFields(errors, entry, ALLOWED_RESOURCE_ENTRY_KEYS, path);
+
+      ["resourceId", "displayName", "unit", "metricType"].forEach((fieldName) => {
+        if (!Object.prototype.hasOwnProperty.call(entry, fieldName)) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.${fieldName}`, `${path}.${fieldName} is required.`);
+          return;
+        }
+
+        validateNonEmptyString(errors, entry[fieldName], `${path}.${fieldName}`, `${path}.${fieldName}`);
+      });
+
+      if (typeof entry.resourceId === "string" && entry.resourceId.trim() !== "") {
+        if (seenResourceIds.has(entry.resourceId)) {
+          pushError(errors, "DUPLICATE_IDENTIFIER", `${path}.resourceId`, `Duplicate resourceId '${entry.resourceId}'.`);
+          return;
+        }
+
+        seenResourceIds.add(entry.resourceId);
+        const resource = {
+          resourceId: entry.resourceId,
+          displayName: typeof entry.displayName === "string" ? entry.displayName : "",
+          unit: typeof entry.unit === "string" ? entry.unit : "",
+          metricType: typeof entry.metricType === "string" ? entry.metricType : ""
+        };
+        resourcesById.set(entry.resourceId, resource);
+        resourceOrder.push(resource);
+      }
+    });
+
+    return {
+      resourcesById,
+      resourceOrder
+    };
+  }
+
+  function validateStructureOutputs(structureOutputs, structureCatalogLookup, resourcesById, errors) {
+    if (!isPlainObject(structureOutputs)) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.resourceModel.structureOutputs", "rulesDefinition.resourceModel.structureOutputs is required and must be an object.");
+      return;
+    }
+
+    const outputKeys = Object.keys(structureOutputs);
+
+    if (resourcesById.size === 0 && outputKeys.length > 0) {
+      pushError(errors, "INVALID_REFERENCE_GRAPH", "rulesDefinition.resourceModel.structureOutputs", "rulesDefinition.resourceModel.structureOutputs must be empty when no resources are declared.");
+    }
+
+    outputKeys.forEach((structureKey) => {
+      const structurePath = `rulesDefinition.resourceModel.structureOutputs.${structureKey}`;
+
+      if (!resolveStructureReference(structureKey, structureCatalogLookup)) {
+        pushError(errors, "UNRESOLVED_STRUCTURE_REFERENCE", structurePath, `Structure output key '${structureKey}' does not resolve to a declared structure code, type, or structureTypeId.`);
+      }
+
+      const outputs = structureOutputs[structureKey];
+      if (!Array.isArray(outputs)) {
+        pushError(errors, "INVALID_ARRAY", structurePath, `${structurePath} must be an array.`);
+        return;
+      }
+
+      const seenResourceIds = new Set();
+
+      outputs.forEach((entry, index) => {
+        const path = `${structurePath}[${index}]`;
+
+        if (!isPlainObject(entry)) {
+          pushError(errors, "INVALID_OBJECT", path, "Structure output entries must be objects.");
+          return;
+        }
+
+        checkUnknownFields(errors, entry, ALLOWED_STRUCTURE_OUTPUT_ENTRY_KEYS, path);
+
+        if (!Object.prototype.hasOwnProperty.call(entry, "resourceId")) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.resourceId`, `${path}.resourceId is required.`);
+        } else if (validateNonEmptyString(errors, entry.resourceId, `${path}.resourceId`, `${path}.resourceId`)) {
+          if (!resourcesById.has(entry.resourceId)) {
+            pushError(errors, "UNRESOLVED_RESOURCE_REFERENCE", `${path}.resourceId`, `resourceId '${entry.resourceId}' does not resolve to a declared resource.`);
+          }
+
+          if (seenResourceIds.has(entry.resourceId)) {
+            pushError(errors, "DUPLICATE_RESOURCE_OUTPUT", `${path}.resourceId`, `Structure '${structureKey}' already declares an output for resourceId '${entry.resourceId}'.`);
+          }
+          seenResourceIds.add(entry.resourceId);
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(entry, "value")) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.value`, `${path}.value is required.`);
+        } else if (!Number.isFinite(entry.value)) {
+          pushError(errors, "INVALID_NUMBER", `${path}.value`, `${path}.value must be a finite number.`);
+        }
+      });
+    });
+  }
+
+  function validateScoringCalculations(calculations, resourcesById, errors) {
+    if (!Array.isArray(calculations)) {
+      pushError(errors, "INVALID_ARRAY", "rulesDefinition.scoringModel.calculations", "rulesDefinition.scoringModel.calculations must be an array.");
+      return [];
+    }
+
+    if (resourcesById.size === 0 && calculations.length > 0) {
+      pushError(errors, "INVALID_REFERENCE_GRAPH", "rulesDefinition.scoringModel.calculations", "rulesDefinition.scoringModel.calculations must be empty when no resources are declared.");
+    }
+
+    const seenCalculationIds = new Set();
+
+    return calculations.map((entry, index) => {
+      const path = `rulesDefinition.scoringModel.calculations[${index}]`;
+
+      if (!isPlainObject(entry)) {
+        pushError(errors, "INVALID_OBJECT", path, "Calculation entries must be objects.");
+        return null;
+      }
+
+      checkUnknownFields(errors, entry, ALLOWED_SCORING_CALCULATION_KEYS, path);
+
+      ["calculationId", "calculationModelId", "resourceId", "configured"].forEach((fieldName) => {
+        if (!Object.prototype.hasOwnProperty.call(entry, fieldName)) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.${fieldName}`, `${path}.${fieldName} is required.`);
+        }
+      });
+
+      if (Object.prototype.hasOwnProperty.call(entry, "calculationId") && validateNonEmptyString(errors, entry.calculationId, `${path}.calculationId`, `${path}.calculationId`)) {
+        if (seenCalculationIds.has(entry.calculationId)) {
+          pushError(errors, "DUPLICATE_IDENTIFIER", `${path}.calculationId`, `Duplicate calculationId '${entry.calculationId}'.`);
+        }
+
+        seenCalculationIds.add(entry.calculationId);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "calculationModelId")) {
+        validateNonEmptyString(errors, entry.calculationModelId, `${path}.calculationModelId`, `${path}.calculationModelId`);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "resourceId") && validateNonEmptyString(errors, entry.resourceId, `${path}.resourceId`, `${path}.resourceId`)) {
+        if (!resourcesById.has(entry.resourceId)) {
+          pushError(errors, "UNRESOLVED_RESOURCE_REFERENCE", `${path}.resourceId`, `resourceId '${entry.resourceId}' does not resolve to a declared resource.`);
+        }
+      }
+
+      if (Object.prototype.hasOwnProperty.call(entry, "configured")) {
+        validateBoolean(errors, entry.configured, `${path}.configured`, `${path}.configured`);
+      }
+
+      ["displayLabel", "serverField", "unconfiguredLabel"].forEach((fieldName) => {
+        if (Object.prototype.hasOwnProperty.call(entry, fieldName) && entry[fieldName] !== undefined) {
+          validateString(errors, entry[fieldName], `${path}.${fieldName}`, `${path}.${fieldName}`);
+        }
+      });
+
+      return {
+        calculationId: typeof entry.calculationId === "string" ? entry.calculationId : null,
+        calculationModelId: typeof entry.calculationModelId === "string" ? entry.calculationModelId : null,
+        resourceId: typeof entry.resourceId === "string" ? entry.resourceId : null,
+        configured: entry.configured === true,
+        displayLabel: typeof entry.displayLabel === "string" ? entry.displayLabel : null,
+        serverField: typeof entry.serverField === "string" ? entry.serverField : null,
+        unconfiguredLabel: typeof entry.unconfiguredLabel === "string" ? entry.unconfiguredLabel : null
+      };
+    }).filter((entry) => entry !== null);
+  }
+
+  function validateResourceModel(resourceModel, structureCatalogLookup, errors) {
+    checkUnknownFields(errors, resourceModel, ALLOWED_RESOURCE_MODEL_KEYS, "rulesDefinition.resourceModel");
+
+    if (!Object.prototype.hasOwnProperty.call(resourceModel, "resources")) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.resourceModel.resources", "rulesDefinition.resourceModel.resources is required.");
+    }
+
+    const resourceLookup = validateResourceEntries(resourceModel.resources, errors);
+
+    if (!Object.prototype.hasOwnProperty.call(resourceModel, "structureOutputs") || !isPlainObject(resourceModel.structureOutputs)) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.resourceModel.structureOutputs", "rulesDefinition.resourceModel.structureOutputs is required and must be an object.");
+    } else {
+      validateStructureOutputs(resourceModel.structureOutputs, structureCatalogLookup, resourceLookup.resourcesById, errors);
+    }
+
+    return resourceLookup;
+  }
+
+  function validateScoringModel(scoringModel, resourceLookup, errors) {
+    checkUnknownFields(errors, scoringModel, ALLOWED_SCORING_MODEL_KEYS, "rulesDefinition.scoringModel");
+
+    if (!Object.prototype.hasOwnProperty.call(scoringModel, "calculations")) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.scoringModel.calculations", "rulesDefinition.scoringModel.calculations is required.");
+      return [];
+    }
+
+    return validateScoringCalculations(scoringModel.calculations, resourceLookup.resourcesById, errors);
+  }
+
   function validateApplicationConfig(applicationConfig, errors) {
     checkUnknownFields(errors, applicationConfig, ALLOWED_APPLICATION_CONFIG_KEYS, "applicationConfig");
 
@@ -954,6 +1124,10 @@
       }
 
       const structureCatalogLookup = validateStructureCatalog(candidate.rulesDefinition.structureCatalog, errors);
+      let resourceLookup = {
+        resourcesById: new Map(),
+        resourceOrder: []
+      };
 
       if (!Object.prototype.hasOwnProperty.call(candidate.rulesDefinition, "resourceModel") || !isPlainObject(candidate.rulesDefinition.resourceModel)) {
         pushError(errors, "MISSING_REQUIRED_FIELD", "rulesDefinition.resourceModel", "rulesDefinition.resourceModel is required and must be an object.");
@@ -986,11 +1160,11 @@
       }
 
       if (candidate.rulesDefinition.resourceModel && isPlainObject(candidate.rulesDefinition.resourceModel)) {
-        validateResourceModel(candidate.rulesDefinition.resourceModel, errors);
+        resourceLookup = validateResourceModel(candidate.rulesDefinition.resourceModel, structureCatalogLookup, errors);
       }
 
       if (candidate.rulesDefinition.scoringModel && isPlainObject(candidate.rulesDefinition.scoringModel)) {
-        validateScoringModel(candidate.rulesDefinition.scoringModel, errors);
+        validateScoringModel(candidate.rulesDefinition.scoringModel, resourceLookup, errors);
       }
 
       if (candidate.rulesDefinition.structureUnlocks && isPlainObject(candidate.rulesDefinition.structureUnlocks)) {

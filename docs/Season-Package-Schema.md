@@ -57,7 +57,7 @@ Conceptual top-level shape:
 ```json
 {
   "packageIdentity": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "packageVersion": "1.0.0",
     "seasonId": "season-1",
     "displayName": "Season 1",
@@ -111,7 +111,7 @@ Optional fields:
 - `endDate`
 
 Expected types:
-- `schemaVersion`: positive integer major version
+- `schemaVersion`: exactly the integer `2`
 - `packageVersion`: optional string revision token
 - `seasonId`: stable string identifier
 - `displayName`: human-readable string
@@ -121,7 +121,7 @@ Expected types:
 
 Identifier uniqueness:
 - `seasonId` must be unique within the package registry or season catalog
-- `schemaVersion` must be explicit and comparable across packages
+- `schemaVersion` must be explicit and must equal `2` for the current validator contract
 
 Reference integrity:
 - identity fields must not depend on runtime state
@@ -419,11 +419,11 @@ Failure behavior:
 The resource and scoring model describes how the season measures resource value and related statistics.
 
 It must support:
-- stable resource ID
-- display name
-- unit
-- metric type
-- calculation-model identifier
+- stable resource IDs
+- display names
+- units
+- metric types
+- ordered scoring calculations
 - structure or territory rules
 - holding value, production rate, accumulated total, or other season-defined measures
 
@@ -432,33 +432,36 @@ Required fields:
 - display name
 - unit
 - metric type
-- a calculation-model identifier or equivalent rule anchor
-- the season's resource/scoring model definition
+- one or more scoring calculations with a required `calculationId`, `calculationModelId`, `resourceId`, and `configured` flag
 
 Optional fields:
 - structure output tables
 - territory weighting rules
 - accumulation rules
 - display formatting hints
+- `displayLabel`, `serverField`, and `unconfiguredLabel` for scoring calculations
 - unconfigured or placeholder states
 
 Expected types:
 - object definitions for the model
-- string identifiers for resource and metric names
+- string identifiers for resources, metrics, and scoring calculations
 - arrays or maps for rule references and outputs
 
 Identifier uniqueness:
 - resource identifiers must be unique within the package
-- calculation model identifiers must be unique where more than one model exists
+- each scoring calculation must have a unique `calculationId`
+- multiple calculations may share the same `calculationModelId`
 
 Reference integrity:
 - structure references must resolve to the structure catalogue and the map definition
 - territory references must resolve to the map definition and ownership rules
+- every scoring calculation `resourceId` must resolve to a declared resource
 
 Failure behavior:
 - missing resource identity or scoring identity must fail validation when the season depends on them
 - the package must not invent scoring values that are not explicitly defined by the season
 - unresolved resource or scoring references must fail validation
+- calculations with duplicate `calculationId` values fail validation
 
 ## 10. Phase and Unlock Contract
 The phase and unlock model defines season progression and rule availability.
@@ -572,9 +575,8 @@ The package schema must support explicit versioning.
 
 Required rules:
 - every package must declare a schema version
-- `schemaVersion` is a positive integer major version
-- `1` represents the first canonical package contract
-- breaking schema changes increment the integer
+- the current validator accepts exactly `schemaVersion: 2`
+- breaking schema changes must be versioned explicitly
 - non-breaking additions use optional fields or `extensions`
 - package/content revision may use an optional `packageVersion` string and must not overload `schemaVersion`
 - unsupported versions must fail clearly
@@ -586,7 +588,7 @@ Required rules:
 - migration responsibility belongs to the package authoring or loading layer, not the Game Rules Engine
 
 Expected type:
-- `schemaVersion` must be a positive integer
+- `schemaVersion` must be exactly `2`
 - `packageVersion` must be an optional string revision token
 
 Compatibility policy:
@@ -607,7 +609,7 @@ In this example, `structureTypeRef` appears only on logical structure instances 
 ```json
 {
   "packageIdentity": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "packageVersion": "1.0.0",
     "seasonId": "season-1",
     "displayName": "Season 1",
@@ -674,18 +676,28 @@ In this example, `structureTypeRef` appears only on logical structure instances 
       }
     ],
     "resourceModel": {
-      "resourceId": "ice-crystals",
-      "displayName": "Ice Crystals",
-      "unit": "crystals",
-      "metricType": "season-resource",
+      "resources": [
+        {
+          "resourceId": "ice-crystals",
+          "displayName": "Ice Crystals",
+          "unit": "crystals",
+          "metricType": "season-resource"
+        }
+      ],
       "structureOutputs": {}
     },
     "scoringModel": {
-      "calculationModelId": "season1-scoring-model",
-      "configured": false,
-      "resourceLabel": "Ice Crystals",
-      "serverField": "iceCrystals",
-      "unconfiguredLabel": "Scoring rules not configured"
+      "calculations": [
+        {
+          "calculationId": "ice-crystal-holdings",
+          "calculationModelId": "structure-output-holdings-total",
+          "resourceId": "ice-crystals",
+          "configured": false,
+          "displayLabel": "Ice Crystals",
+          "serverField": "iceCrystals",
+          "unconfiguredLabel": "Scoring rules not configured"
+        }
+      ]
     },
     "phaseModel": [
       {
@@ -745,8 +757,8 @@ This historical mapping documents the migration from the former flat `SEASON_1_D
 | `mapDefinition.baseMapId` | `rulesDefinition.mapDefinition.baseMapId` | Stable map identifier |
 | `mapDefinition.gridSize` | `rulesDefinition.mapDefinition.dimensions.rows` and `rulesDefinition.mapDefinition.dimensions.columns` | `gridSize: 20` migrates to `dimensions.rows: 20` and `dimensions.columns: 20` |
 | `structureCatalog` | `rulesDefinition.structureCatalog` | Current catalogue entries become package-owned structure definitions |
-| `scoringModel` | `rulesDefinition.scoringModel` | Current scoring is configured as a season rule object |
-| `resourceModel` | `rulesDefinition.resourceModel` | Primary resource and outputs |
+| `scoringModel` | `rulesDefinition.scoringModel` | Ordered scoring calculations |
+| `resourceModel` | `rulesDefinition.resourceModel` | Plural resources and structure outputs |
 | `phaseModel` | `rulesDefinition.phaseModel` | Current phase list |
 | `structureUnlocks` | `rulesDefinition.structureUnlocks` | Season-specific unlock availability |
 | `captureRules` | `rulesDefinition.captureRules` | Current default capture behavior and overrides |

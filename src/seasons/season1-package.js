@@ -41,7 +41,7 @@
 
   const SEASON_1_PACKAGE = {
     packageIdentity: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       packageVersion: "0.5.0",
       seasonId: "season-1",
       displayName: "Season 1",
@@ -109,25 +109,36 @@
         };
       }),
       resourceModel: {
-        resourceId: "ice-crystals",
-        displayName: "Ice Crystals",
-        unit: "crystals",
-        metricType: "season-resource",
-        structureOutputs: Object.fromEntries(STRUCTURE_CATALOG.map((entry) => [
-          entry.code,
+        resources: [
           {
             resourceId: "ice-crystals",
-            value: entry.iceCrystalValue,
-            unit: "crystals"
+            displayName: "Ice Crystals",
+            unit: "crystals",
+            metricType: "season-resource"
           }
+        ],
+        structureOutputs: Object.fromEntries(STRUCTURE_CATALOG.map((entry) => [
+          entry.code,
+          [
+            {
+              resourceId: "ice-crystals",
+              value: entry.iceCrystalValue
+            }
+          ]
         ]))
       },
       scoringModel: {
-        calculationModelId: "season1-scoring-model",
-        configured: true,
-        resourceLabel: "Ice Crystals",
-        serverField: "iceCrystals",
-        unconfiguredLabel: "Scoring rules not configured"
+        calculations: [
+          {
+            calculationId: "ice-crystal-holdings",
+            calculationModelId: "structure-output-holdings-total",
+            resourceId: "ice-crystals",
+            configured: true,
+            displayLabel: "Ice Crystals",
+            serverField: "iceCrystals",
+            unconfiguredLabel: "Scoring rules not configured"
+          }
+        ]
       },
       phaseModel: [
         { id: "phase-1", label: "Interactive Map", status: "completed" },
