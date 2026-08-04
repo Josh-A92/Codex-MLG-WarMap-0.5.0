@@ -77,6 +77,7 @@
   "test:game-rules-engine": "node tests/game-rules-engine.test.js",
   "test:strategic-node-network-map": "node tests/strategic-node-network-map-validator.test.js",
   "test:strategic-node-network-projection": "node tests/strategic-node-network-projection-service.test.js",
+  "test:strategic-node-network-svg-renderer": "node tests/strategic-node-network-svg-renderer.test.js",
   "test:season2-map": "node tests/season2-map.test.js",
   "test:season-package": "node tests/season-package-validator.test.js",
   "test:season-loader": "node tests/season-loader.test.js",
