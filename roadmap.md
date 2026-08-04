@@ -41,6 +41,9 @@ Status: Completed
 - Shared base-map runtime objects are not mutated by ownership editing
 - Base-map tile ownerId is fallback-only when no server-specific ownership value exists
 - Ownership changes are saved automatically and restored on startup
+- Renderer edits create canonical ownership and verification records through the
+  Map Ownership Coordinator before refreshing the current projection
+- Selected-target details consume the read-only canonical target projection
 
 ## Phase 4 - Persistence and Real Summaries
 
@@ -52,19 +55,25 @@ Completed:
 - Automatic startup restoration and queued save behavior
 - Summary Service integration
 - Computed controlled-territory, designated-union territory, and structure values on Command Centre cards
-- Season-defined unconfigured scoring display
+- Version 2 multi-resource and scoring-calculation contract
+- Calculated structure-output totals when a prepared package configures them,
+  with neutral unavailable output for unconfigured calculations
+- Coherent startup restoration and persistence for strategic, evidence, and
+  union-registry histories
+- Authorized Data Management Runtime composition
+- Union Registration and Map Ownership application coordinators
+- Responsive map layout and compact selected-target projection
+- Prepared Season Setup package listing, confirmation, activation, persistence,
+  and draft Season 2 preview
 
 Pending:
-- Verified scoring and resource-value calculations
-- Operator input and startup persistence integration for native-union,
-  active-union, combat-strength, server-observation, and evidence records
+- Authoritative Season 2 resource-output and scoring relationships
+- Operator screens for native-union, combat-strength, server-observation,
+  evidence, review, and registry operations
+- Screenshot byte-storage adapter integration
 - Command Centre and Server Overview integration of canonical intelligence,
   freshness, completeness, and pending-review projections
 - Data Management workspace renderer integration (screen design approved)
-- Responsive map layout, compact selected-target projection, and canonical
-  ownership-edit coordination (design approved)
-- Prepared Season Setup confirmation, activation, and persistence (design
-  approved; application service pending)
 
 Domain foundations completed:
 - Native and active union histories, activity evaluation, and read-time projection

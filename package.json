@@ -5,6 +5,7 @@
   "main": "main.js",
 
   "scripts": {
+  "test": "node tests/run-all-tests.js",
   "start": "electron .",
   "build": "electron-builder",
     "test:application-bootstrap": "node tests/application-bootstrap.test.js",

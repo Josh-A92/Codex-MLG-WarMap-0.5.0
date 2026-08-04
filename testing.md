@@ -21,6 +21,9 @@ Completed:
 Completed:
 - Command Centre is default workspace on load
 - Eight server workspaces are available
+- Prepared Season Setup lists bundled packages and participating servers
+- Season 1 can be confirmed, activated, persisted, and restored
+- Season 2 remains an inspectable draft with a strategic-network map preview
 - Server dock is data-driven from data/season1-servers.json
 - Command Centre cards are data-driven from data/season1-servers.json
 - Server dock and card navigation opens the correct server workspace
@@ -46,7 +49,7 @@ Pending:
 
 ## Strategic Domain Logic
 
-Completed as isolated service boundaries:
+Completed as domain and runtime boundaries:
 - Canonical union registry and deterministic ID/tag/alias matching
 - Union/server/season relationships and rebuildable Active-Status cache projection
 - Native-union assignment validation and lifecycle service
@@ -56,16 +59,23 @@ Completed as isolated service boundaries:
 - Active-Status evaluation, immutable status history, update coordination, and read-time verification-health projection
 - End-to-end held territory -> verified inactivity -> recapture regression
 - Browser script loading and frozen bootstrap exposure of the complete strategic module bundle
+- Coherent strategic, evidence, and union-registry persistence and restoration
+- Authorized Data Management Runtime composition
+- Atomic union registration across identity, relation, and native assignment
+- Canonical map-ownership coordination and selected-target read projection
 
 Pending:
-- Renderer instantiation and Command Centre integration for these strategic services
-- Persistence of strategic histories beyond current territory-ownership persistence
+- Territory & Evidence, Evidence Intake, Review Queue, and Union Registry screens
+- Command Centre and Server Overview presentation of canonical intelligence
+- Screenshot byte-storage adapter integration
 
 ## Persistence and Strategic Workflows
 
 Completed:
 - Per-server territory ownership saves automatically
 - Saved ownership restores on application startup
+- Strategic, evidence, and union-registry histories restore as one coherent state
+- Season activation state saves and restores
 - Missing saves are handled as normal first-run state
 - Ownership remains isolated after save and restart
 
@@ -76,47 +86,23 @@ Pending:
 
 ## Current Regression Commands
 
-- npm run test:application-bootstrap
-- npm run test:strategic-domain-modules
-- npm run test:server-state-persistence-controller
-- npm run test:persistence-storage
-- npm run test:persistence-service
-- npm run test:persistence-state
-- npm run test:summary-service
-- npm run test:server-state
-- npm run test:union-registry
-- npm run test:union-matching
-- npm run test:union-relations
-- npm run test:native-assignment
-- npm run test:native-assignment-service
-- npm run test:ownership-records
-- npm run test:ownership-record-service
-- npm run test:target-verification
-- npm run test:target-verification-service
-- npm run test:confirmed-snapshot
-- npm run test:confirmed-snapshot-service
-- npm run test:confirmed-snapshot-coordinator
-- npm run test:snapshot-activity-facts
-- npm run test:activity-fact-history
-- npm run test:active-status
-- npm run test:active-status-evaluator
-- npm run test:active-status-service
-- npm run test:active-status-update
-- npm run test:active-status-projection
-- npm run test:activity-pipeline
-- npm run test:union-server-season-view
-- npm run test:union-server-season-intelligence-view
-- npm run test:season1-package
-- npm run test:season-package
-- npm run test:season-loader
+Full repository regression:
+
+- `npm test`
+
+This command discovers every `tests/*.test.js` file, runs them in stable filename
+order, and stops on the first failure. Individual `npm run test:*` scripts in
+`package.json` remain available for focused development.
 
 Manual regression:
 - Edit ownership on one server and confirm other servers remain unchanged
 - Close and reopen the application and confirm ownership restores
 - Confirm Command Centre totals match restored and newly edited map ownership
+- Confirm Season 1 activation survives restart
+- Confirm the Season 2 draft preview remains horizontally scrollable on a phone-sized window
 
 ## Documentation Validation
 
 Completed:
-- Current-main reconciliation recorded in changelog.md
-- Version and milestone status aligned across docs
+- Architecture and UI implementation status distinguish completed runtime
+  boundaries from the remaining operator screens

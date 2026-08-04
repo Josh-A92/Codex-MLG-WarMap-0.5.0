@@ -49,9 +49,11 @@ This document reflects current main after v0.5.0.
   domain records without becoming an authority.
 - The Union Matching Service resolves canonical IDs, tags, display names, and aliases deterministically and surfaces ambiguity without creating or merging identities.
 - Strategic modules are browser-loaded and exposed through application bootstrap as one frozen module registry.
-- The renderer instantiates an empty canonical strategic runtime. Strategic
-  state persistence, operator input workflows, and Command Centre/Server
-  Overview consumption remain integration work.
+- Application bootstrap restores the canonical strategic, evidence, union
+  registry, and activation state before renderer initialization.
+- The renderer composes the authorized Data Management Runtime over those
+  restored services. Operator screens and Command Centre/Server Overview
+  consumption remain integration work.
 
 8. Data Management application boundary
 - The Authorization Policy Service enforces capability grants with optional
@@ -65,14 +67,21 @@ This document reflects current main after v0.5.0.
   Union Registry, Strategic Domain Runtime, and Evidence Domain Runtime.
 - The approved Data Management, responsive map, and prepared Season Setup
   interfaces are defined in docs/User-Interface-Design-Specification.md.
-- The current renderer does not instantiate the Data Management Runtime yet.
-- Union registration still needs one application coordinator across global
-  identity, known-server association, and native assignment.
-- Map ownership editing still needs one coordinator that creates canonical
-  ownership history and refreshes the current map projection without competing
-  authorities.
-- Prepared Season Setup still needs an authorized activation and persistence
-  boundary above Season Loader and Season Package Validator.
+- Application bootstrap exposes the Data Management Runtime factory, and the
+  renderer instantiates the runtime after restored domain state is available.
+- The Union Registration Coordinator atomically composes global identity,
+  known-server association, and confirmed native assignment.
+- The Map Ownership Coordinator creates canonical ownership and verification
+  history, then refreshes the current server-state projection. The renderer now
+  routes territory and structure edits through this coordinator.
+- The Selected Map Target View Service supplies current ownership, confirmation
+  time, ownership-change time, union presentation identity, and season-defined
+  values without making the renderer interpret history collections.
+- The Season Administration Service lists prepared packages, enforces
+  authorization and confirmation, persists one activation, and restores the
+  active season context at startup.
+- The remaining Data Management application work is the approved operator UI,
+  upload-byte adapter integration, and broader intelligence presentation.
 
 9. Data
 - data/season1-map.json stores shared map tiles and structures.
@@ -84,6 +93,7 @@ This document reflects current main after v0.5.0.
 Implemented:
 - command-centre workspace
 - server-map workspace
+- prepared season-setup workspace
 - eight servers: 366 to 373 from data/season1-servers.json
 
 Implemented architecture:
@@ -139,12 +149,16 @@ Not implemented:
 - Descriptive server-note UI integration (the canonical Server Observation
   validator, service, persistence collection, and read-only Server Intelligence
   View now exist)
-- Operator UI and startup persistence integration for the implemented
-  authorized native-union, combat-strength, server-observation, ownership,
-  evidence, and review operations
+- Operator UI for the implemented authorized native-union, combat-strength,
+  server-observation, evidence, review, and union-registry operations
+- Screenshot byte storage and upload adapter integration
 - Command Centre and Server Overview consumption of canonical intelligence and
   completeness projections
 - Search and filters
 
 Design note:
-- docs/Server-State-Data-Model.md defines the target snapshot/evidence model. Ownership, verification, snapshot, and activity foundations now exist as isolated domain services, but are not fully integrated into the current runtime.
+- docs/Server-State-Data-Model.md defines the target snapshot/evidence model.
+  Ownership editing and selected-target reads are integrated into the current
+  renderer. Snapshot/activity foundations are persisted and available through
+  the Data Management Runtime, but their full operator and intelligence views
+  are not yet implemented.

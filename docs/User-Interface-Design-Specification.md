@@ -190,21 +190,22 @@ domain boundary:
 2. associate it as a known union on the selected server and season;
 3. create the confirmed native assignment for that server and season.
 
-The renderer must not perform these calls independently. A production
-Union Registration coordinator must:
+The renderer must not perform these calls independently. The implemented Union
+Registration Coordinator:
 
 - require `union_registry.manage` and appropriate server/season authority;
 - generate the stable union ID;
 - store colour as canonical `defaultColor` and map pattern in
   `presentationMetadata`;
 - use an empty alias collection initially;
-- apply global identity, known association, and native assignment atomically in
-  hosted storage;
+- applies global identity, known association, and native assignment through the
+  shared atomic-operation boundary;
 - return one screen-ready result;
 - avoid leaving a partial identity or relationship if a later step fails.
 
-The existing in-memory services provide the individual operations, but not this
-application-level transaction.
+The Data Management Runtime now composes this coordinator. The remaining work is
+the approved form/table UI and a future hosted transaction adapter; the renderer
+must continue to call the coordinator rather than recreate its steps.
 
 ## 4. Responsive Server-Map Workspace
 
@@ -280,14 +281,11 @@ The production action must:
 - refresh affected summaries and freshness;
 - queue persistence only after the domain operation succeeds.
 
-The current renderer writes through `ServerStateService` and then queues its
-ownership persistence controller. That path does not by itself create the
-canonical ownership history required for `Last confirmed` and
-`Last ownership change`.
-
-Before the approved map details can be considered complete, one coordinator must
-make canonical ownership records the factual authority and update the current
-map projection without creating a competing ownership source.
+The current renderer routes territory and structure edits through the
+`MapOwnershipCoordinator`. One atomic operation creates canonical ownership and
+target-verification records, updates the current `ServerStateService` projection,
+and then allows persistence to be queued. Canonical history is therefore the
+factual authority while server state remains the current render projection.
 
 ### 4.5 Selected-target read projection
 
@@ -302,9 +300,9 @@ A selected-target query or projection should return:
 - most recent actual ownership transition;
 - applicable season-defined value.
 
-This projection may compose existing ownership histories, snapshot/change
-services, union registry data, and Game Rules Engine output. It remains
-read-only and returns safe copies.
+The implemented `SelectedMapTargetViewService` composes ownership history,
+verification, union registry data, and Game Rules Engine output. It remains
+read-only, returns safe copies, and is used by the current map detail flow.
 
 ## 5. Prepared Season Setup
 
@@ -381,36 +379,30 @@ They appear only if:
 The UI must not invent configurable mechanics merely because the package schema
 can represent them.
 
-### 5.4 Season administration gap
+### 5.4 Season administration implementation status
 
-Existing services can validate and load a known package:
+The implemented `SeasonAdministrationService`, application bootstrap, and
+activation persistence boundary now:
 
-- `SeasonPackageValidator`
-- `SeasonLoader`
-
-They do not yet provide a complete Season Administration workflow.
-
-A production Season Administration service or coordinator is still required to:
-
-- list available prepared packages;
-- load and validate the selected package;
+- list the prepared Season 1 and Season 2 packages;
+- validate prepared packages through the existing package boundary;
 - authorize `season_rules.manage`;
-- record the administrator's two confirmations;
-- activate one package for the season/server context;
-- persist activation state;
-- expose the active season context to subordinate workspaces;
-- prevent normal mutation after activation;
-- support a later controlled, versioned correction process.
+- require the approved map/structure and resource/value confirmations;
+- activate one package and selected server set;
+- persist and restore activation state;
+- expose the active season context to the renderer;
+- prevent ordinary replacement after activation.
 
-Package confirmation and activation must not be simulated solely in renderer
-state.
+Season 2 remains a non-activatable draft until its authoritative rules are
+complete. A later controlled, versioned correction workflow remains outside the
+current milestone.
 
 ## 6. UI-to-Service Mapping
 
 | User action or display | Existing boundary | Production mapping or gap |
 | --- | --- | --- |
 | Load Union Registry | `DataManagementQueryService.getUnionRegistryWorkspace()` | Ready for UI composition |
-| Create union | `UnionRegistryManagementService.createUnionIdentity()` | Needs Union Registration coordinator for generated ID, presentation metadata, server association, and native assignment |
+| Create union | `UnionRegistrationCoordinator.registerUnion()` | Domain/runtime boundary ready; approved UI still required |
 | Edit union | `UnionRegistryManagementService.updateUnionIdentity()` | Ready once UI adapter maps name/tag/colour/pattern to canonical changes |
 | Archive union | `UnionRegistryManagementService.archiveUnionIdentity()` | Ready |
 | Restore union | `UnionRegistryManagementService.restoreUnionIdentity()` | Ready |
@@ -420,29 +412,31 @@ state.
 | Create extraction proposal | `EvidenceManagementService.createExtractionProposal()` | Ready for a future extraction adapter; not a direct user form |
 | Confirm proposal | `ProposalReviewManagementService.confirmProposal()` | Ready |
 | Reject proposal | `ProposalReviewManagementService.rejectProposal()` | Ready |
-| Edit territory owner on map | `ServerIntelligenceManagementService.recordManualTerritoryOwnership()` | Needs map ownership coordinator and current-projection refresh |
-| Edit logical structure owner | `ServerIntelligenceManagementService.recordManualStructureOwnership()` | Needs map ownership coordinator and current-projection refresh |
-| Display current owner | Ownership records plus current map projection | Existing paths must be reconciled into one factual authority |
-| Display last confirmed/change | Ownership history, snapshots, and change services | Needs selected-target read projection |
+| Edit territory owner on map | `MapOwnershipCoordinator.setTerritoryOwnership()` | Integrated into the current renderer |
+| Edit logical structure owner | `MapOwnershipCoordinator.setStructureOwnership()` | Integrated into the current renderer |
+| Display current owner | `SelectedMapTargetViewService` plus current server-state projection | Integrated into the current detail flow |
+| Display last confirmed/change | `SelectedMapTargetViewService` | Implemented read projection; final responsive detail presentation remains |
 | Display structure value | Active season package and Game Rules Engine | Must use dynamic resource/scoring model; no invented values |
 | Load prepared season package | `SeasonLoader.load()` plus package validator | Existing low-level boundary |
-| Confirm and activate season setup | No complete application service | Needs Season Administration service/coordinator and persistence |
+| Confirm and activate season setup | `SeasonAdministrationService.activateSeason()` | Implemented with authorization and persistence; Season 2 remains draft |
 
 ## 7. Implementation Sequence
 
-The recommended production order is:
+The production sequence and current status are:
 
 1. Add this design specification to the authoritative documentation.
 2. Reconcile Data Management navigation and current-status documentation.
-3. Implement the Union Registration coordinator and tests.
-4. Integrate Data Management Runtime and query projections into application
-   bootstrap.
-5. Implement Territory & Evidence, Evidence Intake, Review Queue, and Union
-   Registry screens.
-6. Implement the map ownership coordinator and selected-target read projection.
-7. Apply the responsive map layout and simplified detail panel.
-8. Implement Season Administration package listing, confirmation, activation,
-   and persistence.
+3. Completed: implement the Union Registration Coordinator and tests.
+4. Completed: integrate Data Management Runtime, persistence, and query
+   projections into application bootstrap and renderer initialization.
+5. Next UI milestone: implement Territory & Evidence, Evidence Intake, Review
+   Queue, and Union Registry screens.
+6. Completed: implement and integrate the Map Ownership Coordinator and
+   Selected Map Target View Service.
+7. Remaining UI milestone: apply the responsive map layout and finish the
+   simplified detail presentation.
+8. Completed: implement prepared-package listing, confirmation, activation, and
+   activation persistence. Season 2 correctly remains a draft preview.
 
 The Data Management UI may be delivered before hosted authentication by using the
 existing trusted-local-actor adapter. That temporary adapter must continue to
