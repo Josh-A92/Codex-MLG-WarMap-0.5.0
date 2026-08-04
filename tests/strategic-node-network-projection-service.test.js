@@ -33,6 +33,8 @@ runTest("real Season 2 map produces 145 nodes and 268 connections", () => {
 
   assert.strictEqual(projection.nodes.length, 145);
   assert.strictEqual(projection.connections.length, 268);
+  assert.strictEqual(projection.resourceMineTiles.length, 168);
+  assert.deepStrictEqual(projection.mineFieldDimensions, { rows: 13, columns: 13 });
 });
 
 runTest("centre MP7 node retains its midpoint position", () => {
@@ -89,10 +91,15 @@ runTest("projection is a safe copy and does not mutate input data", () => {
   projection.nodes[0].nodeId = "mutated-node";
   projection.nodes[0].position.column = 99;
   projection.connections[0].connectionId = "mutated-connection";
+  projection.resourceMineTiles[0].resourceId = "mutated-resource";
+  projection.mineFieldDimensions.rows = 99;
 
   assert.deepStrictEqual(season2Map, originalSnapshot);
   assert.notStrictEqual(projection.nodes[0], season2Map.nodes[0]);
   assert.notStrictEqual(projection.connections[0], season2Map.connections[0]);
+  assert.notStrictEqual(projection.resourceMineTiles[0], season2Map.resourceMineTiles[0]);
+  assert.strictEqual(season2Map.resourceMineTiles[0].resourceId, "gold");
+  assert.strictEqual(season2Map.mineFieldDimensions.rows, 13);
 });
 
 runTest("invalid map produces the required stable error", () => {

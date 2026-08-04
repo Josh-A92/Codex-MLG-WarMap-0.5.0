@@ -9,20 +9,37 @@
     "nodeBorder",
     "nodeSelectedFill",
     "nodeSelectedBorder",
-    "nodeText"
+    "nodeText",
+    "mineFieldFill",
+    "mineFieldBorder",
+    "mineLevel1Fill",
+    "mineLevel2Fill",
+    "mineLevel3Fill",
+    "mineLevel4Fill",
+    "mineLevel5Fill",
+    "mineLevel6Fill"
   ]);
   const ALLOWED_OPTION_KEYS = new Set(["selectedNodeId", "theme", "assetByTypeCode"]);
+  const NODE_SCALE = 72;
   const DEFAULT_THEME = {
-    panelBackground: "#161616",
-    panelBorder: "#6a4b00",
-    panelAccent: "#f1b24a",
-    panelText: "#f7e2b8",
-    connectionStroke: "#d49f3d",
-    nodeFill: "#2b2317",
-    nodeBorder: "#b17818",
-    nodeSelectedFill: "#6a4010",
-    nodeSelectedBorder: "#ffd27a",
-    nodeText: "#f8f0d4"
+    panelBackground: "#d9ad68",
+    panelBorder: "#8f826c",
+    panelAccent: "#c96a2d",
+    panelText: "#5d4d3b",
+    connectionStroke: "#c8b89d",
+    nodeFill: "#ead7ae",
+    nodeBorder: "#705643",
+    nodeSelectedFill: "#f5e0a6",
+    nodeSelectedBorder: "#c98b1f",
+    nodeText: "#4f463d",
+    mineFieldFill: "#ead7ae",
+    mineFieldBorder: "#705643",
+    mineLevel1Fill: "#decda8",
+    mineLevel2Fill: "#d9ad68",
+    mineLevel3Fill: "#cf8959",
+    mineLevel4Fill: "#b96b4e",
+    mineLevel5Fill: "#92534c",
+    mineLevel6Fill: "#477d78"
   };
 
   class StrategicNodeNetworkSvgRendererError extends Error {
@@ -112,6 +129,62 @@
     if (!Array.isArray(projection.connections)) {
       fail("INVALID_PROJECTION", "Projection.connections must be an array.");
     }
+    if (projection.mineFieldDimensions !== null && !isPlainObject(projection.mineFieldDimensions)) {
+      fail("INVALID_PROJECTION", "Projection.mineFieldDimensions must be a plain object or null.");
+    }
+    if (!Array.isArray(projection.resourceMineTiles)) {
+      fail("INVALID_PROJECTION", "Projection.resourceMineTiles must be an array.");
+    }
+    if (projection.resourceMineTiles.length > 0 && projection.mineFieldDimensions === null) {
+      fail("INVALID_PROJECTION", "Projection.mineFieldDimensions is required when resourceMineTiles are present.");
+    }
+
+    if (projection.mineFieldDimensions !== null) {
+      if (!Number.isInteger(projection.mineFieldDimensions.rows) || projection.mineFieldDimensions.rows <= 0) {
+        fail("INVALID_PROJECTION", "Projection.mineFieldDimensions.rows must be a positive integer.");
+      }
+      if (!Number.isInteger(projection.mineFieldDimensions.columns) || projection.mineFieldDimensions.columns <= 0) {
+        fail("INVALID_PROJECTION", "Projection.mineFieldDimensions.columns must be a positive integer.");
+      }
+    }
+
+    const mineTileIds = new Set();
+    const mineTilePositions = new Set();
+    projection.resourceMineTiles.forEach((tile, index) => {
+      if (!isPlainObject(tile)) {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}] must be a plain object.`);
+      }
+      if (typeof tile.mineTileId !== "string" || tile.mineTileId.trim() === "") {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}].mineTileId must be a non-empty string.`);
+      }
+      if (mineTileIds.has(tile.mineTileId)) {
+        fail("INVALID_PROJECTION", `Projection contains a duplicate mineTileId '${tile.mineTileId}'.`);
+      }
+      mineTileIds.add(tile.mineTileId);
+      if (!isPlainObject(tile.position)
+          || !Number.isInteger(tile.position.row)
+          || !Number.isInteger(tile.position.column)
+          || tile.position.row < 1
+          || tile.position.column < 1
+          || tile.position.row > projection.mineFieldDimensions.rows
+          || tile.position.column > projection.mineFieldDimensions.columns) {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}].position must resolve within mineFieldDimensions.`);
+      }
+      const positionKey = `${tile.position.row}|${tile.position.column}`;
+      if (mineTilePositions.has(positionKey)) {
+        fail("INVALID_PROJECTION", `Projection contains a duplicate resource-mine position '${positionKey}'.`);
+      }
+      mineTilePositions.add(positionKey);
+      if (!Number.isInteger(tile.level) || tile.level <= 0) {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}].level must be a positive integer.`);
+      }
+      if (typeof tile.resourceId !== "string" || tile.resourceId.trim() === "") {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}].resourceId must be a non-empty string.`);
+      }
+      if (typeof tile.outputSpeedPercent !== "number" || !Number.isFinite(tile.outputSpeedPercent) || tile.outputSpeedPercent < 0) {
+        fail("INVALID_PROJECTION", `Projection.resourceMineTiles[${index}].outputSpeedPercent must be a finite non-negative number.`);
+      }
+    });
 
     const nodeIds = new Set();
     projection.nodes.forEach((node, index) => {
@@ -266,8 +339,83 @@
       nodeBorder: merged.nodeBorder,
       nodeSelectedFill: merged.nodeSelectedFill,
       nodeSelectedBorder: merged.nodeSelectedBorder,
-      nodeText: merged.nodeText
+      nodeText: merged.nodeText,
+      mineFieldFill: merged.mineFieldFill,
+      mineFieldBorder: merged.mineFieldBorder,
+      mineLevel1Fill: merged.mineLevel1Fill,
+      mineLevel2Fill: merged.mineLevel2Fill,
+      mineLevel3Fill: merged.mineLevel3Fill,
+      mineLevel4Fill: merged.mineLevel4Fill,
+      mineLevel5Fill: merged.mineLevel5Fill,
+      mineLevel6Fill: merged.mineLevel6Fill
     };
+  }
+
+  function createResourceMinePath(position, mineFieldDimensions) {
+    const cx = position.column * NODE_SCALE;
+    const cy = position.row * NODE_SCALE;
+    const halfTile = NODE_SCALE / 2;
+    const structureHalfSize = 21;
+    const left = cx - halfTile;
+    const right = cx + halfTile;
+    const top = cy - halfTile;
+    const bottom = cy + halfTile;
+    const cutTopLeft = position.row > 1 && position.column > 1;
+    const cutTopRight = position.row > 1 && position.column < mineFieldDimensions.columns;
+    const cutBottomRight = position.row < mineFieldDimensions.rows && position.column < mineFieldDimensions.columns;
+    const cutBottomLeft = position.row < mineFieldDimensions.rows && position.column > 1;
+    const points = [
+      [left + (cutTopLeft ? structureHalfSize : 0), top],
+      [right - (cutTopRight ? structureHalfSize : 0), top]
+    ];
+
+    if (cutTopRight) points.push([right - structureHalfSize, top + structureHalfSize], [right, top + structureHalfSize]);
+    else points.push([right, top]);
+    points.push([right, bottom - (cutBottomRight ? structureHalfSize : 0)]);
+    if (cutBottomRight) points.push([right - structureHalfSize, bottom - structureHalfSize], [right - structureHalfSize, bottom]);
+    else points.push([right, bottom]);
+    points.push([left + (cutBottomLeft ? structureHalfSize : 0), bottom]);
+    if (cutBottomLeft) points.push([left + structureHalfSize, bottom - structureHalfSize], [left, bottom - structureHalfSize]);
+    else points.push([left, bottom]);
+    points.push([left, top + (cutTopLeft ? structureHalfSize : 0)]);
+    if (cutTopLeft) points.push([left + structureHalfSize, top + structureHalfSize]);
+    else points.push([left, top]);
+
+    const normalizedPoints = points.filter((point, index) => (
+      index === 0 || point[0] !== points[index - 1][0] || point[1] !== points[index - 1][1]
+    ));
+    const lastPoint = normalizedPoints[normalizedPoints.length - 1];
+    const firstPoint = normalizedPoints[0];
+    if (lastPoint[0] === firstPoint[0] && lastPoint[1] === firstPoint[1]) {
+      normalizedPoints.pop();
+    }
+    return normalizedPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point[0]} ${point[1]}`).join(" ") + " Z";
+  }
+
+  function renderResourceMineTile(tile, theme, mineFieldDimensions) {
+    const tilePath = createResourceMinePath(tile.position, mineFieldDimensions);
+    const resourceLabel = tile.resourceId.slice(0, 1).toUpperCase() + tile.resourceId.slice(1);
+    const title = escapeText(`Level ${tile.level} ${resourceLabel} resource mine: output speed +${tile.outputSpeedPercent}%`);
+
+    return `
+      <g class="strategic-node-network-resource-mine" data-mine-tile-id="${escapeAttribute(tile.mineTileId)}" data-resource-id="${escapeAttribute(tile.resourceId)}" data-mine-level="${tile.level}">
+        <title>${title}</title>
+        <path d="${tilePath}" class="strategic-node-network-resource-mine-shape" fill="${escapeAttribute(theme.mineFieldFill)}" stroke="${escapeAttribute(theme.mineFieldBorder)}" stroke-width="2" stroke-linejoin="miter" />
+      </g>`;
+  }
+
+  function renderCentralMetropolisJunction(nodes, theme, mineFieldDimensions) {
+    const metropolis = nodes.find((node) => node.typeCode === "MP7");
+    if (!metropolis) return "";
+
+    const position = {
+      row: metropolis.position.row + 0.5,
+      column: metropolis.position.column + 0.5
+    };
+    const junctionPath = createResourceMinePath(position, mineFieldDimensions);
+
+    return `
+      <path d="${junctionPath}" class="strategic-node-network-central-junction-shape" fill="${escapeAttribute(theme.mineFieldFill)}" stroke="${escapeAttribute(theme.mineFieldBorder)}" stroke-width="2" stroke-linejoin="miter" />`;
   }
 
   function formatLevelText(level) {
@@ -282,7 +430,21 @@
       .join("");
   }
 
-  function renderNode(node, theme, selectedNodeId, assetByTypeCode) {
+  function getNodeRadius(typeCode) {
+    if (typeCode === "MP7") return 40;
+    if (typeCode === "MP6" || typeCode === "BG6") return 24;
+    return 21;
+  }
+
+  function renderNodeBackground(node, theme, isSelected, cx, cy, radius, hasAsset) {
+    if (hasAsset && !isSelected) return "";
+
+    const fill = hasAsset ? "none" : escapeAttribute(isSelected ? theme.nodeSelectedFill : theme.nodeFill);
+    const stroke = escapeAttribute(isSelected ? theme.nodeSelectedBorder : theme.nodeBorder);
+    return `<rect x="${cx - radius}" y="${cy - radius}" width="${radius * 2}" height="${radius * 2}" class="strategic-node-network-node-background" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+  }
+
+  function renderNode(node, theme, selectedNodeId, assetByTypeCode, hasMineLayer) {
     const nodeId = escapeAttribute(node.nodeId);
     const typeCode = escapeAttribute(node.typeCode);
     const typeText = escapeText(formatTypeText(node.type));
@@ -291,18 +453,17 @@
     const isSelected = selectedNodeId !== null && selectedNodeId === node.nodeId;
     const classes = ["strategic-node-network-node", isSelected ? "selected" : ""];
     const assetPath = assetByTypeCode[node.typeCode];
-    const scale = 40;
-    const cx = node.position.column * scale;
-    const cy = node.position.row * scale;
-    const radius = 18;
-    const x = cx - radius;
-    const y = cy - radius;
+    const gridShift = hasMineLayer ? 0.5 : 0;
+    const radius = getNodeRadius(node.typeCode);
+    const cx = (node.position.column + gridShift) * NODE_SCALE;
+    const cy = (node.position.row + gridShift) * NODE_SCALE;
+    const assetSize = node.typeCode === "MP7" ? 50 : (node.typeCode === "MP6" || node.typeCode === "BG6") ? 44 : 40;
+    const halfAssetSize = assetSize / 2;
 
+    const backgroundMarkup = renderNodeBackground(node, theme, isSelected, cx, cy, radius, Boolean(assetPath));
     const assetMarkup = assetPath
       ? `
-        <image href="${escapeAttribute(assetPath)}" x="${cx - 12}" y="${cy - 12}" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
-        <rect x="${cx - 11}" y="${cy - 11}" width="14" height="10" rx="3" ry="3" fill="${escapeAttribute(theme.panelAccent)}" stroke="${escapeAttribute(theme.nodeBorder)}" stroke-width="1" />
-        <text x="${cx - 4}" y="${cy - 3}" text-anchor="start" class="strategic-node-network-node-badge" fill="${escapeAttribute(theme.nodeText)}">${levelText}</text>
+        <image href="${escapeAttribute(assetPath)}" x="${cx - halfAssetSize}" y="${cy - halfAssetSize}" width="${assetSize}" height="${assetSize}" preserveAspectRatio="xMidYMid meet" />
       `
       : `
         <text x="${cx}" y="${cy - 6}" text-anchor="middle" class="strategic-node-network-node-fallback" fill="${escapeAttribute(theme.nodeText)}">${typeText}</text>
@@ -312,7 +473,7 @@
     return `
       <g class="${classes.filter(Boolean).join(" ")}" data-node-id="${nodeId}" data-type-code="${typeCode}">
         <title>${fullLabel}</title>
-        <rect x="${x}" y="${y}" width="${radius * 2}" height="${radius * 2}" rx="8" ry="8" fill="${escapeAttribute(isSelected ? theme.nodeSelectedFill : theme.nodeFill)}" stroke="${escapeAttribute(isSelected ? theme.nodeSelectedBorder : theme.nodeBorder)}" stroke-width="2" />
+        ${backgroundMarkup}
         ${assetMarkup}
       </g>`;
   }
@@ -324,21 +485,37 @@
       const normalizedOptions = validateOptions(options, validatedProjection);
       const theme = resolveTheme(normalizedOptions.theme);
       const assetByTypeCode = normalizedOptions.assetByTypeCode;
-      const scale = 40;
-      const viewBox = `0 0 ${validatedProjection.dimensions.columns * scale + 40} ${validatedProjection.dimensions.rows * scale + 40}`;
-      const connectionMarkup = validatedProjection.connections.map((connection) => {
+      const hasMineLayer = validatedProjection.mineFieldDimensions !== null && validatedProjection.resourceMineTiles.length > 0;
+      const layoutRows = hasMineLayer ? validatedProjection.mineFieldDimensions.rows : validatedProjection.dimensions.rows;
+      const layoutColumns = hasMineLayer ? validatedProjection.mineFieldDimensions.columns : validatedProjection.dimensions.columns;
+      const viewBox = `0 0 ${(layoutColumns + 1) * NODE_SCALE} ${(layoutRows + 1) * NODE_SCALE}`;
+      const mineTileMarkup = validatedProjection.resourceMineTiles.map((tile) => (
+        renderResourceMineTile(tile, theme, validatedProjection.mineFieldDimensions)
+      )).join("");
+      const centralJunctionMarkup = hasMineLayer
+        ? renderCentralMetropolisJunction(validatedProjection.nodes, theme, validatedProjection.mineFieldDimensions)
+        : "";
+      const gridShift = hasMineLayer ? 0.5 : 0;
+      const connectionMarkup = hasMineLayer ? "" : validatedProjection.connections.map((connection) => {
         const fromNode = validatedProjection.nodes.find((node) => node.nodeId === connection.fromNodeId);
         const toNode = validatedProjection.nodes.find((node) => node.nodeId === connection.toNodeId);
         if (!fromNode || !toNode) {
           return "";
         }
-        return `<line x1="${fromNode.position.column * scale}" y1="${fromNode.position.row * scale}" x2="${toNode.position.column * scale}" y2="${toNode.position.row * scale}" class="strategic-node-network-connection" stroke="${escapeAttribute(theme.connectionStroke)}" />`;
+        const x1 = (fromNode.position.column + gridShift) * NODE_SCALE;
+        const y1 = (fromNode.position.row + gridShift) * NODE_SCALE;
+        const x2 = (toNode.position.column + gridShift) * NODE_SCALE;
+        const y2 = (toNode.position.row + gridShift) * NODE_SCALE;
+        return `
+          <path d="M ${x1} ${y1} L ${x2} ${y2}" class="strategic-node-network-connection-underlay" stroke="${escapeAttribute(theme.panelBorder)}" stroke-width="10" stroke-linecap="round" fill="none" />
+          <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="strategic-node-network-connection" stroke="${escapeAttribute(theme.connectionStroke)}" stroke-width="3" stroke-linecap="round" />`;
       }).join("");
-      const nodeMarkup = validatedProjection.nodes.map((node) => renderNode(node, theme, normalizedOptions.selectedNodeId, assetByTypeCode)).join("");
+      const nodeMarkup = validatedProjection.nodes.map((node) => renderNode(node, theme, normalizedOptions.selectedNodeId, assetByTypeCode, hasMineLayer)).join("");
 
       const markup = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="${escapeAttribute(viewBox)}" class="strategic-node-network-svg" role="img" aria-label="${escapeAttribute(validatedProjection.seasonId)} map">
           <rect x="0" y="0" width="100%" height="100%" fill="${escapeAttribute(theme.panelBackground)}" stroke="${escapeAttribute(theme.panelBorder)}" stroke-width="4" />
+          <g class="strategic-node-network-resource-mines">${mineTileMarkup}${centralJunctionMarkup}</g>
           <g class="strategic-node-network-connections">${connectionMarkup}</g>
           <g class="strategic-node-network-nodes">${nodeMarkup}</g>
         </svg>`;
@@ -347,7 +524,8 @@
         markup,
         viewBox,
         nodeCount: validatedProjection.nodes.length,
-        connectionCount: validatedProjection.connections.length
+        connectionCount: validatedProjection.connections.length,
+        mineTileCount: validatedProjection.resourceMineTiles.length
       };
     }
 

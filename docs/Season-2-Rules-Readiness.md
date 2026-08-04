@@ -22,7 +22,7 @@ Classifications used in this document:
 
 Policy constraints applied:
 - Repetition across community documents is not treated as official confirmation.
-- data/season2-map.json is treated as authoritative for verified geometry only.
+- data/season2-map.json is treated as authoritative for verified strategic geometry and the user-confirmed resource-mine transcription recorded by its source evidence.
 - Community map/resource/modifier claims remain non-calculation unless elevated by primary evidence.
 - Files under Official_Artwork are treated as confirmed_official only when provenance is supported by X-Clash_Season_2_Asset_Register.xlsx (official X-Clash Facebook or equivalent official-source attribution).
 - Community screenshots are classified as confirmed_in_game only for facts visibly shown in the captured in-game UI.
@@ -36,6 +36,9 @@ Policy constraints applied:
 | Map topology and dimensions | Dimensions are 12 rows x 12 columns for grid layout coordinates. | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition.mapDefinition.dimensions.rows, rulesDefinition.mapDefinition.dimensions.columns |
 | Node levels and identities | Verified network includes 145 nodes (144 grid + 1 center objective). | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition.mapDefinition mapDataRef content, structureCatalog expected counts |
 | Connections | Verified network includes 268 navigation connections and connections are not ownership targets. | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition metadata/map-definition notes, downstream topology renderer contract |
+| Resource-mine field | The distinct underlying field contains 168 resource-mine tiles in a 13 x 13 arrangement with the central objective position omitted. | confirmed_in_game | Maps_and_Reference/S2_Comprehensive_Map_01.jpg (user-confirmed transcription), docs/Season-2-Map-Reconstruction.md, data/season2-map.json | map data `mineFieldDimensions`, `resourceMineTiles` |
+| Resource-mine identity and values | Resource-mine tiles explicitly carry Level 1-6, Gold/Food/Iron identity, and output-speed values from +1% to +6% matching level. | confirmed_in_game | Maps_and_Reference/S2_Comprehensive_Map_01.jpg (user-confirmed transcription), data/season2-map.json | map data `resourceMineTiles[].level`, `resourceId`, `outputSpeedPercent` |
+| Mine entity boundary | Resource-mine tiles are distinct from strategic `M2` Level 2 Mine structures and from navigation connections. | confirmed_in_game | in-game screenshot sweep, Maps_and_Reference/S2_Comprehensive_Map_01.jpg, docs/Season-2-Map-Reconstruction.md | topology-specific projection/rendering and future ownership rules |
 | Structure catalogue (map-resident types) | Non-Trade-Centre mapped type counts: V1=40, M2=32, MN3=24, F4=16, T5=8, BG6=1, MP6=3, MP7=1. | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition.structureCatalog |
 | Structure catalogue (Trade Centres) | Trade Centre identities, levels, and positions are explicit as TC1-TC5 with four of each level (20 total) in the verified screenshot-derived reconstruction. | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition.structureCatalog |
 | Structure catalogue (count population) | expectedCount values can be populated from verified node counts if the package chooses to include them (including TC1-TC5 at 4 each). | confirmed_in_game | docs/Season-2-Map-Reconstruction.md, data/season2-map.json | rulesDefinition.structureCatalog.expectedCount |
@@ -56,7 +59,7 @@ Policy constraints applied:
 
 | claim | source | why it remains provisional | evidence needed for confirmation | whether it may enter calculations |
 |---|---|---|---|---|
-| Per-node resource type and per-node output/collection speed values across mine/city grid. | Maps_and_Reference/S2_Comprehensive_Map_01.jpg, Maps_and_Reference/S2_Comprehensive_Map_02.jpg, Maps_and_Reference/S2_Comprehensive_Map_03.jpg, X-Clash_Season_2_Asset_Register.xlsx (S2-015/S2-016/S2-017 notes) | Asset register states some mine buffs were estimated and creator requests corrections; these are not primary in-game proofs. | Occupied-node in-game captures for each contested node class, or official rule table listing node outputs/modifiers. | No |
+| Resource/output/collection modifiers attached to strategic structures. | Maps_and_Reference/S2_Comprehensive_Map_02.jpg, Maps_and_Reference/S2_Comprehensive_Map_03.jpg, X-Clash_Season_2_Asset_Register.xlsx (S2-016/S2-017 notes) | These claims concern strategic structures, not the now-confirmed resource-mine field. Some values were estimated and corrections requested. | Occupied-node in-game captures for each contested strategic structure class, or an official rule table. | No |
 | Training/research/healing/building-speed effects attached to specific high-level nodes. | Maps_and_Reference/S2_Comprehensive_Map_02.jpg, Maps_and_Reference/S2_Comprehensive_Map_03.jpg | Community-only overlay data; not confirmed by primary in-game screenshot set used for geometry reconstruction. | Official rule reference or direct in-game captures showing each modifier on the exact node identity. | No |
 | 56-day Greening Initiative and checklist sequencing details for operational planning. | Community_Guides/S2_Season_Preview_Community.png, Community_Guides/S2_Week_1_Checklist.png | Community guide graphics are secondary summaries, not authoritative rule tables. | Official schedule/rules page with explicit dates and mechanics per phase. | No |
 | Community interpretation of Trade Centre functional effects/modifiers beyond identity, level, placement, and count. | Maps_and_Reference/S2_Comprehensive_Map_02.jpg, Maps_and_Reference/S2_Comprehensive_Map_03.jpg | Identity/levels/positions/counts are already confirmed in-game via reconstruction; functional effects still come from community interpretation only. | Official or in-game rule panel for Trade Centre effects and formulas. | No |
@@ -85,16 +88,16 @@ Policy constraints applied:
 - Current resolution:
   - Resolved to BG6 per in-game evidence.
 
-3. Node modifier precision
+3. Strategic-node modifier precision
 - Competing claims:
-  - Community maps provide exact output/collection/speed values per node.
+  - Community maps provide exact output/collection/speed values for strategic structures.
   - Asset register note says some mine buffs were estimated and corrections requested.
 - Sources:
   - Maps_and_Reference/S2_Comprehensive_Map_01.jpg
   - Maps_and_Reference/S2_Comprehensive_Map_02.jpg
   - X-Clash_Season_2_Asset_Register.xlsx (S2-015/S2-016/S2-017 notes)
 - Current resolution:
-  - Unresolved for canonical rules; remains community_derived and excluded from calculations.
+  - Unresolved for strategic-structure rules; remains community_derived and excluded from calculations. This does not invalidate the separately confirmed resource-mine field values.
 
 ## Missing Package Information
 
@@ -103,7 +106,7 @@ Policy constraints applied:
 | packageIdentity | Chosen package status value for this package build (draft/planned/active/completed/archived). startDate/endDate are optional and not required for validation. | schema requires seasonStatus; draft is structurally valid while final publication status is a product/configuration choice. | Yes (if seasonStatus missing) | Yes |
 | rulesDefinition.seasonIdentity | Decision on optional seasonName and optional kingdomNumber fields, if consumers need them. | seasonIdentity container is required; seasonName/kingdomNumber are optional under current validator. | No (if container present and seasonId valid) | Possibly |
 | rulesDefinition.structureCatalog | Unknown optional functional fields: firstCaptureReward, unlockWeek, resource references, scoring references, and any unverified functional effects. expectedCount is available from verified counts if we choose to include it. | Structure identity and expectedCount are already derivable from verified nodeTypes and counts; remaining optional fields require stronger evidence. | No (for identity + optional-count catalogue) | Conditional |
-| rulesDefinition.resourceModel | Canonical resourceId/displayName/unit/metricType and authoritative structureOutputs mapping for Season 2. | Required container and required core fields exist in schema/validator; per-node outputs/modifiers remain principal evidence gap. | Yes (if container or required fields missing) | Yes |
+| rulesDefinition.resourceModel | Canonical Red Copper/Holy Water rule entries and authoritative strategic-structure outputs/scoring relationships for Season 2. The Gold/Food/Iron resource-mine map layer is known, but it does not by itself define the season scoring model. | Required container and required core fields exist in schema/validator; strategic outputs/scoring remain the principal evidence gap. | Yes (if container or required fields missing) | Yes |
 | rulesDefinition.scoringModel | Trustworthy Season 2 scoring formulas/relationships for calculated totals. | Validator supports explicitly unconfigured scoring (configured=false) with valid required fields; unknown formulas therefore do not inherently block structural validation. | No (if valid scoring container is present, including configured=false) | Yes |
 | rulesDefinition.phaseModel | Evidence-backed phase entries (if any). Empty array is structurally valid; unknown whether non-empty phase rules are required for truthful publication. | Required container exists even when empty. | No (if array exists, even empty) | Conditional |
 | rulesDefinition.structureUnlocks | Evidence-backed unlock entries (if any). Empty object is structurally valid; unknown whether non-empty unlock rules are required for truthful publication. | Required container exists even when empty. | No (if object exists, even empty) | Conditional |
@@ -119,7 +122,7 @@ not_ready
 
 Reason:
 - A structurally valid draft package now exists for Season 2 and is represented by a canonical schema-version-2 package with the verified geometry, structure catalogue, and ordered resource identities.
-- Geometry and structure identity catalogue are ready from verified in-game reconstruction (including 145 nodes, 268 connections, and explicit Trade Centre levels/counts/positions).
+- Geometry and structure identity catalogue are ready from verified reconstruction (including 145 strategic nodes, 268 connections, 168 resource-mine tiles, and explicit Trade Centre levels/counts/positions).
 - Resource outputs and scoring remain deliberately unconfigured in the draft package because authoritative map-output/scoring relationships for the declared resources are still missing.
 - Runtime configuration inputs (data-source paths, workspace, participating-server scope) are the next blocker for runnable publication.
 - Unknown optional rule details do not automatically fail schema validation when required containers are present and valid; they still block trustworthy publication if left unjustified.

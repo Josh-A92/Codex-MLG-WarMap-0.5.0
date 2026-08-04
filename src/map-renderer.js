@@ -17,6 +17,8 @@ let serverStatePersistenceController = null;
 let dataManagementPersistenceController = null;
 let seasonAdministrationService = null;
 let seasonContext = null;
+let strategicNodeNetworkProjectionService = null;
+let strategicNodeNetworkSvgRenderer = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -133,7 +135,21 @@ const seasonSetupState = {
   mapAndStructuresConfirmed: true,
   resourcesAndValuesConfirmed: true,
   errorMessage: null,
-  isActivating: false
+  isActivating: false,
+  preview: {
+    status: "idle",
+    errorMessage: null,
+    markup: "",
+    nodeCount: 0,
+    connectionCount: 0,
+    mineTileCount: 0,
+    selectedNodeId: null,
+    selectedNodeData: null,
+    selectedMineTileId: null,
+    selectedMineTileData: null,
+    projection: null,
+    mapDataRef: null
+  }
 };
 const desktopPanState = {
   isPointerDown: false,
@@ -427,10 +443,7 @@ function renderSeasonSetupPackageSummary(container, preparedView, includeStructu
   container.appendChild(structureSection);
 }
 
-function renderSeasonSetupStepOne(container, preparedSeasons) {
-  const section = createSeasonSetupElement("section", "season-setup-card");
-  section.appendChild(createSeasonSetupElement("h3", null, "1. Season & Servers"));
-
+function renderPreparedSeasonSelector(container, preparedSeasons) {
   const seasonLabel = createSeasonSetupElement("label", "season-setup-field");
   seasonLabel.appendChild(createSeasonSetupElement("span", null, "Prepared season package"));
   const select = createSeasonSetupElement("select");
@@ -442,7 +455,14 @@ function renderSeasonSetupStepOne(container, preparedSeasons) {
     select.appendChild(option);
   });
   seasonLabel.appendChild(select);
-  section.appendChild(seasonLabel);
+  container.appendChild(seasonLabel);
+  return select;
+}
+
+function renderSeasonSetupStepOne(container, preparedSeasons) {
+  const section = createSeasonSetupElement("section", "season-setup-card");
+  section.appendChild(createSeasonSetupElement("h3", null, "1. Season & Servers"));
+  renderPreparedSeasonSelector(section, preparedSeasons);
 
   section.appendChild(createSeasonSetupElement("h4", null, "Participating servers"));
   section.appendChild(createSeasonSetupElement(
@@ -532,6 +552,105 @@ function renderActivatedSeasonSetup(container, preparedView, activeSeason) {
   renderSeasonSetupPackageSummary(container, preparedView, true);
 }
 
+function createPreviewTheme() {
+  return {
+    panelBackground: "#d9ad68",
+    panelBorder: "#8f826c",
+    panelAccent: "#c96a2d",
+    panelText: "#5d4d3b",
+    connectionStroke: "#c8b89d",
+    nodeFill: "#ead7ae",
+    nodeBorder: "#705643",
+    nodeSelectedFill: "#f5e0a6",
+    nodeSelectedBorder: "#c98b1f",
+    nodeText: "#4f463d",
+    mineFieldFill: "#ead7ae",
+    mineFieldBorder: "#705643",
+    mineLevel1Fill: "#decda8",
+    mineLevel2Fill: "#d9ad68",
+    mineLevel3Fill: "#cf8959",
+    mineLevel4Fill: "#b96b4e",
+    mineLevel5Fill: "#92534c",
+    mineLevel6Fill: "#477d78"
+  };
+}
+
+function createPreviewAssetMap() {
+  return {
+    V1: "assets/sprites/season2/village.png",
+    M2: "assets/sprites/season2/strategic-mine.png",
+    MN3: "assets/sprites/season2/manor.png",
+    F4: "assets/sprites/season2/factory.png",
+    T5: "assets/sprites/season2/town.png",
+    TC1: "assets/sprites/season2/trade-centre.png",
+    TC2: "assets/sprites/season2/trade-centre.png",
+    TC3: "assets/sprites/season2/trade-centre.png",
+    TC4: "assets/sprites/season2/trade-centre.png",
+    TC5: "assets/sprites/season2/trade-centre.png",
+    BG6: "assets/sprites/season2/building-guild.png",
+    MP6: "assets/sprites/season2/metropolis.png",
+    MP7: "assets/sprites/season2/central-metropolis.png"
+  };
+}
+
+function renderDraftSeasonPreview(container, preparedView) {
+  const previewCard = createSeasonSetupElement("section", "season-setup-card");
+  previewCard.appendChild(createSeasonSetupElement("h3", null, "Draft preview"));
+  previewCard.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-warning",
+    "Draft preview — cannot be activated"
+  ));
+  renderSeasonSetupPackageSummary(previewCard, preparedView, true);
+
+  const previewSurface = createSeasonSetupElement("div", "season-setup-preview-surface");
+  previewSurface.setAttribute("data-season-setup-preview-surface", "true");
+  if (preparedView.summary.map.topologyType === "strategic_node_network") {
+    const previewAction = createSeasonSetupElement("button", "season-setup-button is-secondary", "Load Map Preview");
+    previewAction.type = "button";
+    previewAction.setAttribute("data-season-setup-action", "load-preview");
+    previewCard.appendChild(previewAction);
+
+    if (seasonSetupState.preview.status === "loading") {
+      previewSurface.appendChild(createSeasonSetupElement("p", "season-setup-help", "Loading map preview…"));
+    } else if (seasonSetupState.preview.errorMessage) {
+      previewSurface.appendChild(createSeasonSetupElement("p", "season-setup-error", seasonSetupState.preview.errorMessage));
+    } else if (seasonSetupState.preview.markup) {
+      previewSurface.innerHTML = seasonSetupState.preview.markup;
+    } else {
+      previewSurface.appendChild(createSeasonSetupElement("p", "season-setup-help", "Preview not loaded yet."));
+    }
+
+    const previewMeta = createSeasonSetupElement("div", "season-setup-preview-meta");
+    previewMeta.appendChild(createSeasonSetupElement("span", null, `Nodes: ${seasonSetupState.preview.nodeCount}`));
+    previewMeta.appendChild(createSeasonSetupElement("span", null, `Connections: ${seasonSetupState.preview.connectionCount}`));
+    previewMeta.appendChild(createSeasonSetupElement("span", null, `Resource mines: ${seasonSetupState.preview.mineTileCount}`));
+    previewCard.appendChild(previewMeta);
+    previewCard.appendChild(previewSurface);
+
+    const previewDetails = createSeasonSetupElement("div", "season-setup-preview-details");
+    if (seasonSetupState.preview.selectedNodeData) {
+      previewDetails.appendChild(createSeasonSetupElement("h4", null, "Selected node"));
+      appendSeasonSetupFact(previewDetails, "structure type", seasonSetupState.preview.selectedNodeData.type || "—");
+      appendSeasonSetupFact(previewDetails, "level", String(seasonSetupState.preview.selectedNodeData.level || "—"));
+      appendSeasonSetupFact(previewDetails, "type code", seasonSetupState.preview.selectedNodeData.typeCode || "—");
+    } else if (seasonSetupState.preview.selectedMineTileData) {
+      previewDetails.appendChild(createSeasonSetupElement("h4", null, "Selected resource mine"));
+      appendSeasonSetupFact(previewDetails, "resource", seasonSetupState.preview.selectedMineTileData.resourceId || "—");
+      appendSeasonSetupFact(previewDetails, "level", String(seasonSetupState.preview.selectedMineTileData.level || "—"));
+      appendSeasonSetupFact(previewDetails, "output speed", `+${seasonSetupState.preview.selectedMineTileData.outputSpeedPercent}%`);
+    } else {
+      previewDetails.appendChild(createSeasonSetupElement("p", "season-setup-help", "Select a structure node or resource-mine tile to inspect it."));
+    }
+    previewCard.appendChild(previewDetails);
+  } else {
+    previewSurface.appendChild(createSeasonSetupElement("p", "season-setup-help", "This package has no strategic network preview available."));
+    previewCard.appendChild(previewSurface);
+  }
+
+  container.appendChild(previewCard);
+}
+
 function renderSeasonSetupActions(container, canContinue) {
   const actions = createSeasonSetupElement("div", "season-setup-actions");
   if (seasonSetupState.step > 1) {
@@ -552,6 +671,88 @@ function renderSeasonSetupActions(container, canContinue) {
   container.appendChild(actions);
 }
 
+async function renderSeasonSetupPreviewMarkup(selectedNodeId = null) {
+  if (!strategicNodeNetworkProjectionService || !strategicNodeNetworkSvgRenderer) {
+    seasonSetupState.preview.status = "error";
+    seasonSetupState.preview.errorMessage = "Preview services are unavailable.";
+    return;
+  }
+
+  if (!seasonSetupState.preview.projection) {
+    seasonSetupState.preview.status = "idle";
+    seasonSetupState.preview.errorMessage = null;
+    return;
+  }
+
+  const previewResult = strategicNodeNetworkSvgRenderer.render(seasonSetupState.preview.projection, {
+    selectedNodeId,
+    theme: createPreviewTheme(),
+    assetByTypeCode: createPreviewAssetMap()
+  });
+
+  seasonSetupState.preview.status = "ready";
+  seasonSetupState.preview.errorMessage = null;
+  seasonSetupState.preview.markup = previewResult.markup;
+  seasonSetupState.preview.nodeCount = previewResult.nodeCount;
+  seasonSetupState.preview.connectionCount = previewResult.connectionCount;
+  seasonSetupState.preview.mineTileCount = previewResult.mineTileCount;
+
+  if (selectedNodeId) {
+    seasonSetupState.preview.selectedNodeData = (seasonSetupState.preview.projection.nodes || []).find(
+      (node) => node.nodeId === selectedNodeId
+    ) || null;
+  } else {
+    seasonSetupState.preview.selectedNodeData = null;
+  }
+}
+
+async function loadSeason2MapPreview(preparedView) {
+  seasonSetupState.preview.status = "loading";
+  seasonSetupState.preview.errorMessage = null;
+  seasonSetupState.preview.markup = "";
+  seasonSetupState.preview.nodeCount = 0;
+  seasonSetupState.preview.connectionCount = 0;
+  seasonSetupState.preview.mineTileCount = 0;
+  seasonSetupState.preview.selectedNodeId = null;
+  seasonSetupState.preview.selectedNodeData = null;
+  seasonSetupState.preview.selectedMineTileId = null;
+  seasonSetupState.preview.selectedMineTileData = null;
+  seasonSetupState.preview.projection = null;
+  seasonSetupState.preview.mapDataRef = null;
+  renderSeasonSetup();
+
+  try {
+    const mapDataRef = preparedView && preparedView.summary && preparedView.summary.map
+      && typeof preparedView.summary.map.mapDataRef === "string"
+      && preparedView.summary.map.mapDataRef.trim() !== ""
+      ? preparedView.summary.map.mapDataRef
+      : null;
+
+    if (!mapDataRef) {
+      throw new Error("No map data reference is available for this package.");
+    }
+
+    const response = await fetch(mapDataRef, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Unable to load preview data (${response.status}).`);
+    }
+
+    const mapData = await response.json();
+    const projection = strategicNodeNetworkProjectionService.project(mapData);
+    seasonSetupState.preview.projection = projection;
+    seasonSetupState.preview.mapDataRef = mapDataRef;
+    await renderSeasonSetupPreviewMarkup();
+  } catch (error) {
+    seasonSetupState.preview.status = "error";
+    seasonSetupState.preview.errorMessage = error && error.message
+      ? error.message
+      : "Unable to load the Strategic Network preview.";
+    seasonSetupState.preview.projection = null;
+  }
+
+  renderSeasonSetup();
+}
+
 function renderSeasonSetup() {
   if (!seasonSetupContent || !seasonAdministrationService) return;
   seasonSetupContent.innerHTML = "";
@@ -564,7 +765,18 @@ function renderSeasonSetup() {
   const preparedView = seasonAdministrationService.getPreparedSeason(seasonSetupState.selectedSeasonId);
 
   if (activeSeason) {
+    renderPreparedSeasonSelector(seasonSetupContent, preparedSeasons);
+    if (preparedView.summary.seasonStatus !== "active") {
+      renderDraftSeasonPreview(seasonSetupContent, preparedView);
+      return;
+    }
     renderActivatedSeasonSetup(seasonSetupContent, preparedView, activeSeason);
+    return;
+  }
+
+  if (preparedView.summary.seasonStatus !== "active") {
+    renderPreparedSeasonSelector(seasonSetupContent, preparedSeasons);
+    renderDraftSeasonPreview(seasonSetupContent, preparedView);
     return;
   }
 
@@ -595,6 +807,31 @@ function applyActivatedServerSelection(activeSeason) {
 }
 
 async function handleSeasonSetupClick(event) {
+  const previewMineTile = event.target.closest("g[data-mine-tile-id]");
+  if (previewMineTile) {
+    const selectedMineTileId = previewMineTile.getAttribute("data-mine-tile-id");
+    seasonSetupState.preview.selectedNodeId = null;
+    seasonSetupState.preview.selectedNodeData = null;
+    seasonSetupState.preview.selectedMineTileId = selectedMineTileId;
+    seasonSetupState.preview.selectedMineTileData = (seasonSetupState.preview.projection.resourceMineTiles || []).find(
+      (tile) => tile.mineTileId === selectedMineTileId
+    ) || null;
+    await renderSeasonSetupPreviewMarkup();
+    renderSeasonSetup();
+    return;
+  }
+
+  const previewNode = event.target.closest("g[data-node-id]");
+  if (previewNode) {
+    const selectedNodeId = previewNode.getAttribute("data-node-id");
+    seasonSetupState.preview.selectedNodeId = selectedNodeId;
+    seasonSetupState.preview.selectedMineTileId = null;
+    seasonSetupState.preview.selectedMineTileData = null;
+    await renderSeasonSetupPreviewMarkup(selectedNodeId);
+    renderSeasonSetup();
+    return;
+  }
+
   const actionTarget = event.target.closest("[data-season-setup-action]");
   if (!actionTarget) return;
   const action = actionTarget.getAttribute("data-season-setup-action");
@@ -608,6 +845,11 @@ async function handleSeasonSetupClick(event) {
     seasonSetupState.step = Math.min(3, seasonSetupState.step + 1);
     seasonSetupState.errorMessage = null;
     renderSeasonSetup();
+    return;
+  }
+  if (action === "load-preview") {
+    const preparedView = seasonAdministrationService.getPreparedSeason(seasonSetupState.selectedSeasonId);
+    await loadSeason2MapPreview(preparedView);
     return;
   }
   if (action !== "activate") return;
@@ -644,6 +886,18 @@ function handleSeasonSetupChange(event) {
   const action = event.target.getAttribute("data-season-setup-action");
   if (action === "select-season") {
     seasonSetupState.selectedSeasonId = event.target.value;
+    seasonSetupState.preview.status = "idle";
+    seasonSetupState.preview.errorMessage = null;
+    seasonSetupState.preview.markup = "";
+    seasonSetupState.preview.nodeCount = 0;
+    seasonSetupState.preview.connectionCount = 0;
+    seasonSetupState.preview.mineTileCount = 0;
+    seasonSetupState.preview.selectedNodeId = null;
+    seasonSetupState.preview.selectedNodeData = null;
+    seasonSetupState.preview.selectedMineTileId = null;
+    seasonSetupState.preview.selectedMineTileData = null;
+    seasonSetupState.preview.projection = null;
+    seasonSetupState.preview.mapDataRef = null;
   }
   if (action === "toggle-server") {
     if (event.target.checked) seasonSetupState.selectedServerIds.add(event.target.value);
@@ -2459,6 +2713,20 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a Season Administration Service.");
   }
 
+  if (!bootstrapContext.strategicNodeNetworkProjectionService
+      || typeof bootstrapContext.strategicNodeNetworkProjectionService !== "object"
+      || Array.isArray(bootstrapContext.strategicNodeNetworkProjectionService)
+      || typeof bootstrapContext.strategicNodeNetworkProjectionService.project !== "function") {
+    throw new Error("Renderer requires a strategic node network projection service.");
+  }
+
+  if (!bootstrapContext.strategicNodeNetworkSvgRenderer
+      || typeof bootstrapContext.strategicNodeNetworkSvgRenderer !== "object"
+      || Array.isArray(bootstrapContext.strategicNodeNetworkSvgRenderer)
+      || typeof bootstrapContext.strategicNodeNetworkSvgRenderer.render !== "function") {
+    throw new Error("Renderer requires a strategic node network SVG renderer.");
+  }
+
   if (!bootstrapContext.seasonContext || typeof bootstrapContext.seasonContext !== "object") {
     throw new Error("Renderer requires an active season context.");
   }
@@ -2472,6 +2740,8 @@ function configureRenderer(bootstrapContext) {
   appUnionConfig = applicationConfig.union && typeof applicationConfig.union === "object" ? applicationConfig.union : null;
   appWorkspace = applicationConfig.workspace && typeof applicationConfig.workspace === "object" ? applicationConfig.workspace : null;
   appSummaryConfig = applicationConfig.summary && typeof applicationConfig.summary === "object" ? applicationConfig.summary : null;
+  strategicNodeNetworkProjectionService = bootstrapContext.strategicNodeNetworkProjectionService;
+  strategicNodeNetworkSvgRenderer = bootstrapContext.strategicNodeNetworkSvgRenderer;
   dataManagementModules = bootstrapContext.dataManagementModules;
   dataManagementRuntimeFactory = bootstrapContext.dataManagementRuntimeFactory;
   trustedLocalActorFactory = bootstrapContext.trustedLocalActorFactory;

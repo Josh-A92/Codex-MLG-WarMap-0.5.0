@@ -142,6 +142,18 @@
         safeScope.createSeasonAdministrationService,
         "createSeasonAdministrationService"
       );
+      const validateStrategicNodeNetworkMap = requireFunction(
+        safeScope.validateStrategicNodeNetworkMap,
+        "validateStrategicNodeNetworkMap"
+      );
+      const createStrategicNodeNetworkProjectionService = requireFunction(
+        safeScope.createStrategicNodeNetworkProjectionService,
+        "createStrategicNodeNetworkProjectionService"
+      );
+      const createStrategicNodeNetworkSvgRenderer = requireFunction(
+        safeScope.createStrategicNodeNetworkSvgRenderer,
+        "createStrategicNodeNetworkSvgRenderer"
+      );
       const createAuthorizationPolicyService = requireFunction(
         safeScope.createAuthorizationPolicyService,
         "createAuthorizationPolicyService"
@@ -237,6 +249,10 @@
           throw createPackageValidationError("Application Bootstrap requires valid season package dependencies.");
         }
       });
+      const strategicNodeNetworkProjectionService = createStrategicNodeNetworkProjectionService({
+        validateStrategicNodeNetworkMap
+      });
+      const strategicNodeNetworkSvgRenderer = createStrategicNodeNetworkSvgRenderer();
       const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
       const seasonAdministrationService = createSeasonAdministrationService({
         preparedPackages,
@@ -305,6 +321,8 @@
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
         applicationConfig: resolveApplicationConfig(loadedSeasonPackage),
         seasonAdministrationService,
+        strategicNodeNetworkProjectionService,
+        strategicNodeNetworkSvgRenderer,
         seasonContext: {
           seasonId: requestedSeasonId,
           activated: activeSeasonActivation !== null,

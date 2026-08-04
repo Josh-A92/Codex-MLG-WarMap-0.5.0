@@ -2,9 +2,12 @@
 
 ## Status
 
-The Season 2 strategic-node geometry has been reconstructed from ten overlapping in-game screenshots (`IMG_7618.PNG` through `IMG_7627.PNG`). The reconstruction is stored in `data/season2-map.json`.
+The Season 2 map has been reconstructed as two aligned layers and is stored in `data/season2-map.json`:
 
-This milestone records verified geometry in canonical loader-ready network form (`nodes` and `connections`). It does not yet integrate Season 2 into runtime startup, loader wiring, or renderer behavior.
+1. a strategic structure network reconstructed from ten overlapping in-game screenshots (`IMG_7618.PNG` through `IMG_7627.PNG`); and
+2. a 13 by 13 resource-mine field transcribed from the user-confirmed `S2_Comprehensive_Map_01.jpg` reference.
+
+The canonical data, validator, projection service, and SVG preview renderer now preserve both layers independently.
 
 ## Confirmed Geometry
 
@@ -15,6 +18,20 @@ This milestone records verified geometry in canonical loader-ready network form 
 - The central Level 7 Metropolis connects to the four surrounding Level 6 nodes.
 - Connections are navigation relationships and are not independent ownership targets.
 - Every listed node is an independent capturable ownership target.
+
+## Confirmed Resource-Mine Field
+
+- The resource-mine layer contains a 13 by 13 field with 168 mine tiles.
+- Row 7, column 7 is intentionally absent because the central Level 7 Metropolis occupies that position.
+- Each resource-mine tile has an explicit stable identity, position, level, resource identity, and output-speed percentage.
+- Resource-mine levels increase from Level 1 at the outer edge to Level 6 near the centre.
+- The confirmed resource identities are `Gold`, `Food`, and `Iron`.
+- A resource mine's output-speed percentage equals its level: Level 1 is `+1%` through Level 6 at `+6%`.
+- Strategic structures are positioned between the resource-mine tiles, matching the in-game staggered/offset presentation.
+
+The resource-mine field is not the connection network. Connections remain route relationships between strategic structures.
+
+The strategic `M2` structure type (Level 2 Mine) is also not a resource-mine tile. These entities have separate identifiers and separate purposes even though both use the word "mine" in the game UI.
 
 ## Confirmed Structure Counts
 
@@ -44,6 +61,13 @@ The in-game screenshot sweep is authoritative for:
 - central-objective identity;
 - Trade Centres as independently ownable nodes.
 
+The separately supplied and user-confirmed `S2_Comprehensive_Map_01.jpg` reference is authoritative for:
+
+- resource-mine positions;
+- resource-mine levels;
+- Gold, Food, and Iron identity; and
+- Level 1 through Level 6 output-speed percentages.
+
 Trade Centre levels are explicit in canonical data (`TC1` through `TC5`) and are not inferred by renderer logic or coordinate-derived rules.
 
 `S2_Comprehensive_Map_02.jpg` was used as a transcription guide because it presents the same network without ownership overlays. It is not authoritative where it conflicts with the in-game screenshots.
@@ -55,15 +79,15 @@ Trade Centre levels are explicit in canonical data (`TC1` through `TC5`) and are
 
 ## Deliberately Provisional Information
 
-The community reference also assigns Gold, Food, Iron, output-speed, collection-speed, training-speed, research-speed, and healing-speed properties. These properties are not readable from the supplied in-game sweep after ownership labels are applied.
+The confirmed resource-mine field values above are no longer provisional. They describe the distinct 13 by 13 resource-mine layer only.
 
-They remain recorded as provisional claims and must not drive summaries, scoring, or other calculations until verified by stronger in-game evidence.
+Functional modifier claims attached to strategic structures remain provisional, including collection speed, training speed, research speed, healing speed, and any strategic-node Gold/Food/Iron output assignment. They must not drive summaries, scoring, or other calculations until verified by stronger evidence.
 
 ## Runtime Boundary
 
-Season 1 remains a rectangular territory-cell map. Season 2 is a strategic node-and-connection network. The current renderer and package contract must therefore gain an explicit map-topology distinction before this dataset is wired into runtime behavior.
+Season 1 remains a rectangular territory-cell map. Season 2 is a layered strategic network: a resource-mine field underneath an offset strategic structure-and-connection network.
 
-The canonical Season 2 map data is now loader-ready, but runtime loading/rendering integration remains future work.
+The Season Setup preview now loads and renders this canonical layered map. Full active-season ownership interaction remains separate future runtime work.
 
 The recommended boundary is:
 
@@ -72,7 +96,7 @@ Season package
     -> map topology: territory_grid | strategic_node_network
     -> topology-specific map definition
     -> shared ownership and evidence services
-    -> topology-specific renderer
+    -> topology-specific renderer with optional topology-owned sublayers
 ```
 
 This keeps ownership, evidence, history, union activity, and persistence reusable while allowing each season to render its actual map design.

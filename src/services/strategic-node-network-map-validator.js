@@ -9,6 +9,8 @@
     "baseMapId",
     "topologyType",
     "dimensions",
+    "mineFieldDimensions",
+    "resourceMineTiles",
     "sourceEvidence",
     "nodeTypes",
     "nodes",
@@ -22,6 +24,7 @@
   const ALLOWED_POSITION_KEYS = ["row", "column"];
   const ALLOWED_CONNECTION_KEYS = ["connectionId", "fromNodeId", "toNodeId"];
   const ALLOWED_NODE_TYPE_ENTRY_KEYS = ["type", "level", "capturable"];
+  const ALLOWED_RESOURCE_MINE_TILE_KEYS = ["mineTileId", "position", "level", "resourceId", "outputSpeedPercent"];
 
   function pushError(errors, code, path, message) {
     errors.push({ code, path, message });
@@ -141,6 +144,107 @@
     } else {
       validatePositiveInteger(errors, dimensions.columns, "dimensions.columns", "dimensions.columns");
     }
+  }
+
+  function validateMineFieldDimensions(dimensions, errors) {
+    const path = "mineFieldDimensions";
+    if (!isPlainObject(dimensions)) {
+      pushError(errors, "INVALID_OBJECT", path, `${path} must be a plain object.`);
+      return;
+    }
+
+    checkUnknownFields(errors, dimensions, ALLOWED_DIMENSIONS_KEYS, path);
+
+    if (!Object.prototype.hasOwnProperty.call(dimensions, "rows")) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.rows`, `${path}.rows is required.`);
+    } else {
+      validatePositiveInteger(errors, dimensions.rows, `${path}.rows`, `${path}.rows`);
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(dimensions, "columns")) {
+      pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.columns`, `${path}.columns is required.`);
+    } else {
+      validatePositiveInteger(errors, dimensions.columns, `${path}.columns`, `${path}.columns`);
+    }
+  }
+
+  function validateResourceMineTiles(tiles, dimensions, errors) {
+    if (!Array.isArray(tiles)) {
+      pushError(errors, "INVALID_ARRAY", "resourceMineTiles", "resourceMineTiles must be an array.");
+      return;
+    }
+
+    const tileIds = new Set();
+    const positions = new Set();
+    const rowMax = isPlainObject(dimensions) ? dimensions.rows : null;
+    const columnMax = isPlainObject(dimensions) ? dimensions.columns : null;
+
+    tiles.forEach((tile, index) => {
+      const path = `resourceMineTiles[${index}]`;
+      if (!isPlainObject(tile)) {
+        pushError(errors, "INVALID_OBJECT", path, `${path} must be a plain object.`);
+        return;
+      }
+
+      checkUnknownFields(errors, tile, ALLOWED_RESOURCE_MINE_TILE_KEYS, path);
+
+      if (!Object.prototype.hasOwnProperty.call(tile, "mineTileId")) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.mineTileId`, `${path}.mineTileId is required.`);
+      } else if (validateNonEmptyString(errors, tile.mineTileId, `${path}.mineTileId`, `${path}.mineTileId`)) {
+        if (tileIds.has(tile.mineTileId)) {
+          pushError(errors, "DUPLICATE_IDENTIFIER", `${path}.mineTileId`, `Duplicate mineTileId '${tile.mineTileId}'.`);
+        }
+        tileIds.add(tile.mineTileId);
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(tile, "position")) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.position`, `${path}.position is required.`);
+      } else if (!isPlainObject(tile.position)) {
+        pushError(errors, "INVALID_OBJECT", `${path}.position`, `${path}.position must be a plain object.`);
+      } else {
+        checkUnknownFields(errors, tile.position, ALLOWED_POSITION_KEYS, `${path}.position`);
+        const row = tile.position.row;
+        const column = tile.position.column;
+
+        if (!Object.prototype.hasOwnProperty.call(tile.position, "row")) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.position.row`, `${path}.position.row is required.`);
+        } else if (!Number.isInteger(row) || row <= 0 || !Number.isInteger(rowMax) || row > rowMax) {
+          pushError(errors, "INVALID_COORDINATE", `${path}.position.row`, `${path}.position.row must be a positive integer within mineFieldDimensions.rows.`);
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(tile.position, "column")) {
+          pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.position.column`, `${path}.position.column is required.`);
+        } else if (!Number.isInteger(column) || column <= 0 || !Number.isInteger(columnMax) || column > columnMax) {
+          pushError(errors, "INVALID_COORDINATE", `${path}.position.column`, `${path}.position.column must be a positive integer within mineFieldDimensions.columns.`);
+        }
+
+        if (Number.isInteger(row) && Number.isInteger(column)) {
+          const positionKey = `${row}|${column}`;
+          if (positions.has(positionKey)) {
+            pushError(errors, "DUPLICATE_POSITION", `${path}.position`, `Duplicate resource-mine position '${positionKey}'.`);
+          }
+          positions.add(positionKey);
+        }
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(tile, "level")) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.level`, `${path}.level is required.`);
+      } else {
+        validatePositiveInteger(errors, tile.level, `${path}.level`, `${path}.level`);
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(tile, "resourceId")) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.resourceId`, `${path}.resourceId is required.`);
+      } else {
+        validateNonEmptyString(errors, tile.resourceId, `${path}.resourceId`, `${path}.resourceId`);
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(tile, "outputSpeedPercent")) {
+        pushError(errors, "MISSING_REQUIRED_FIELD", `${path}.outputSpeedPercent`, `${path}.outputSpeedPercent is required.`);
+      } else if (typeof tile.outputSpeedPercent !== "number" || !Number.isFinite(tile.outputSpeedPercent) || tile.outputSpeedPercent < 0) {
+        pushError(errors, "INVALID_NUMBER", `${path}.outputSpeedPercent`, `${path}.outputSpeedPercent must be a finite non-negative number.`);
+      }
+    });
   }
 
   function validateNodeTypes(nodeTypes, errors) {
@@ -377,6 +481,19 @@
         pushError(errors, "MISSING_REQUIRED_FIELD", "dimensions", "dimensions is required.");
       } else {
         validateDimensions(candidate.dimensions, errors);
+      }
+
+      const hasMineFieldDimensions = Object.prototype.hasOwnProperty.call(candidate, "mineFieldDimensions");
+      const hasResourceMineTiles = Object.prototype.hasOwnProperty.call(candidate, "resourceMineTiles");
+      if (hasMineFieldDimensions !== hasResourceMineTiles) {
+        const missingPath = hasMineFieldDimensions ? "resourceMineTiles" : "mineFieldDimensions";
+        pushError(errors, "MISSING_REQUIRED_FIELD", missingPath, `${missingPath} is required when the resource-mine layer is declared.`);
+      }
+      if (hasMineFieldDimensions) {
+        validateMineFieldDimensions(candidate.mineFieldDimensions, errors);
+      }
+      if (hasResourceMineTiles) {
+        validateResourceMineTiles(candidate.resourceMineTiles, candidate.mineFieldDimensions, errors);
       }
 
       if (!Object.prototype.hasOwnProperty.call(candidate, "sourceEvidence")) {

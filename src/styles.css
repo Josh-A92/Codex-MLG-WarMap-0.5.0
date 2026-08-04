@@ -395,6 +395,38 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
   border-color:rgba(92,218,144,.55);
   background:rgba(30,115,69,.26);
 }
+.season-setup-preview-surface {
+  margin-top:1rem;
+  padding:1rem;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:0.75rem;
+  background:linear-gradient(180deg, rgba(255,255,255,.2), rgba(0,0,0,.12));
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+.season-setup-preview-surface svg {
+  display:block;
+  width:100%;
+  height:auto;
+  min-width:620px;
+  max-width:none;
+  margin:0 auto;
+  border-radius:0.75rem;
+}
+.season-setup-preview-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.75rem;
+  margin-top:0.75rem;
+  font-size:0.95rem;
+  color:#f7e7b0;
+}
+.season-setup-preview-details {
+  margin-top:1rem;
+  padding:0.75rem 1rem;
+  border-radius:0.75rem;
+  background:rgba(255,255,255,.06);
+}
 .season-setup-progress {
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));

@@ -23,6 +23,26 @@ test("Season Setup is a dedicated workspace rather than a subordinate selector",
   assert.strictEqual((html.match(/data-workspace-target="season-setup"/g) || []).length, 1);
 });
 
+test("strategic-network scripts load before the renderer and bootstrap in dependency order", () => {
+  const validatorIndex = html.indexOf("src/services/strategic-node-network-map-validator.js");
+  const projectionIndex = html.indexOf("src/services/strategic-node-network-projection-service.js");
+  const svgIndex = html.indexOf("src/services/strategic-node-network-svg-renderer.js");
+  const rendererIndex = html.indexOf("src/map-renderer.js");
+  const season1Index = html.indexOf("src/seasons/season1-package.js");
+  const season2Index = html.indexOf("src/seasons/season2-package.js");
+  const bootstrapIndex = html.indexOf("src/app/application-bootstrap.js");
+  const gameRulesEngineIndex = html.indexOf("src/services/game-rules-engine.js");
+
+  assert.ok(validatorIndex !== -1 && validatorIndex < rendererIndex);
+  assert.ok(projectionIndex !== -1 && projectionIndex < rendererIndex);
+  assert.ok(svgIndex !== -1 && svgIndex < rendererIndex);
+  assert.ok(season1Index !== -1 && season2Index !== -1 && season1Index < season2Index);
+  assert.ok(season2Index !== -1 && season2Index < gameRulesEngineIndex);
+  assert.ok(season2Index !== -1 && season2Index < rendererIndex);
+  assert.ok(season2Index !== -1 && season2Index < bootstrapIndex);
+  assert.strictEqual((html.match(/src\/seasons\/season2-package\.js/g) || []).length, 1);
+});
+
 test("approved three-step labels and package-driven confirmation areas are present", () => {
   assert.match(renderer, /Season & Servers/);
   assert.match(renderer, /Confirm Loaded Setup/);
@@ -85,4 +105,84 @@ test("Season Setup has responsive single-column phone rules", () => {
   assert.match(styles, /\.season-setup-progress[\s\S]*grid-template-columns:1fr/);
   assert.match(styles, /\.season-setup-server-grid,[\s\S]*grid-template-columns:1fr/);
   assert.match(styles, /@media \(max-width: 390px\)[\s\S]*\.season-setup-actions/);
+});
+
+test("draft season setup exposes preview-only controls and a map preview entry point", () => {
+  assert.match(renderer, /Draft preview — cannot be activated/);
+  assert.match(renderer, /Load Map Preview/);
+  assert.match(renderer, /season-setup-preview-surface/);
+  assert.doesNotMatch(renderer, /data-season-setup-preview-node/);
+  assert.match(renderer, /structure type/);
+  assert.match(renderer, /type code/);
+});
+
+test("renderer config validates and captures both injected strategic-network services", () => {
+  assert.match(renderer, /Renderer requires a strategic node network projection service/);
+  assert.match(renderer, /Renderer requires a strategic node network SVG renderer/);
+  assert.match(renderer, /strategicNodeNetworkProjectionService = bootstrapContext\.strategicNodeNetworkProjectionService/);
+  assert.match(renderer, /strategicNodeNetworkSvgRenderer = bootstrapContext\.strategicNodeNetworkSvgRenderer/);
+});
+
+test("active Season 1 setup still offers a prepared-package selector", () => {
+  assert.match(renderer, /function renderPreparedSeasonSelector/);
+  assert.match(renderer, /data-season-setup-action", "select-season"/);
+  assert.match(renderer, /renderPreparedSeasonSelector\(seasonSetupContent, preparedSeasons\)/);
+});
+
+test("draft Season 2 uses the preview-only branch without activation controls", () => {
+  const renderSeasonSetupSource = renderer.slice(
+    renderer.indexOf("function renderSeasonSetup()"),
+    renderer.indexOf("function applyActivatedServerSelection")
+  );
+  assert.match(renderSeasonSetupSource, /if \(activeSeason\) \{[\s\S]*renderPreparedSeasonSelector\(seasonSetupContent, preparedSeasons\);[\s\S]*renderDraftSeasonPreview\(seasonSetupContent, preparedView\);[\s\S]*return;/);
+  assert.match(renderSeasonSetupSource, /if \(preparedView\.summary\.seasonStatus !== "active"\) \{[\s\S]*renderPreparedSeasonSelector\(seasonSetupContent, preparedSeasons\);[\s\S]*renderDraftSeasonPreview\(seasonSetupContent, preparedView\);[\s\S]*return;/);
+  assert.doesNotMatch(renderSeasonSetupSource, /renderSeasonSetupActions\(seasonSetupContent, canContinue\);[\s\S]*renderSeasonSetupActions\(seasonSetupContent, canContinue\);/);
+});
+
+test("preview loading uses the prepared summary map reference", () => {
+  assert.match(renderer, /preparedView\.summary\.map\.mapDataRef/);
+  assert.doesNotMatch(renderer, /preparedView\.package\.rulesDefinition/);
+});
+
+test("Season 2 preview uses its dedicated structure asset family", () => {
+  const assetPaths = [
+    "assets/sprites/season2/village.png",
+    "assets/sprites/season2/strategic-mine.png",
+    "assets/sprites/season2/manor.png",
+    "assets/sprites/season2/factory.png",
+    "assets/sprites/season2/town.png",
+    "assets/sprites/season2/trade-centre.png",
+    "assets/sprites/season2/building-guild.png",
+    "assets/sprites/season2/metropolis.png",
+    "assets/sprites/season2/central-metropolis.png"
+  ];
+
+  for (const assetPath of assetPaths) {
+    assert.ok(renderer.includes(assetPath), `Expected renderer mapping for ${assetPath}`);
+    assert.ok(fs.existsSync(path.join(root, assetPath)), `Expected asset file ${assetPath}`);
+  }
+  assert.doesNotMatch(renderer.slice(
+    renderer.indexOf("function createPreviewAssetMap()"),
+    renderer.indexOf("function renderDraftSeasonPreview")
+  ), /assets\/sprites\/(?:village|mine|manor|factory|town|metropolis)\.png/);
+});
+
+test("resource-mine facts remain available in selection details", () => {
+  assert.match(renderer, /selectedMineTileData\.resourceId/);
+  assert.match(renderer, /selectedMineTileData\.level/);
+  assert.match(renderer, /selectedMineTileData\.outputSpeedPercent/);
+  assert.match(renderer, /g\[data-mine-tile-id\]/);
+});
+
+test("season setup preview styling uses a bounded horizontally scrollable surface", () => {
+  const surfaceBlock = (styles.match(/\.season-setup-preview-surface\s*\{([\s\S]*?)\n\}/) || [])[1] || "";
+  const svgBlock = (styles.match(/\.season-setup-preview-surface svg\s*\{([\s\S]*?)\n\}/) || [])[1] || "";
+
+  assert.ok(surfaceBlock, "Expected a .season-setup-preview-surface CSS block");
+  assert.ok(svgBlock, "Expected a .season-setup-preview-surface svg CSS block");
+  assert.match(surfaceBlock, /overflow-x:auto/);
+  assert.match(svgBlock, /width:100%/);
+  assert.match(svgBlock, /min-width:620px/);
+  assert.match(svgBlock, /max-width:none/);
+  assert.doesNotMatch(svgBlock, /max-width:100%/);
 });

@@ -38,6 +38,32 @@ runTest("real Season 2 map validates", () => {
 runTest("real Season 2 map has 145 nodes and 268 connections", () => {
   assert.strictEqual(season2Map.nodes.length, 145);
   assert.strictEqual(season2Map.connections.length, 268);
+  assert.strictEqual(season2Map.resourceMineTiles.length, 168);
+});
+
+runTest("resource-mine layer validates strict identity position and value fields", () => {
+  const duplicate = clone(season2Map);
+  duplicate.resourceMineTiles[1].mineTileId = duplicate.resourceMineTiles[0].mineTileId;
+  duplicate.resourceMineTiles[2].position = clone(duplicate.resourceMineTiles[0].position);
+  duplicate.resourceMineTiles[3].outputSpeedPercent = -1;
+  duplicate.resourceMineTiles[4].extra = true;
+
+  const result = validateStrategicNodeNetworkMap(duplicate);
+  assert.strictEqual(result.valid, false);
+  assertError(result, "DUPLICATE_IDENTIFIER", "resourceMineTiles[1].mineTileId");
+  assertError(result, "DUPLICATE_POSITION", "resourceMineTiles[2].position");
+  assertError(result, "INVALID_NUMBER", "resourceMineTiles[3].outputSpeedPercent");
+  assertError(result, "UNKNOWN_FIELD", "resourceMineTiles[4].extra");
+});
+
+runTest("resource-mine layer fields must be declared together", () => {
+  const missingTiles = clone(season2Map);
+  delete missingTiles.resourceMineTiles;
+  const missingDimensions = clone(season2Map);
+  delete missingDimensions.mineFieldDimensions;
+
+  assertError(validateStrategicNodeNetworkMap(missingTiles), "MISSING_REQUIRED_FIELD", "resourceMineTiles");
+  assertError(validateStrategicNodeNetworkMap(missingDimensions), "MISSING_REQUIRED_FIELD", "mineFieldDimensions");
 });
 
 runTest("confirmed type counts are preserved", () => {

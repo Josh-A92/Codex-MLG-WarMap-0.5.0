@@ -189,6 +189,27 @@ function createValidScope(options) {
           }
         };
       }),
+    validateStrategicNodeNetworkMap:
+      dependencyOverrides.validateStrategicNodeNetworkMap || (() => ({ valid: true, errors: [], warnings: [] })),
+    createStrategicNodeNetworkProjectionService:
+      dependencyOverrides.createStrategicNodeNetworkProjectionService || ((serviceOptions) => {
+        callLog.push("createStrategicNodeNetworkProjectionService");
+        return {
+          validator: serviceOptions.validateStrategicNodeNetworkMap,
+          project() {
+            return { nodes: [], connections: [] };
+          }
+        };
+      }),
+    createStrategicNodeNetworkSvgRenderer:
+      dependencyOverrides.createStrategicNodeNetworkSvgRenderer || (() => {
+        callLog.push("createStrategicNodeNetworkSvgRenderer");
+        return {
+          render() {
+            return { markup: "<svg></svg>", nodeCount: 0, connectionCount: 0 };
+          }
+        };
+      }),
     createSeasonAdministrationService:
       dependencyOverrides.createSeasonAdministrationService || ((serviceOptions) => {
         callLog.push("createSeasonAdministrationService");
@@ -406,6 +427,18 @@ runTest("bootstrap registers both prepared packages for season administration", 
 
   assert.deepStrictEqual(preparedSeasonIds, ["season-1", "season-2"]);
   assert.strictEqual(rendererCalls[0].seasonContext.seasonId, "season-1");
+});
+
+runTest("bootstrap passes the projection and SVG renderer services into the renderer context", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope();
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.ok(callLog.includes("createStrategicNodeNetworkProjectionService"));
+  assert.ok(callLog.includes("createStrategicNodeNetworkSvgRenderer"));
+  assert.strictEqual(typeof rendererCalls[0].strategicNodeNetworkProjectionService, "object");
+  assert.strictEqual(typeof rendererCalls[0].strategicNodeNetworkSvgRenderer, "object");
+  assert.strictEqual(typeof rendererCalls[0].strategicNodeNetworkProjectionService.project, "function");
+  assert.strictEqual(typeof rendererCalls[0].strategicNodeNetworkSvgRenderer.render, "function");
 });
 
 runTest("bootstrap refuses to initialize renderer when SEASON_2_PACKAGE is missing", async () => {

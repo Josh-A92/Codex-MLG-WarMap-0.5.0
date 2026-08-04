@@ -55,6 +55,16 @@
         baseMapId: mapData.baseMapId,
         topologyType: mapData.topologyType,
         dimensions: deepClone(mapData.dimensions),
+        mineFieldDimensions: mapData.mineFieldDimensions ? deepClone(mapData.mineFieldDimensions) : null,
+        resourceMineTiles: Array.isArray(mapData.resourceMineTiles)
+          ? mapData.resourceMineTiles.map((tile) => ({
+            mineTileId: tile.mineTileId,
+            position: deepClone(tile.position),
+            level: tile.level,
+            resourceId: tile.resourceId,
+            outputSpeedPercent: tile.outputSpeedPercent
+          }))
+          : [],
         nodes: mapData.nodes.map((node) => {
           const nodeTypeEntry = mapData.nodeTypes[node.typeCode];
           return {

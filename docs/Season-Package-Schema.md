@@ -333,6 +333,9 @@ For `strategic_node_network`:
 Topology model notes:
 - territory grids expose cells and logical structures
 - strategic networks expose nodes and connections
+- a strategic-network external map may additionally declare a topology-owned resource-mine sublayer using paired `mineFieldDimensions` and `resourceMineTiles` fields
+- resource-mine tiles remain distinct from strategic nodes and connections; a strategic structure whose name contains "Mine" does not become a resource-mine tile
+- when present, each resource-mine tile requires its own stable identity, integer position within `mineFieldDimensions`, positive level, resource identity, and non-negative output-speed percentage
 - both topology types require stable map-target identity within the package contract
 
 Optional fields:

@@ -51,6 +51,34 @@ runTest("the explicit nodes include 144 grid nodes plus one center node", () => 
   });
 });
 
+runTest("the resource-mine field is a distinct confirmed 13 by 13 layer", () => {
+  assert.deepStrictEqual(map.mineFieldDimensions, { rows: 13, columns: 13 });
+  assert.strictEqual(map.resourceMineTiles.length, 168);
+  assert.strictEqual(new Set(map.resourceMineTiles.map((tile) => tile.mineTileId)).size, 168);
+  assert.strictEqual(new Set(map.resourceMineTiles.map((tile) => `${tile.position.row}|${tile.position.column}`)).size, 168);
+  assert.strictEqual(map.resourceMineTiles.some((tile) => tile.position.row === 7 && tile.position.column === 7), false);
+});
+
+runTest("resource-mine levels and output values follow the confirmed inward rings", () => {
+  map.resourceMineTiles.forEach((tile) => {
+    const expectedLevel = Math.min(
+      tile.position.row,
+      tile.position.column,
+      14 - tile.position.row,
+      14 - tile.position.column
+    );
+    assert.strictEqual(tile.level, expectedLevel, tile.mineTileId);
+    assert.strictEqual(tile.outputSpeedPercent, expectedLevel, tile.mineTileId);
+    assert.ok(["gold", "food", "iron"].includes(tile.resourceId), tile.mineTileId);
+  });
+});
+
+runTest("strategic M2 structures remain distinct from resource-mine tiles", () => {
+  assert.strictEqual(map.nodes.filter((node) => node.typeCode === "M2").length, 32);
+  assert.strictEqual(map.resourceMineTiles.some((tile) => tile.mineTileId === "s2-r01-c01"), false);
+  assert.strictEqual(map.resourceMineTiles.every((tile) => !Object.prototype.hasOwnProperty.call(tile, "typeCode")), true);
+});
+
 runTest("confirmed node-type counts match the reconstructed map", () => {
   const counts = {};
   map.nodes.forEach((node) => {

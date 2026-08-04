@@ -7,6 +7,1692 @@
     "rows": 12,
     "columns": 12
   },
+  "mineFieldDimensions": {
+    "rows": 13,
+    "columns": 13
+  },
+  "resourceMineTiles": [
+    {
+      "mineTileId": "s2-resource-mine-r01-c01",
+      "position": {
+        "row": 1,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c02",
+      "position": {
+        "row": 1,
+        "column": 2
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c03",
+      "position": {
+        "row": 1,
+        "column": 3
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c04",
+      "position": {
+        "row": 1,
+        "column": 4
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c05",
+      "position": {
+        "row": 1,
+        "column": 5
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c06",
+      "position": {
+        "row": 1,
+        "column": 6
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c07",
+      "position": {
+        "row": 1,
+        "column": 7
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c08",
+      "position": {
+        "row": 1,
+        "column": 8
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c09",
+      "position": {
+        "row": 1,
+        "column": 9
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c10",
+      "position": {
+        "row": 1,
+        "column": 10
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c11",
+      "position": {
+        "row": 1,
+        "column": 11
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c12",
+      "position": {
+        "row": 1,
+        "column": 12
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r01-c13",
+      "position": {
+        "row": 1,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c01",
+      "position": {
+        "row": 2,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c02",
+      "position": {
+        "row": 2,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c03",
+      "position": {
+        "row": 2,
+        "column": 3
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c04",
+      "position": {
+        "row": 2,
+        "column": 4
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c05",
+      "position": {
+        "row": 2,
+        "column": 5
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c06",
+      "position": {
+        "row": 2,
+        "column": 6
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c07",
+      "position": {
+        "row": 2,
+        "column": 7
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c08",
+      "position": {
+        "row": 2,
+        "column": 8
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c09",
+      "position": {
+        "row": 2,
+        "column": 9
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c10",
+      "position": {
+        "row": 2,
+        "column": 10
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c11",
+      "position": {
+        "row": 2,
+        "column": 11
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c12",
+      "position": {
+        "row": 2,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r02-c13",
+      "position": {
+        "row": 2,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c01",
+      "position": {
+        "row": 3,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c02",
+      "position": {
+        "row": 3,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c03",
+      "position": {
+        "row": 3,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c04",
+      "position": {
+        "row": 3,
+        "column": 4
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c05",
+      "position": {
+        "row": 3,
+        "column": 5
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c06",
+      "position": {
+        "row": 3,
+        "column": 6
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c07",
+      "position": {
+        "row": 3,
+        "column": 7
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c08",
+      "position": {
+        "row": 3,
+        "column": 8
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c09",
+      "position": {
+        "row": 3,
+        "column": 9
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c10",
+      "position": {
+        "row": 3,
+        "column": 10
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c11",
+      "position": {
+        "row": 3,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c12",
+      "position": {
+        "row": 3,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r03-c13",
+      "position": {
+        "row": 3,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c01",
+      "position": {
+        "row": 4,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c02",
+      "position": {
+        "row": 4,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c03",
+      "position": {
+        "row": 4,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c04",
+      "position": {
+        "row": 4,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c05",
+      "position": {
+        "row": 4,
+        "column": 5
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c06",
+      "position": {
+        "row": 4,
+        "column": 6
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c07",
+      "position": {
+        "row": 4,
+        "column": 7
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c08",
+      "position": {
+        "row": 4,
+        "column": 8
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c09",
+      "position": {
+        "row": 4,
+        "column": 9
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c10",
+      "position": {
+        "row": 4,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c11",
+      "position": {
+        "row": 4,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c12",
+      "position": {
+        "row": 4,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r04-c13",
+      "position": {
+        "row": 4,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c01",
+      "position": {
+        "row": 5,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c02",
+      "position": {
+        "row": 5,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c03",
+      "position": {
+        "row": 5,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c04",
+      "position": {
+        "row": 5,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c05",
+      "position": {
+        "row": 5,
+        "column": 5
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c06",
+      "position": {
+        "row": 5,
+        "column": 6
+      },
+      "level": 5,
+      "resourceId": "food",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c07",
+      "position": {
+        "row": 5,
+        "column": 7
+      },
+      "level": 5,
+      "resourceId": "iron",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c08",
+      "position": {
+        "row": 5,
+        "column": 8
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c09",
+      "position": {
+        "row": 5,
+        "column": 9
+      },
+      "level": 5,
+      "resourceId": "food",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c10",
+      "position": {
+        "row": 5,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c11",
+      "position": {
+        "row": 5,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c12",
+      "position": {
+        "row": 5,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r05-c13",
+      "position": {
+        "row": 5,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c01",
+      "position": {
+        "row": 6,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c02",
+      "position": {
+        "row": 6,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c03",
+      "position": {
+        "row": 6,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c04",
+      "position": {
+        "row": 6,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c05",
+      "position": {
+        "row": 6,
+        "column": 5
+      },
+      "level": 5,
+      "resourceId": "iron",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c06",
+      "position": {
+        "row": 6,
+        "column": 6
+      },
+      "level": 6,
+      "resourceId": "gold",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c07",
+      "position": {
+        "row": 6,
+        "column": 7
+      },
+      "level": 6,
+      "resourceId": "food",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c08",
+      "position": {
+        "row": 6,
+        "column": 8
+      },
+      "level": 6,
+      "resourceId": "iron",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c09",
+      "position": {
+        "row": 6,
+        "column": 9
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c10",
+      "position": {
+        "row": 6,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c11",
+      "position": {
+        "row": 6,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c12",
+      "position": {
+        "row": 6,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r06-c13",
+      "position": {
+        "row": 6,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c01",
+      "position": {
+        "row": 7,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c02",
+      "position": {
+        "row": 7,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c03",
+      "position": {
+        "row": 7,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c04",
+      "position": {
+        "row": 7,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c05",
+      "position": {
+        "row": 7,
+        "column": 5
+      },
+      "level": 5,
+      "resourceId": "food",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c06",
+      "position": {
+        "row": 7,
+        "column": 6
+      },
+      "level": 6,
+      "resourceId": "gold",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c08",
+      "position": {
+        "row": 7,
+        "column": 8
+      },
+      "level": 6,
+      "resourceId": "food",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c09",
+      "position": {
+        "row": 7,
+        "column": 9
+      },
+      "level": 5,
+      "resourceId": "iron",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c10",
+      "position": {
+        "row": 7,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c11",
+      "position": {
+        "row": 7,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c12",
+      "position": {
+        "row": 7,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r07-c13",
+      "position": {
+        "row": 7,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c01",
+      "position": {
+        "row": 8,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c02",
+      "position": {
+        "row": 8,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c03",
+      "position": {
+        "row": 8,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c04",
+      "position": {
+        "row": 8,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c05",
+      "position": {
+        "row": 8,
+        "column": 5
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c06",
+      "position": {
+        "row": 8,
+        "column": 6
+      },
+      "level": 6,
+      "resourceId": "iron",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c07",
+      "position": {
+        "row": 8,
+        "column": 7
+      },
+      "level": 6,
+      "resourceId": "food",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c08",
+      "position": {
+        "row": 8,
+        "column": 8
+      },
+      "level": 6,
+      "resourceId": "iron",
+      "outputSpeedPercent": 6
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c09",
+      "position": {
+        "row": 8,
+        "column": 9
+      },
+      "level": 5,
+      "resourceId": "food",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c10",
+      "position": {
+        "row": 8,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c11",
+      "position": {
+        "row": 8,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c12",
+      "position": {
+        "row": 8,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r08-c13",
+      "position": {
+        "row": 8,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c01",
+      "position": {
+        "row": 9,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c02",
+      "position": {
+        "row": 9,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c03",
+      "position": {
+        "row": 9,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c04",
+      "position": {
+        "row": 9,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c05",
+      "position": {
+        "row": 9,
+        "column": 5
+      },
+      "level": 5,
+      "resourceId": "iron",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c06",
+      "position": {
+        "row": 9,
+        "column": 6
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c07",
+      "position": {
+        "row": 9,
+        "column": 7
+      },
+      "level": 5,
+      "resourceId": "food",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c08",
+      "position": {
+        "row": 9,
+        "column": 8
+      },
+      "level": 5,
+      "resourceId": "iron",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c09",
+      "position": {
+        "row": 9,
+        "column": 9
+      },
+      "level": 5,
+      "resourceId": "gold",
+      "outputSpeedPercent": 5
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c10",
+      "position": {
+        "row": 9,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c11",
+      "position": {
+        "row": 9,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c12",
+      "position": {
+        "row": 9,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r09-c13",
+      "position": {
+        "row": 9,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c01",
+      "position": {
+        "row": 10,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c02",
+      "position": {
+        "row": 10,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c03",
+      "position": {
+        "row": 10,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c04",
+      "position": {
+        "row": 10,
+        "column": 4
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c05",
+      "position": {
+        "row": 10,
+        "column": 5
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c06",
+      "position": {
+        "row": 10,
+        "column": 6
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c07",
+      "position": {
+        "row": 10,
+        "column": 7
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c08",
+      "position": {
+        "row": 10,
+        "column": 8
+      },
+      "level": 4,
+      "resourceId": "food",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c09",
+      "position": {
+        "row": 10,
+        "column": 9
+      },
+      "level": 4,
+      "resourceId": "gold",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c10",
+      "position": {
+        "row": 10,
+        "column": 10
+      },
+      "level": 4,
+      "resourceId": "iron",
+      "outputSpeedPercent": 4
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c11",
+      "position": {
+        "row": 10,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c12",
+      "position": {
+        "row": 10,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r10-c13",
+      "position": {
+        "row": 10,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c01",
+      "position": {
+        "row": 11,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c02",
+      "position": {
+        "row": 11,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c03",
+      "position": {
+        "row": 11,
+        "column": 3
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c04",
+      "position": {
+        "row": 11,
+        "column": 4
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c05",
+      "position": {
+        "row": 11,
+        "column": 5
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c06",
+      "position": {
+        "row": 11,
+        "column": 6
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c07",
+      "position": {
+        "row": 11,
+        "column": 7
+      },
+      "level": 3,
+      "resourceId": "gold",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c08",
+      "position": {
+        "row": 11,
+        "column": 8
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c09",
+      "position": {
+        "row": 11,
+        "column": 9
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c10",
+      "position": {
+        "row": 11,
+        "column": 10
+      },
+      "level": 3,
+      "resourceId": "food",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c11",
+      "position": {
+        "row": 11,
+        "column": 11
+      },
+      "level": 3,
+      "resourceId": "iron",
+      "outputSpeedPercent": 3
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c12",
+      "position": {
+        "row": 11,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r11-c13",
+      "position": {
+        "row": 11,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c01",
+      "position": {
+        "row": 12,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c02",
+      "position": {
+        "row": 12,
+        "column": 2
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c03",
+      "position": {
+        "row": 12,
+        "column": 3
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c04",
+      "position": {
+        "row": 12,
+        "column": 4
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c05",
+      "position": {
+        "row": 12,
+        "column": 5
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c06",
+      "position": {
+        "row": 12,
+        "column": 6
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c07",
+      "position": {
+        "row": 12,
+        "column": 7
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c08",
+      "position": {
+        "row": 12,
+        "column": 8
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c09",
+      "position": {
+        "row": 12,
+        "column": 9
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c10",
+      "position": {
+        "row": 12,
+        "column": 10
+      },
+      "level": 2,
+      "resourceId": "food",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c11",
+      "position": {
+        "row": 12,
+        "column": 11
+      },
+      "level": 2,
+      "resourceId": "iron",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c12",
+      "position": {
+        "row": 12,
+        "column": 12
+      },
+      "level": 2,
+      "resourceId": "gold",
+      "outputSpeedPercent": 2
+    },
+    {
+      "mineTileId": "s2-resource-mine-r12-c13",
+      "position": {
+        "row": 12,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c01",
+      "position": {
+        "row": 13,
+        "column": 1
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c02",
+      "position": {
+        "row": 13,
+        "column": 2
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c03",
+      "position": {
+        "row": 13,
+        "column": 3
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c04",
+      "position": {
+        "row": 13,
+        "column": 4
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c05",
+      "position": {
+        "row": 13,
+        "column": 5
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c06",
+      "position": {
+        "row": 13,
+        "column": 6
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c07",
+      "position": {
+        "row": 13,
+        "column": 7
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c08",
+      "position": {
+        "row": 13,
+        "column": 8
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c09",
+      "position": {
+        "row": 13,
+        "column": 9
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c10",
+      "position": {
+        "row": 13,
+        "column": 10
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c11",
+      "position": {
+        "row": 13,
+        "column": 11
+      },
+      "level": 1,
+      "resourceId": "gold",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c12",
+      "position": {
+        "row": 13,
+        "column": 12
+      },
+      "level": 1,
+      "resourceId": "food",
+      "outputSpeedPercent": 1
+    },
+    {
+      "mineTileId": "s2-resource-mine-r13-c13",
+      "position": {
+        "row": 13,
+        "column": 13
+      },
+      "level": 1,
+      "resourceId": "iron",
+      "outputSpeedPercent": 1
+    }
+  ],
   "sourceEvidence": {
     "geometryAuthority": "in_game_screenshot_sweep",
     "screenshots": [
@@ -23,7 +1709,9 @@
     ],
     "communityReference": "S2_Comprehensive_Map_02.jpg",
     "communityReferenceRole": "transcription_guide_only",
-    "verificationNote": "The overlapping in-game sweep is authoritative for node placement, displayed structure identity, and connections. Community-only resource and speed attributes remain provisional."
+    "mineFieldReference": "S2_Comprehensive_Map_01.jpg",
+    "mineFieldReferenceRole": "user_confirmed_resource_mine_transcription",
+    "verificationNote": "The overlapping in-game sweep is authoritative for strategic-structure placement, identity, and adjacency. The separately supplied and user-confirmed mine-field reference is authoritative for Level 1-6 resource-mine placement, Gold/Food/Iron identity, and output-speed percentage. Strategic M2 structures and resource-mine tiles are distinct map entities."
   },
   "nodeTypes": {
     "V1": {
@@ -2598,7 +4286,7 @@
   ],
   "provisionalCommunityClaims": [
     {
-      "claim": "Non-Trade-Centre nodes provide Gold, Food, Iron, output-speed, or collection-speed modifiers according to position.",
+      "claim": "Strategic structure nodes may provide Gold, Food, Iron, output-speed, or collection-speed modifiers according to position; this claim is separate from the confirmed resource-mine field.",
       "status": "unverified",
       "calculationEligible": false
     },
