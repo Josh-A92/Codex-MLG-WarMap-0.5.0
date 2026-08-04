@@ -17,24 +17,59 @@
     return value;
   }
 
+  function createPackageValidationError(message) {
+    if (globalScope && typeof globalScope.SeasonPackageLoadError === "function") {
+      return new globalScope.SeasonPackageLoadError("PACKAGE_VALIDATION_FAILED", message, null);
+    }
+
+    return new Error(message);
+  }
+
   function requireConfigValue(value, fieldPath) {
     if (typeof value !== "string" || value.trim() === "") {
-      throw new Error(`Application Bootstrap requires ${fieldPath}.`);
+      throw createPackageValidationError(`Application Bootstrap requires ${fieldPath}.`);
     }
 
     return value;
   }
 
-  function resolveBundledSeasonPackage(scope) {
-    const seasonPackage = scope && typeof scope.SEASON_1_PACKAGE === "object"
-      ? scope.SEASON_1_PACKAGE
-      : null;
-
-    if (!seasonPackage) {
-      throw new Error("Application Bootstrap requires SEASON_1_PACKAGE.");
+  function requireSeasonPackage(value, fieldPath) {
+    if (!value || typeof value !== "object") {
+      throw new Error(`Application Bootstrap requires ${fieldPath}.`);
     }
 
-    return seasonPackage;
+    const packageIdentity = value.packageIdentity && typeof value.packageIdentity === "object"
+      ? value.packageIdentity
+      : null;
+    const rulesDefinition = value.rulesDefinition && typeof value.rulesDefinition === "object"
+      ? value.rulesDefinition
+      : null;
+    const applicationConfig = value.applicationConfig && typeof value.applicationConfig === "object"
+      ? value.applicationConfig
+      : null;
+
+    if (!packageIdentity || !rulesDefinition || !applicationConfig) {
+      throw createPackageValidationError(`Application Bootstrap requires ${fieldPath} to be a complete package definition.`);
+    }
+
+    if (typeof packageIdentity.seasonId !== "string" || packageIdentity.seasonId.trim() === "") {
+      throw createPackageValidationError(`Application Bootstrap requires packageIdentity.seasonId on ${fieldPath}.`);
+    }
+
+    return value;
+  }
+
+  function resolveBundledSeasonPackages(scope) {
+    const seasonPackage = requireSeasonPackage(
+      scope && typeof scope.SEASON_1_PACKAGE === "object" ? scope.SEASON_1_PACKAGE : null,
+      "SEASON_1_PACKAGE"
+    );
+    const seasonTwoPackage = requireSeasonPackage(
+      scope && typeof scope.SEASON_2_PACKAGE === "object" ? scope.SEASON_2_PACKAGE : null,
+      "SEASON_2_PACKAGE"
+    );
+
+    return [seasonPackage, seasonTwoPackage];
   }
 
   function resolveRequestedSeasonId(seasonPackage) {
@@ -194,10 +229,17 @@
         "warMapPersistenceStorage"
       );
 
-      const bundledSeasonPackage = resolveBundledSeasonPackage(safeScope);
+      const [bundledSeasonPackage, bundledSeasonTwoPackage] = resolveBundledSeasonPackages(safeScope);
+      const preparedPackages = [bundledSeasonPackage, bundledSeasonTwoPackage];
+      preparedPackages.forEach((candidatePackage) => {
+        const validationResult = validateSeasonPackage(candidatePackage);
+        if (!validationResult || validationResult.valid !== true) {
+          throw createPackageValidationError("Application Bootstrap requires valid season package dependencies.");
+        }
+      });
       const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
       const seasonAdministrationService = createSeasonAdministrationService({
-        preparedPackages: [bundledSeasonPackage],
+        preparedPackages,
         validateSeasonPackage,
         authorizationPolicyService: createAuthorizationPolicyService(),
         storageAdapter,

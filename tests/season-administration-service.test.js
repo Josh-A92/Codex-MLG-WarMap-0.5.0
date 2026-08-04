@@ -6,6 +6,7 @@ const {
 } = require("../src/services/season-administration-service.js");
 const { validateSeasonPackage } = require("../src/services/season-package-validator.js");
 const { SEASON_1_PACKAGE } = require("../src/seasons/season1-package.js");
+const { SEASON_2_PACKAGE } = require("../src/seasons/season2-package.js");
 
 const scheduledTests = [];
 function test(name, fn) { scheduledTests.push({ name, fn }); }
@@ -32,7 +33,7 @@ function createSetup(options) {
     }
   };
   const service = createSeasonAdministrationService({
-    preparedPackages: values.preparedPackages || [SEASON_1_PACKAGE],
+    preparedPackages: values.preparedPackages || [SEASON_1_PACKAGE, SEASON_2_PACKAGE],
     validateSeasonPackage: values.validateSeasonPackage || validateSeasonPackage,
     authorizationPolicyService,
     storageAdapter,
@@ -53,9 +54,20 @@ function activationRequest(overrides) {
 test("lists validated prepared seasons using package-driven summaries", () => {
   const { service } = createSetup();
   const listed = service.listPreparedSeasons();
-  assert.strictEqual(listed.length, 1);
+  assert.strictEqual(listed.length, 2);
   assert.strictEqual(listed[0].seasonId, "season-1");
-  assert.deepStrictEqual(listed[0].map, { baseMapId: "season1-map", rows: 20, columns: 20 });
+  assert.deepStrictEqual(listed[0].map, {
+    baseMapId: "season1-map",
+    rows: 20,
+    columns: 20,
+    topologyType: "territory_grid",
+    mapDataRef: "data/season1-map.json"
+  });
+  const seasonTwo = listed.find((entry) => entry.seasonId === "season-2");
+  assert.ok(seasonTwo);
+  assert.strictEqual(seasonTwo.seasonStatus, "draft");
+  assert.strictEqual(seasonTwo.map.topologyType, "strategic_node_network");
+  assert.strictEqual(seasonTwo.map.mapDataRef, "data/season2-map.json");
   assert.strictEqual(listed[0].structures.length, 17);
   assert.strictEqual(listed[0].resourceModel.resources.length, 1);
   assert.strictEqual(listed[0].resourceModel.resources[0].displayName, "Ice Crystals");
@@ -186,6 +198,39 @@ test("authorized activation persists one canonical envelope and returns a safe c
   assert.deepStrictEqual(getStored(), result);
   result.serverIds.length = 0;
   assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366", "367"]);
+});
+
+test("draft prepared seasons cannot be activated and preserve the current active selection", async () => {
+  const { service, calls } = createSetup();
+  await service.initialize();
+  await assert.rejects(
+    () => service.activateSeason({ actorId: "admin" }, activationRequest({ seasonId: "season-2" })),
+    (error) => error.code === "inactive_prepared_package"
+  );
+  assert.strictEqual(service.getActiveSeason(), null);
+  assert.strictEqual(calls.some((entry) => entry[0] === "save"), false);
+});
+
+test("draft Season 2 activation does not replace an existing active Season 1 activation", async () => {
+  const stored = {
+    schemaVersion: 1,
+    seasonId: "season-1",
+    packageVersion: "0.5.0",
+    serverIds: ["366"],
+    confirmations: { mapAndStructures: true, resourcesAndValues: true },
+    activatedAt: "2026-07-31T10:00:00.000Z",
+    activatedBy: "admin-1"
+  };
+  const { service, calls } = createSetup({ stored });
+  await service.initialize();
+  await assert.rejects(
+    () => service.activateSeason({ actorId: "admin" }, activationRequest({ seasonId: "season-2" })),
+    (error) => error.code === "inactive_prepared_package"
+  );
+  const activeSeason = service.getActiveSeason();
+  assert.strictEqual(activeSeason.seasonId, "season-1");
+  assert.deepStrictEqual(activeSeason.serverIds, ["366"]);
+  assert.strictEqual(calls.some((entry) => entry[0] === "save"), false);
 });
 
 test("authorization denial prevents persistence and state mutation", async () => {

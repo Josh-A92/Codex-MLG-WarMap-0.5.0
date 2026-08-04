@@ -4,6 +4,7 @@ const path = require("path");
 const { createSeasonLoader } = require("../src/services/season-loader.js");
 const { validateSeasonPackage } = require("../src/services/season-package-validator.js");
 const { SEASON_1_PACKAGE } = require("../src/seasons/season1-package.js");
+const { SEASON_2_PACKAGE } = require("../src/seasons/season2-package.js");
 const { createApplicationBootstrap } = require("../src/app/application-bootstrap.js");
 
 function clone(value) {
@@ -28,6 +29,9 @@ function createValidScope(options) {
   const rendererCalls = [];
 
   const seasonPackage = values.seasonPackage || SEASON_1_PACKAGE;
+  const seasonTwoPackage = Object.prototype.hasOwnProperty.call(values, "season2Package")
+    ? values.season2Package
+    : SEASON_2_PACKAGE;
   const documentStub = values.document || createDocumentStub("complete");
   const dependencyOverrides = values.dependencies || {};
   const persistenceBridge = values.warMapPersistenceStorage || {
@@ -93,6 +97,7 @@ function createValidScope(options) {
   const scope = {
     document: documentStub,
     SEASON_1_PACKAGE: seasonPackage,
+    SEASON_2_PACKAGE: seasonTwoPackage,
     SEASON_1_DEFINITION: {
       appConfig: {
         dataSources: {
@@ -389,6 +394,27 @@ runTest("bootstrap exposes first-run season context and administration service",
   });
   assert.strictEqual(typeof rendererCalls[0].seasonAdministrationService.initialize, "function");
   assert.ok(callLog.indexOf("initializeSeasonAdministration") < callLog.indexOf("resolvePackage"));
+});
+
+runTest("bootstrap registers both prepared packages for season administration", async () => {
+  const { scope, rendererCalls } = createValidScope();
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  const preparedSeasonIds = rendererCalls[0].seasonAdministrationService.serviceOptions.preparedPackages.map(
+    (candidate) => candidate.packageIdentity.seasonId
+  );
+
+  assert.deepStrictEqual(preparedSeasonIds, ["season-1", "season-2"]);
+  assert.strictEqual(rendererCalls[0].seasonContext.seasonId, "season-1");
+});
+
+runTest("bootstrap refuses to initialize renderer when SEASON_2_PACKAGE is missing", async () => {
+  const { scope, rendererCalls, callLog } = createValidScope({ season2Package: null });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.strictEqual(rendererCalls.length, 0);
+  assert.strictEqual(callLog.includes("initializeMapRenderer"), false);
+  assert.strictEqual(callLog.includes("createSeasonAdministrationService"), false);
 });
 
 runTest("bootstrap uses and safely exposes persisted active season context", async () => {

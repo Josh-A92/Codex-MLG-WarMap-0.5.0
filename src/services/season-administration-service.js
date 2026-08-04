@@ -182,7 +182,9 @@
       map: {
         baseMapId: mapDefinition.baseMapId,
         rows: mapDefinition.dimensions.rows,
-        columns: mapDefinition.dimensions.columns
+        columns: mapDefinition.dimensions.columns,
+        topologyType: typeof mapDefinition.topologyType === "string" ? mapDefinition.topologyType : null,
+        mapDataRef: typeof mapDefinition.mapDataRef === "string" ? mapDefinition.mapDataRef : null
       },
       structures: rules.structureCatalog.map((entry) => ({
         structureTypeId: entry.structureTypeId,
@@ -277,6 +279,13 @@
       const seasonId = requireString(request.seasonId, "request.seasonId");
       const preparedPackage = packagesBySeasonId.get(seasonId);
       if (!preparedPackage) fail("season_not_found", `Prepared season '${seasonId}' was not found.`);
+      if (preparedPackage.packageIdentity.seasonStatus !== "active") {
+        fail(
+          "inactive_prepared_package",
+          `Season '${seasonId}' cannot be activated because its prepared package status is '${preparedPackage.packageIdentity.seasonStatus || "unknown"}'.`
+        );
+      }
+
       const serverIds = normalizeServerIds(request.serverIds, "request.serverIds");
       const confirmations = normalizeConfirmations(request.confirmations, "request.confirmations");
       const decision = authorization.requireAuthorized(actor, "season_rules.manage", { seasonId });
