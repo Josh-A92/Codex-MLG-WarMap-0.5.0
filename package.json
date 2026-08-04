@@ -73,6 +73,7 @@
   "test:union-server-season-view": "node tests/union-server-season-view-service.test.js",
   "test:union-server-season-intelligence-view": "node tests/union-server-season-intelligence-view-service.test.js",
   "test:season1-package": "node tests/season1-package.test.js",
+  "test:season2-package": "node tests/season2-package.test.js",
   "test:game-rules-engine": "node tests/game-rules-engine.test.js",
   "test:strategic-node-network-map": "node tests/strategic-node-network-map-validator.test.js",
   "test:season2-map": "node tests/season2-map.test.js",

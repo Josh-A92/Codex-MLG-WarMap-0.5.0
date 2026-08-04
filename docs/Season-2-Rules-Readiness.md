@@ -118,8 +118,9 @@ Policy constraints applied:
 not_ready
 
 Reason:
+- A structurally valid draft package now exists for Season 2 and is represented by a canonical schema-version-2 package with the verified geometry, structure catalogue, and ordered resource identities.
 - Geometry and structure identity catalogue are ready from verified in-game reconstruction (including 145 nodes, 268 connections, and explicit Trade Centre levels/counts/positions).
-- Principal blocker is missing authoritative map-output/scoring relationships for the declared resources, not the package contract shape itself.
+- Resource outputs and scoring remain deliberately unconfigured in the draft package because authoritative map-output/scoring relationships for the declared resources are still missing.
 - Runtime configuration inputs (data-source paths, workspace, participating-server scope) are the next blocker for runnable publication.
 - Unknown optional rule details do not automatically fail schema validation when required containers are present and valid; they still block trustworthy publication if left unjustified.
 
