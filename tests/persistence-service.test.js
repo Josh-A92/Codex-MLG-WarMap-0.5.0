@@ -33,9 +33,11 @@ function createServerStateDouble(options) {
   const baseMapId = values.baseMapId || "season1-map";
   const serverIds = values.serverIds || ["server-366", "server-367"];
   const ownershipByServerId = new Map();
+  const labelsByServerId = new Map();
 
   serverIds.forEach((serverId) => {
     ownershipByServerId.set(serverId, {});
+    labelsByServerId.set(serverId, serverId);
   });
 
   if (values.initialOwnershipByServerId) {
@@ -79,10 +81,29 @@ function createServerStateDouble(options) {
     listServers() {
       return serverIds.map((serverId) => ({
         id: serverId,
+        label: labelsByServerId.get(serverId),
         ownership: ownershipByServerId.get(serverId)
       }));
     }
   };
+
+  if (values.allowRegistration) {
+    service.registerServer = function registerServer(server) {
+      serverIds.push(server.id);
+      labelsByServerId.set(server.id, server.label);
+      ownershipByServerId.set(server.id, {});
+      return { id: server.id, label: server.label, ownership: {} };
+    };
+    service.unregisterServer = function unregisterServer(serverId) {
+      const index = serverIds.indexOf(serverId);
+      if (index >= 0) {
+        serverIds.splice(index, 1);
+      }
+      labelsByServerId.delete(serverId);
+      ownershipByServerId.delete(serverId);
+      return index >= 0;
+    };
+  }
 
   return {
     service,
@@ -147,6 +168,7 @@ function createDependencies(overrides) {
       baseMapId: serverStateService.getBaseMapId(),
       servers: serverStateService.listServers().map((server) => ({
         id: server.id,
+        label: server.label,
         ownership: { ...server.ownership }
       }))
     });
@@ -471,6 +493,27 @@ runTest("valid save restores ownership and calls replacement once", async () => 
   assert.deepStrictEqual(state.getOwnership("server-366"), { "10-10": "union-0001", "10-11": null });
 });
 
+runTest("persisted user-entered servers are registered before ownership restoration", async () => {
+  const state = createServerStateDouble({ allowRegistration: true });
+  const envelope = createEnvelope({
+    servers: [
+      {
+        id: "server-374",
+        label: "Server 374",
+        ownership: { "3-4": "union-0010" }
+      }
+    ]
+  });
+  const { dependencies } = createDependencies({ loadedEnvelope: envelope });
+  const persistenceService = createPersistenceService(dependencies);
+
+  await persistenceService.load(state.service);
+
+  assert.strictEqual(state.service.hasServer("server-374"), true);
+  assert.strictEqual(state.service.listServers().at(-1).label, "Server 374");
+  assert.deepStrictEqual(state.getOwnership("server-374"), { "3-4": "union-0010" });
+});
+
 runTest("omitted active servers are handled through complete replacement", async () => {
   const state = createServerStateDouble({
     initialOwnershipByServerId: {
@@ -627,6 +670,34 @@ runTest("replacement failure is wrapped with its cause", async () => {
     assert.strictEqual(error.cause, replaceError);
     return true;
   });
+});
+
+runTest("replacement failure rolls back servers registered from the saved envelope", async () => {
+  const replaceError = new Error("replace failed");
+  const state = createServerStateDouble({ allowRegistration: true });
+  state.setReplaceBehavior(() => {
+    throw replaceError;
+  });
+
+  const envelope = createEnvelope({
+    servers: [
+      {
+        id: "server-374",
+        label: "Server 374",
+        ownership: { "3-4": "union-0010" }
+      }
+    ]
+  });
+  const { dependencies } = createDependencies({ loadedEnvelope: envelope });
+  const persistenceService = createPersistenceService(dependencies);
+
+  await assert.rejects(() => persistenceService.load(state.service), (error) => {
+    assert.strictEqual(error.code, "RESTORATION_FAILED");
+    assert.strictEqual(error.cause, replaceError);
+    return true;
+  });
+
+  assert.strictEqual(state.service.hasServer("server-374"), false);
 });
 
 runTest("save calls clock exactly once", async () => {

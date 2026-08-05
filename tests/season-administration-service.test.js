@@ -125,6 +125,29 @@ test("loads and safely returns a valid persisted activation", async () => {
   assert.deepStrictEqual(loaded, stored);
   loaded.serverIds.push("999");
   assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366"]);
+  assert.deepStrictEqual(service.listCompletedSeasons(), []);
+});
+
+test("loads canonical administration state with completed history and no active season", async () => {
+  const completed = {
+    schemaVersion: 1,
+    seasonId: "season-1",
+    packageVersion: "0.5.0",
+    serverIds: ["366"],
+    confirmations: { mapAndStructures: true, resourcesAndValues: true },
+    activatedAt: "2026-07-31T10:00:00.000Z",
+    activatedBy: "admin-1",
+    completedAt: "2026-08-01T10:00:00.000Z",
+    completedBy: "admin-2"
+  };
+  const { service } = createSetup({
+    stored: { schemaVersion: 2, activeSeason: null, completedSeasons: [completed] }
+  });
+  assert.strictEqual(await service.initialize(), null);
+  assert.deepStrictEqual(service.listCompletedSeasons(), [completed]);
+  const copy = service.listCompletedSeasons();
+  copy[0].serverIds.push("999");
+  assert.deepStrictEqual(service.listCompletedSeasons()[0].serverIds, ["366"]);
 });
 
 test("rejects unavailable or mismatched persisted activation state", async () => {
@@ -195,7 +218,11 @@ test("authorized activation persists one canonical envelope and returns a safe c
   ]);
   assert.deepStrictEqual(calls[2][0], "save");
   assert.deepStrictEqual(calls[2][1], SEASON_ACTIVATION_STORAGE_IDENTITY);
-  assert.deepStrictEqual(getStored(), result);
+  assert.deepStrictEqual(getStored(), {
+    schemaVersion: 2,
+    activeSeason: result,
+    completedSeasons: []
+  });
   result.serverIds.length = 0;
   assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366", "367"]);
 });
@@ -271,6 +298,127 @@ test("same-season reactivation is blocked pending controlled correction", async 
     () => service.activateSeason({ actorId: "admin" }, activationRequest()),
     (error) => error.code === "season_already_activated"
   );
+});
+
+test("active participating servers can be updated with authorization and atomic persistence", async () => {
+  const { service, calls, getStored } = createSetup();
+  await service.initialize();
+  await service.activateSeason({ actorId: "admin-1" }, activationRequest({ serverIds: ["366"] }));
+  const updated = await service.updateActiveSeasonServers(
+    { actorId: "admin-2" },
+    ["366", "367", "368"]
+  );
+
+  assert.deepStrictEqual(updated.serverIds, ["366", "367", "368"]);
+  assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366", "367", "368"]);
+  assert.deepStrictEqual(getStored().activeSeason.serverIds, ["366", "367", "368"]);
+  assert.ok(calls.some((entry) => entry[0] === "authorize"
+    && entry[1] === "admin-2"
+    && entry[2] === "season_rules.manage"));
+  updated.serverIds.push("999");
+  assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366", "367", "368"]);
+});
+
+test("server updates reject empty selections and failed writes preserve the active selection", async () => {
+  let saveCount = 0;
+  const { service } = createSetup({
+    storageAdapter: {
+      async loadEnvelope() { return null; },
+      async saveEnvelope() {
+        saveCount += 1;
+        if (saveCount === 2) throw new Error("disk unavailable");
+      }
+    }
+  });
+  await service.initialize();
+  await service.activateSeason({ actorId: "admin" }, activationRequest({ serverIds: ["366"] }));
+  await assert.rejects(
+    () => service.updateActiveSeasonServers({ actorId: "admin" }, []),
+    (error) => error.code === "invalid_input"
+  );
+  await assert.rejects(
+    () => service.updateActiveSeasonServers({ actorId: "admin" }, ["367"]),
+    /disk unavailable/
+  );
+  assert.deepStrictEqual(service.getActiveSeason().serverIds, ["366"]);
+});
+
+test("completion is authorized, persisted atomically, and clears only the active lifecycle", async () => {
+  const clockValues = [
+    new Date("2026-07-31T12:00:00.000Z"),
+    new Date("2026-08-05T09:30:00.000Z")
+  ];
+  const { service, calls, getStored } = createSetup({ clock: () => clockValues.shift() });
+  await service.initialize();
+  const activated = await service.activateSeason({ actorId: "admin-1" }, activationRequest());
+  const completed = await service.completeActiveSeason({ actorId: "admin-2" });
+
+  assert.strictEqual(service.getActiveSeason(), null);
+  assert.deepStrictEqual(completed, {
+    ...activated,
+    completedAt: "2026-08-05T09:30:00.000Z",
+    completedBy: "admin-2"
+  });
+  assert.deepStrictEqual(service.listCompletedSeasons(), [completed]);
+  assert.deepStrictEqual(getStored(), {
+    schemaVersion: 2,
+    activeSeason: null,
+    completedSeasons: [completed]
+  });
+  assert.ok(calls.some((entry) => entry[0] === "authorize"
+    && entry[2] === "season_rules.manage"
+    && entry[3].seasonId === "season-1"));
+});
+
+test("completion rejects missing active state and preserves active state when persistence fails", async () => {
+  const first = createSetup();
+  await first.service.initialize();
+  await assert.rejects(
+    () => first.service.completeActiveSeason({ actorId: "admin" }),
+    (error) => error.code === "no_active_season"
+  );
+
+  let saveCount = 0;
+  const second = createSetup({
+    storageAdapter: {
+      async loadEnvelope() { return null; },
+      async saveEnvelope() {
+        saveCount += 1;
+        if (saveCount === 2) throw new Error("disk unavailable");
+      }
+    },
+    clock: (() => {
+      const values = [
+        new Date("2026-07-31T12:00:00.000Z"),
+        new Date("2026-08-05T09:30:00.000Z")
+      ];
+      return () => values.shift();
+    })()
+  });
+  await second.service.initialize();
+  await second.service.activateSeason({ actorId: "admin" }, activationRequest());
+  await assert.rejects(
+    () => second.service.completeActiveSeason({ actorId: "admin" }),
+    /disk unavailable/
+  );
+  assert.strictEqual(second.service.getActiveSeason().seasonId, "season-1");
+  assert.deepStrictEqual(second.service.listCompletedSeasons(), []);
+});
+
+test("a different season cannot replace an existing active season", async () => {
+  const activeSeasonTwo = clone(SEASON_2_PACKAGE);
+  activeSeasonTwo.packageIdentity.seasonStatus = "active";
+  const { service } = createSetup({ preparedPackages: [SEASON_1_PACKAGE, activeSeasonTwo] });
+  await service.initialize();
+  await service.activateSeason({ actorId: "admin" }, activationRequest());
+  await assert.rejects(
+    () => service.activateSeason(
+      { actorId: "admin" },
+      activationRequest({ seasonId: "season-2" })
+    ),
+    (error) => error.code === "season_already_activated"
+  );
+  assert.strictEqual(service.getActiveSeason().seasonId, "season-1");
 });
 
 (async () => {

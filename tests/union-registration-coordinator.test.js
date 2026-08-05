@@ -47,6 +47,12 @@ function setup(overrides = {}) {
         };
       }
     },
+    relationService: {
+      hasRelation(seasonId, serverId, unionId) {
+        calls.push(["hasRelation", seasonId, serverId, unionId]);
+        return false;
+      }
+    },
     async executeAtomically(operation) {
       calls.push(["transactionStart"]);
       const result = operation();
@@ -102,6 +108,49 @@ test("registers global identity, known relation, and native assignment in one tr
     "nativeAssignment",
     "transactionComplete"
   ]);
+});
+
+test("assigns a native server to an existing union in one transaction", async () => {
+  const { calls, coordinator } = setup();
+  const result = await coordinator.assignNativeServer(actor, {
+    seasonId: "season-1",
+    serverId: "367",
+    unionId: "existing-union"
+  });
+
+  assert.deepStrictEqual(result.relation, {
+    seasonId: "season-1",
+    serverId: "367",
+    unionId: "existing-union"
+  });
+  assert.strictEqual(result.nativeAssignment.nativeState, "native");
+  assert.deepStrictEqual(calls.map((call) => call[0]), [
+    "authorize",
+    "transactionStart",
+    "hasRelation",
+    "addKnownUnion",
+    "nativeAssignment",
+    "transactionComplete"
+  ]);
+});
+
+test("native-server assignment reuses an existing known-union relation", async () => {
+  const { calls, coordinator } = setup({
+    relationService: {
+      hasRelation() {
+        calls.push(["hasRelation"]);
+        return true;
+      }
+    }
+  });
+
+  await coordinator.assignNativeServer(actor, {
+    seasonId: "season-1",
+    serverId: "367",
+    unionId: "existing-union"
+  });
+  assert.ok(!calls.some((call) => call[0] === "addKnownUnion"));
+  assert.strictEqual(calls.filter((call) => call[0] === "nativeAssignment").length, 1);
 });
 
 test("authorizes global registry and scoped server access before IDs or transaction work", async () => {
@@ -308,6 +357,7 @@ test("supports class-based dependencies with bound method context", async () => 
     authorizationPolicyService: authorization,
     unionRegistryManagementService: registry,
     serverIntelligenceManagementService: intelligence,
+    relationService: { hasRelation() { return false; } },
     async executeAtomically(operation) { return operation(); },
     createId() { return "union-class"; }
   });

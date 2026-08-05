@@ -319,6 +319,43 @@ runTest("transaction snapshot restores every server ownership projection safely"
   assert.strictEqual(service.getTerritoryOwner("server-366", "10-11", null), "union-0001");
 });
 
+runTest("user-entered servers can be registered and listed safely", () => {
+  const service = createServerStateService(createValidSeasonState());
+  const registered = service.registerServer({ id: "server-374", label: "Server 374" });
+
+  assert.deepStrictEqual(registered, {
+    id: "server-374",
+    label: "Server 374",
+    baseMapId: "season1-map",
+    ownership: {}
+  });
+  assert.strictEqual(service.hasServer("server-374"), true);
+  assert.strictEqual(service.listServers().at(-1).label, "Server 374");
+  registered.label = "Mutated";
+  assert.strictEqual(service.getServer("server-374").label, "Server 374");
+});
+
+runTest("server registration validates its boundary and rejects duplicates", () => {
+  const service = createServerStateService(createValidSeasonState());
+
+  assert.throws(() => service.registerServer(null), /server to be an object/);
+  assert.throws(() => service.registerServer({ id: "", label: "Server 374" }), /server\.id/);
+  assert.throws(() => service.registerServer({ id: "server-374", label: "   " }), /server\.label/);
+  assert.throws(() => service.registerServer({ id: "server-374", label: "Server 374", extra: true }), /extra/);
+  assert.throws(() => service.registerServer({ id: "server-366", label: "Server 366" }), /already contains/);
+});
+
+runTest("freshly registered servers can be removed but populated servers cannot", () => {
+  const service = createServerStateService(createValidSeasonState());
+  service.registerServer({ id: "server-374", label: "Server 374" });
+  assert.strictEqual(service.unregisterServer("server-374"), true);
+  assert.strictEqual(service.hasServer("server-374"), false);
+
+  service.registerServer({ id: "server-374", label: "Server 374" });
+  service.setTerritoryOwner("server-374", "1-1", "union-1");
+  assert.throws(() => service.unregisterServer("server-374"), /ownership data/);
+});
+
 runTest("unknown servers are rejected without changing any server", () => {
   const service = createServerStateService(createValidSeasonState());
 
@@ -470,6 +507,7 @@ runTest("renderer uses server state service ownership boundary APIs", () => {
   assert.ok(/serverStateService\.listServers\(/.test(rendererSource));
   assert.ok(/serverStateService\.getTerritoryOwner\(/.test(rendererSource));
   assert.ok(/serverStateService\.setTerritoryOwner\(/.test(rendererSource));
+  assert.ok(/serverStateService\.registerServer\(/.test(rendererSource));
 });
 
 runTest("renderer uses canonical union registry fields only", () => {
@@ -516,7 +554,8 @@ runTest("renderer restores ownership before workspace and map initialization flo
 
   const initializeIndex = initializeMapSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
   const initializeSummaryServiceIndex = initializeMapSource.indexOf("initializeSummaryService();");
-  const listServersIndex = initializeMapSource.indexOf("appState.servers = serverStateService.listServers();");
+  const listServersIndex = initializeMapSource.indexOf("appState.allServers = serverStateService.listServers();");
+  const activeSeasonIndex = initializeMapSource.indexOf("seasonAdministrationService.getActiveSeason();");
   const renderWorkspaceNavigationIndex = initializeMapSource.indexOf("renderWorkspaceNavigation();");
   const renderMapIndex = initializeMapSource.indexOf("renderMap(mapData);");
   const initializeCameraIndex = initializeMapSource.indexOf("initializeCamera(mapData);");
@@ -527,6 +566,7 @@ runTest("renderer restores ownership before workspace and map initialization flo
     initializeIndex,
     initializeSummaryServiceIndex,
     listServersIndex,
+    activeSeasonIndex,
     renderWorkspaceNavigationIndex,
     renderMapIndex,
     initializeCameraIndex,
@@ -537,6 +577,7 @@ runTest("renderer restores ownership before workspace and map initialization flo
   });
 
   assert.ok(initializeIndex < listServersIndex);
+  assert.ok(listServersIndex < activeSeasonIndex);
   assert.ok(initializeIndex < initializeSummaryServiceIndex);
   assert.ok(initializeSummaryServiceIndex < renderWorkspaceNavigationIndex);
   assert.ok(initializeIndex < renderWorkspaceNavigationIndex);
@@ -550,7 +591,7 @@ runTest("renderer initializes summary service through server state ownership API
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  assert.ok(/summaryServiceFactory\(\{[\s\S]*getMapData:[\s\S]*getUnionRegistry:[\s\S]*getGameRulesEngine:[\s\S]*getDesignatedUnionId:[\s\S]*getTerritoryOwner: serverStateService\.getTerritoryOwner\.bind\(serverStateService\)/.test(rendererSource));
+  assert.ok(/summaryServiceFactory\(\{[\s\S]*getMapData:[\s\S]*getUnionRegistry:[\s\S]*getGameRulesEngine:[\s\S]*getNativeUnionIds:[\s\S]*getTerritoryOwner: serverStateService\.getTerritoryOwner\.bind\(serverStateService\)/.test(rendererSource));
   assert.strictEqual(/server\.ownership/.test(rendererSource), false);
 });
 
@@ -602,6 +643,8 @@ runTest("renderer command centre source contains no placeholder text and explici
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
   assert.strictEqual(/Placeholder only/i.test(rendererSource), false);
+  assert.strictEqual(/Designated Union/.test(rendererSource), false);
+  assert.ok(/Leading Union/.test(rendererSource));
   assert.ok(/<span>Structures<\/span><strong>\$\{structureAggregate\.designatedUnionControlledCount\} controlled · \$\{structureAggregate\.availableCount\} available<\/strong>/.test(rendererSource));
 });
 

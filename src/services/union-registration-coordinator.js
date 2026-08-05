@@ -3,6 +3,7 @@
     "authorizationPolicyService",
     "unionRegistryManagementService",
     "serverIntelligenceManagementService",
+    "relationService",
     "executeAtomically",
     "createId"
   ]);
@@ -14,6 +15,7 @@
     "defaultColor",
     "mapPattern"
   ]);
+  const NATIVE_SERVER_INPUT_FIELDS = new Set(["seasonId", "serverId", "unionId"]);
   const MAP_PATTERNS = new Set(["solid", "diagonal", "crosshatch", "dots"]);
 
   class UnionRegistrationCoordinatorError extends Error {
@@ -135,6 +137,11 @@
       "options.serverIntelligenceManagementService",
       ["addKnownUnion", "recordManualNativeAssignment"]
     );
+    const relations = bindInterface(
+      input.relationService,
+      "options.relationService",
+      ["hasRelation"]
+    );
     const executeAtomically = requireFunction(
       input.executeAtomically,
       "options.executeAtomically"
@@ -151,6 +158,16 @@
         tag: requireString(registration.tag, "input.tag"),
         defaultColor: requireColor(registration.defaultColor, "input.defaultColor"),
         mapPattern: requirePattern(registration.mapPattern, "input.mapPattern")
+      };
+    }
+
+    function normalizeNativeServerAssignment(value) {
+      const assignment = requireRecord(value, "input");
+      requireExactFields(assignment, NATIVE_SERVER_INPUT_FIELDS, "input", "invalid_input");
+      return {
+        seasonId: requireString(assignment.seasonId, "input.seasonId"),
+        serverId: requireString(assignment.serverId, "input.serverId"),
+        unionId: requireString(assignment.unionId, "input.unionId")
       };
     }
 
@@ -223,7 +240,55 @@
       return clone(operationResult);
     }
 
-    return Object.freeze({ registerUnion });
+    async function assignNativeServer(actor, assignmentValue) {
+      const assignment = normalizeNativeServerAssignment(assignmentValue);
+
+      authorization.requireAuthorized(actor, "server_state.edit", {
+        seasonId: assignment.seasonId,
+        serverId: assignment.serverId
+      });
+
+      let operationCalls = 0;
+      let operationResult = null;
+      const operation = () => {
+        operationCalls += 1;
+        if (operationCalls > 1) {
+          fail(
+            "invalid_dependency",
+            "Union Registration Coordinator requires executeAtomically to invoke its operation once."
+          );
+        }
+
+        const relation = relations.hasRelation(
+          assignment.seasonId,
+          assignment.serverId,
+          assignment.unionId
+        )
+          ? clone(assignment)
+          : intelligence.addKnownUnion(actor, assignment);
+        const nativeAssignment = intelligence.recordManualNativeAssignment(actor, {
+          ...assignment,
+          nativeState: "native"
+        });
+
+        operationResult = {
+          relation: clone(relation),
+          nativeAssignment: clone(nativeAssignment)
+        };
+        return clone(operationResult);
+      };
+
+      await executeAtomically(operation);
+      if (operationCalls !== 1 || operationResult === null) {
+        fail(
+          "invalid_dependency",
+          "Union Registration Coordinator requires executeAtomically to complete its operation."
+        );
+      }
+      return clone(operationResult);
+    }
+
+    return Object.freeze({ registerUnion, assignNativeServer });
   }
 
   const exportsObject = {

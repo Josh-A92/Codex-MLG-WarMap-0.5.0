@@ -61,6 +61,8 @@ const serverDock = document.getElementById("serverDock");
 const serverDockButtons = document.getElementById("serverDockButtons");
 const commandCentreView = document.getElementById("commandCentreView");
 const commandCentreCards = document.getElementById("commandCentreCards");
+const dataManagementView = document.getElementById("dataManagementView");
+const dataManagementContent = document.getElementById("dataManagementContent");
 const seasonSetupView = document.getElementById("seasonSetupView");
 const seasonSetupContent = document.getElementById("seasonSetupContent");
 const mapWorkspaceView = document.getElementById("mapWorkspaceView");
@@ -73,7 +75,8 @@ const selectionPanel = document.getElementById("selection-panel");
 
 const selectionState = {
   selectedItem: null,
-  selectedElements: []
+  selectedElements: [],
+  errorMessage: null
 };
 
 const tileElementsByPosition = new Map();
@@ -124,6 +127,7 @@ const appState = {
   evidenceDomainRuntime: null,
   dataManagementRuntime: null,
   ownershipService: null,
+  allServers: [],
   servers: [],
   activeWorkspace: null,
   activeServer: null
@@ -136,6 +140,9 @@ const seasonSetupState = {
   resourcesAndValuesConfirmed: true,
   errorMessage: null,
   isActivating: false,
+  isCompleting: false,
+  isUpdatingServers: false,
+  isRegisteringServer: false,
   preview: {
     status: "idle",
     errorMessage: null,
@@ -150,6 +157,12 @@ const seasonSetupState = {
     projection: null,
     mapDataRef: null
   }
+};
+const dataManagementState = {
+  mode: "list",
+  editingUnionId: null,
+  errorMessage: null,
+  isSaving: false
 };
 const desktopPanState = {
   isPointerDown: false,
@@ -192,8 +205,10 @@ function formatPercent(value) {
 }
 
 function getStructureAggregate(summary) {
-  const byType = summary && Array.isArray(summary.structureOwnershipByType)
-    ? summary.structureOwnershipByType
+  const byType = summary && Array.isArray(summary.leadingStructureOwnershipByType)
+    ? summary.leadingStructureOwnershipByType
+    : summary && Array.isArray(summary.structureOwnershipByType)
+      ? summary.structureOwnershipByType
     : [];
 
   return byType.reduce((aggregate, entry) => {
@@ -216,16 +231,16 @@ function createCommandCentreCard(server) {
   const summary = summaryService && typeof summaryService.getServerSummary === "function"
     ? summaryService.getServerSummary(server)
     : null;
-  const designatedUnionLabel = summary
-    && typeof summary.designatedUnionLabel === "string"
-    && summary.designatedUnionLabel.trim() !== ""
-    ? summary.designatedUnionLabel
-    : "Unassigned";
+  const leadingUnionLabel = summary
+    && typeof summary.leadingUnionLabel === "string"
+    && summary.leadingUnionLabel.trim() !== ""
+    ? summary.leadingUnionLabel
+    : "Leader unavailable";
   const totalCapturableTileCount = Number(summary && summary.totalCapturableTileCount);
   const controlledTileCount = Number(summary && summary.controlledTileCount);
-  const designatedUnionControlledTileCount = Number(summary && summary.designatedUnionControlledTileCount);
+  const designatedUnionControlledTileCount = Number(summary && summary.leadingUnionControlledTileCount);
   const controlledTerritoryPercent = summary ? summary.controlledTerritoryPercent : 0;
-  const designatedUnionTerritoryPercent = summary ? summary.designatedUnionTerritoryPercent : 0;
+  const designatedUnionTerritoryPercent = summary ? summary.leadingUnionTerritoryPercent : 0;
   const scoringDisplays = summary && Array.isArray(summary.scoringDisplays) ? summary.scoringDisplays : [];
   const structureAggregate = getStructureAggregate(summary);
   const totalTiles = Number.isFinite(totalCapturableTileCount) ? totalCapturableTileCount : 0;
@@ -264,9 +279,9 @@ function createCommandCentreCard(server) {
   metrics.className = "command-centre-card-metrics";
 
   metrics.innerHTML = `
-    <div><span>Designated Union</span><strong>${designatedUnionLabel}</strong></div>
+    <div><span>Leading Union</span><strong>${leadingUnionLabel}</strong></div>
     <div><span>Territory Controlled</span><strong>${controlledTiles} / ${totalTiles} (${formatPercent(controlledTerritoryPercent)})</strong></div>
-    <div><span>${designatedUnionLabel} Territory</span><strong>${designatedTiles} / ${totalTiles} (${formatPercent(designatedUnionTerritoryPercent)})</strong></div>
+    <div><span>Leader Territory</span><strong>${designatedTiles} / ${totalTiles} (${formatPercent(designatedUnionTerritoryPercent)})</strong></div>
     ${scoringDisplayMarkup}
     <div><span>Structures</span><strong>${structureAggregate.designatedUnionControlledCount} controlled · ${structureAggregate.availableCount} available</strong></div>
   `;
@@ -296,6 +311,14 @@ function renderServerDockNavigation() {
 function renderCommandCentreCards() {
   if (commandCentreCards) {
     commandCentreCards.innerHTML = "";
+    if (!seasonAdministrationService || !seasonAdministrationService.getActiveSeason()) {
+      commandCentreCards.appendChild(createSeasonSetupElement(
+        "div",
+        "command-centre-empty-state",
+        "No servers are available until a season is active."
+      ));
+      return;
+    }
     appState.servers.forEach((server) => {
       commandCentreCards.appendChild(createCommandCentreCard(server));
     });
@@ -459,6 +482,32 @@ function renderPreparedSeasonSelector(container, preparedSeasons) {
   return select;
 }
 
+function renderServerRegistrationControl(container, helpText) {
+  const registration = createSeasonSetupElement("div", "season-setup-server-registration");
+  const label = createSeasonSetupElement("label", "season-setup-field");
+  label.appendChild(createSeasonSetupElement("span", null, "Add a server number"));
+  const input = createSeasonSetupElement("input");
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+  input.placeholder = "Example: 374";
+  input.disabled = seasonSetupState.isRegisteringServer;
+  input.setAttribute("data-server-number-input", "");
+  label.appendChild(input);
+  registration.appendChild(label);
+  registration.appendChild(createSeasonSetupElement("p", "season-setup-help", helpText));
+  const button = createSeasonSetupElement(
+    "button",
+    "season-setup-button is-secondary",
+    seasonSetupState.isRegisteringServer ? "Adding server…" : "Add server"
+  );
+  button.type = "button";
+  button.disabled = seasonSetupState.isRegisteringServer;
+  button.setAttribute("data-season-setup-action", "register-server");
+  registration.appendChild(button);
+  container.appendChild(registration);
+}
+
 function renderSeasonSetupStepOne(container, preparedSeasons) {
   const section = createSeasonSetupElement("section", "season-setup-card");
   section.appendChild(createSeasonSetupElement("h3", null, "1. Season & Servers"));
@@ -470,8 +519,9 @@ function renderSeasonSetupStepOne(container, preparedSeasons) {
     "season-setup-help",
     "Select the servers that belong to this season setup."
   ));
+  renderServerRegistrationControl(section, "Enter a server number once, then select it for this season.");
   const serverGrid = createSeasonSetupElement("div", "season-setup-server-grid");
-  appState.servers.forEach((server) => {
+  appState.allServers.forEach((server) => {
     const label = createSeasonSetupElement("label", "season-setup-server-option");
     const checkbox = createSeasonSetupElement("input");
     checkbox.type = "checkbox";
@@ -547,9 +597,75 @@ function renderActivatedSeasonSetup(container, preparedView, activeSeason) {
   ));
   appendSeasonSetupFact(notice, "Activated", activeSeason.activatedAt);
   appendSeasonSetupFact(notice, "Activated by", activeSeason.activatedBy);
-  appendSeasonSetupFact(notice, "Participating servers", activeSeason.serverIds.join(", "));
+  const serverSection = createSeasonSetupElement("div", "season-setup-active-servers");
+  serverSection.appendChild(createSeasonSetupElement("strong", null, "Participating servers"));
+  serverSection.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-help",
+    "Only selected servers appear in Command Centre and can receive season data."
+  ));
+  renderServerRegistrationControl(
+    serverSection,
+    "Create the server here, then select it below and save the participating servers."
+  );
+  const serverGrid = createSeasonSetupElement("div", "season-setup-server-grid");
+  const selectedServerIds = new Set(activeSeason.serverIds);
+  appState.allServers.forEach((server) => {
+    const label = createSeasonSetupElement("label", "season-setup-server-option");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = server.id;
+    input.checked = selectedServerIds.has(server.id);
+    input.disabled = seasonSetupState.isUpdatingServers || seasonSetupState.isCompleting;
+    input.setAttribute("data-active-season-server", "");
+    label.appendChild(input);
+    label.appendChild(createSeasonSetupElement("span", null, server.label || server.id));
+    serverGrid.appendChild(label);
+  });
+  serverSection.appendChild(serverGrid);
+  notice.appendChild(serverSection);
+  if (seasonSetupState.errorMessage) {
+    notice.appendChild(createSeasonSetupElement("div", "season-setup-error", seasonSetupState.errorMessage));
+  }
+  const actions = createSeasonSetupElement("div", "season-setup-actions");
+  const saveServers = createSeasonSetupElement(
+    "button",
+    "season-setup-button is-secondary",
+    seasonSetupState.isUpdatingServers ? "Saving servers…" : "Save participating servers"
+  );
+  saveServers.type = "button";
+  saveServers.disabled = seasonSetupState.isUpdatingServers || seasonSetupState.isCompleting;
+  saveServers.setAttribute("data-season-setup-action", "update-season-servers");
+  actions.appendChild(saveServers);
+  const complete = createSeasonSetupElement(
+    "button",
+    "season-setup-button is-danger",
+    seasonSetupState.isCompleting ? "Completing…" : "Complete Season"
+  );
+  complete.type = "button";
+  complete.disabled = seasonSetupState.isCompleting || seasonSetupState.isUpdatingServers;
+  complete.setAttribute("data-season-setup-action", "complete-season");
+  actions.appendChild(complete);
+  notice.appendChild(actions);
   container.appendChild(notice);
   renderSeasonSetupPackageSummary(container, preparedView, true);
+}
+
+function renderCompletedSeasonNotice(container) {
+  const completedSeasons = seasonAdministrationService.listCompletedSeasons();
+  if (completedSeasons.length === 0) return;
+  const completed = completedSeasons[completedSeasons.length - 1];
+  const notice = createSeasonSetupElement("section", "season-setup-card season-setup-completed-card");
+  notice.appendChild(createSeasonSetupElement("h3", null, "Most recently completed season"));
+  appendSeasonSetupFact(notice, "Season", completed.seasonId);
+  appendSeasonSetupFact(notice, "Completed", completed.completedAt);
+  appendSeasonSetupFact(notice, "Completed by", completed.completedBy);
+  notice.appendChild(createSeasonSetupElement(
+    "p",
+    "season-setup-help",
+    "Completion clears live map ownership while preserving union, evidence, and audit history. A prepared season may now be activated."
+  ));
+  container.appendChild(notice);
 }
 
 function createPreviewTheme() {
@@ -766,13 +882,19 @@ function renderSeasonSetup() {
 
   if (activeSeason) {
     renderPreparedSeasonSelector(seasonSetupContent, preparedSeasons);
-    if (preparedView.summary.seasonStatus !== "active") {
-      renderDraftSeasonPreview(seasonSetupContent, preparedView);
-      return;
+    const activePreparedView = seasonAdministrationService.getPreparedSeason(activeSeason.seasonId);
+    renderActivatedSeasonSetup(seasonSetupContent, activePreparedView, activeSeason);
+    if (preparedView.summary.seasonId !== activeSeason.seasonId) {
+      if (preparedView.summary.seasonStatus !== "active") {
+        renderDraftSeasonPreview(seasonSetupContent, preparedView);
+      } else {
+        renderSeasonSetupPackageSummary(seasonSetupContent, preparedView, true);
+      }
     }
-    renderActivatedSeasonSetup(seasonSetupContent, preparedView, activeSeason);
     return;
   }
+
+  renderCompletedSeasonNotice(seasonSetupContent);
 
   if (preparedView.summary.seasonStatus !== "active") {
     renderPreparedSeasonSelector(seasonSetupContent, preparedSeasons);
@@ -800,9 +922,13 @@ function renderSeasonSetup() {
 }
 
 function applyActivatedServerSelection(activeSeason) {
-  if (!activeSeason || !Array.isArray(activeSeason.serverIds)) return;
+  if (!activeSeason || !Array.isArray(activeSeason.serverIds)) {
+    appState.servers = [];
+    renderWorkspaceNavigation();
+    return;
+  }
   const allowed = new Set(activeSeason.serverIds);
-  appState.servers = appState.servers.filter((server) => allowed.has(server.id));
+  appState.servers = appState.allServers.filter((server) => allowed.has(server.id));
   renderWorkspaceNavigation();
 }
 
@@ -835,6 +961,53 @@ async function handleSeasonSetupClick(event) {
   const actionTarget = event.target.closest("[data-season-setup-action]");
   if (!actionTarget) return;
   const action = actionTarget.getAttribute("data-season-setup-action");
+  if (action === "register-server") {
+    const registrationControl = actionTarget.closest(".season-setup-server-registration");
+    const input = registrationControl
+      ? registrationControl.querySelector("[data-server-number-input]")
+      : null;
+    const serverNumber = input && typeof input.value === "string" ? input.value.trim() : "";
+    if (!/^[1-9]\d*$/.test(serverNumber)) {
+      seasonSetupState.errorMessage = "Enter a valid server number using digits only.";
+      renderSeasonSetup();
+      return;
+    }
+
+    const serverId = `server-${serverNumber}`;
+    seasonSetupState.isRegisteringServer = true;
+    seasonSetupState.errorMessage = null;
+    let registered = false;
+    try {
+      if (!serverStateService.hasServer(serverId)) {
+        serverStateService.registerServer({ id: serverId, label: `Server ${serverNumber}` });
+        registered = true;
+      }
+
+      appState.allServers = serverStateService.listServers();
+      const activeSeason = seasonAdministrationService.getActiveSeason();
+      if (!activeSeason) {
+        seasonSetupState.selectedServerIds.add(serverId);
+      }
+
+      renderSeasonSetup();
+
+      if (registered) {
+        await serverStatePersistenceController.requestSave();
+        await serverStatePersistenceController.flush();
+      }
+    } catch (error) {
+      appState.allServers = serverStateService.listServers();
+      seasonSetupState.errorMessage = registered
+        ? `Server ${serverNumber} was added, but could not be saved. ${error && error.message ? error.message : ""}`.trim()
+        : error && error.message
+          ? error.message
+          : "Unable to add the server.";
+    } finally {
+      seasonSetupState.isRegisteringServer = false;
+      renderSeasonSetup();
+    }
+    return;
+  }
   if (action === "back") {
     seasonSetupState.step = Math.max(1, seasonSetupState.step - 1);
     seasonSetupState.errorMessage = null;
@@ -850,6 +1023,86 @@ async function handleSeasonSetupClick(event) {
   if (action === "load-preview") {
     const preparedView = seasonAdministrationService.getPreparedSeason(seasonSetupState.selectedSeasonId);
     await loadSeason2MapPreview(preparedView);
+    return;
+  }
+  if (action === "update-season-servers") {
+    const selectedServerIds = Array.from(
+      seasonSetupContent.querySelectorAll("[data-active-season-server]:checked")
+    ).map((input) => input.value);
+    seasonSetupState.isUpdatingServers = true;
+    seasonSetupState.errorMessage = null;
+    renderSeasonSetup();
+    try {
+      const activeSeason = await seasonAdministrationService.updateActiveSeasonServers(
+        localActor,
+        selectedServerIds
+      );
+      seasonContext = {
+        seasonId: activeSeason.seasonId,
+        activated: true,
+        serverIds: activeSeason.serverIds.slice()
+      };
+      applyActivatedServerSelection(activeSeason);
+      if (appState.activeServer && !activeSeason.serverIds.includes(appState.activeServer.id)) {
+        setActiveWorkspace("command-centre");
+      }
+    } catch (error) {
+      seasonSetupState.errorMessage = error && error.message
+        ? error.message
+        : "Unable to update participating servers.";
+    } finally {
+      seasonSetupState.isUpdatingServers = false;
+      renderSeasonSetup();
+    }
+    return;
+  }
+  if (action === "complete-season") {
+    const activeSeason = seasonAdministrationService.getActiveSeason();
+    if (!activeSeason) return;
+    const confirmed = typeof window.confirm !== "function"
+      || window.confirm(
+        `Complete ${activeSeason.seasonId}? This clears live map ownership while preserving union, evidence, and audit history.`
+      );
+    if (!confirmed) return;
+    seasonSetupState.isCompleting = true;
+    seasonSetupState.errorMessage = null;
+    renderSeasonSetup();
+    const ownershipSnapshot = serverStateService.captureTransactionState();
+    let ownershipWasCleared = false;
+    try {
+      serverStateService.replaceTerritoryOwnership({});
+      ownershipWasCleared = true;
+      await serverStatePersistenceController.requestSave();
+      await serverStatePersistenceController.flush();
+      await seasonAdministrationService.completeActiveSeason(localActor);
+      seasonContext = {
+        seasonId: activeSeason.seasonId,
+        activated: false,
+        serverIds: null
+      };
+      seasonSetupState.step = 1;
+      seasonSetupState.selectedServerIds = new Set();
+      if (window.location && typeof window.location.reload === "function") {
+        window.location.reload();
+        return;
+      }
+    } catch (error) {
+      if (ownershipWasCleared) {
+        serverStateService.restoreTransactionState(ownershipSnapshot);
+        try {
+          await serverStatePersistenceController.requestSave();
+          await serverStatePersistenceController.flush();
+        } catch (rollbackError) {
+          console.error("Unable to restore map ownership after season completion failed.", rollbackError);
+        }
+      }
+      seasonSetupState.errorMessage = error && error.message
+        ? error.message
+        : "Unable to complete the active season.";
+    } finally {
+      seasonSetupState.isCompleting = false;
+      renderSeasonSetup();
+    }
     return;
   }
   if (action !== "activate") return;
@@ -908,6 +1161,532 @@ function handleSeasonSetupChange(event) {
   renderSeasonSetup();
 }
 
+const DATA_MANAGEMENT_PATTERNS = [
+  { value: "solid", label: "Solid" },
+  { value: "diagonal", label: "Diagonal stripes" },
+  { value: "crosshatch", label: "Crosshatch" },
+  { value: "dots", label: "Dots" }
+];
+
+function createDataManagementElement(tagName, className, textContent) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  if (textContent !== undefined) element.textContent = textContent;
+  return element;
+}
+
+function getDataManagementRuntimeService(serviceName, methodNames) {
+  const service = dataManagementRuntime && dataManagementRuntime[serviceName];
+  if (!service || methodNames.some((methodName) => typeof service[methodName] !== "function")) {
+    throw new Error(`Data Management requires ${serviceName}.`);
+  }
+  return service;
+}
+
+function refreshUnionRegistryWorkspace() {
+  const queryService = getDataManagementRuntimeService(
+    "dataManagementQueryService",
+    ["getUnionRegistryWorkspace"]
+  );
+  const workspace = queryService.getUnionRegistryWorkspace();
+  const identities = workspace && Array.isArray(workspace.identities) ? workspace.identities : [];
+  appState.unionRegistry = identities.filter((identity) => identity.registryStatus === "current");
+  return identities;
+}
+
+function resolveNativeServerLabels(identities) {
+  const labelsByUnionId = new Map();
+  if (!dataManagementRuntime || !Array.isArray(appState.servers)) return labelsByUnionId;
+
+  const knownUnionIds = new Set(identities.map((identity) => identity.unionId));
+  const queryService = getDataManagementRuntimeService(
+    "dataManagementQueryService",
+    ["getServerWorkspace"]
+  );
+  const evaluatedAt = new Date().toISOString();
+
+  appState.servers.forEach((server) => {
+    try {
+      const workspace = queryService.getServerWorkspace({
+        seasonId: seasonIdentity.seasonId,
+        serverId: server.id,
+        evaluatedAt
+      });
+      const history = workspace && Array.isArray(workspace.nativeAssignmentHistory)
+        ? workspace.nativeAssignmentHistory
+        : [];
+      history.forEach((assignment) => {
+        const isCurrentNative = assignment
+          && knownUnionIds.has(assignment.unionId)
+          && assignment.nativeState === "native"
+          && assignment.reviewState === "confirmed"
+          && assignment.effectiveTo === null;
+        if (isCurrentNative && !labelsByUnionId.has(assignment.unionId)) {
+          labelsByUnionId.set(assignment.unionId, server.label || server.id);
+        }
+      });
+    } catch (error) {
+      console.error(`Unable to resolve native unions for ${server.id}`, error);
+    }
+  });
+
+  return labelsByUnionId;
+}
+
+function getCurrentNativeUnionIds(server) {
+  if (!server || typeof server.id !== "string" || !dataManagementRuntime) {
+    return [];
+  }
+
+  try {
+    const queryService = getDataManagementRuntimeService(
+      "dataManagementQueryService",
+      ["getServerWorkspace"]
+    );
+    const workspace = queryService.getServerWorkspace({
+      seasonId: seasonIdentity.seasonId,
+      serverId: server.id,
+      evaluatedAt: new Date().toISOString()
+    });
+    const history = workspace && Array.isArray(workspace.nativeAssignmentHistory)
+      ? workspace.nativeAssignmentHistory
+      : [];
+
+    const eligibleUnionIds = new Set((Array.isArray(appState.unionRegistry) ? appState.unionRegistry : [])
+      .filter((identity) => identity
+        && typeof identity.unionId === "string"
+        && identity.unionId.trim() !== ""
+        && (identity.registryStatus === undefined || identity.registryStatus === "current"))
+      .map((identity) => identity.unionId));
+
+    return Array.from(new Set(history
+      .filter((assignment) => assignment
+        && eligibleUnionIds.has(assignment.unionId)
+        && assignment.nativeState === "native"
+        && assignment.reviewState === "confirmed"
+        && assignment.effectiveTo === null
+        && typeof assignment.unionId === "string"
+        && assignment.unionId.trim() !== "")
+      .map((assignment) => assignment.unionId)));
+  } catch (error) {
+    console.error(`Unable to calculate native leaders for ${server.id}`, error);
+    return [];
+  }
+}
+
+function createUnionPatternPreview(identity, className = "") {
+  const preview = createDataManagementElement(
+    "div",
+    `union-pattern-preview ${className}`.trim()
+  );
+  const metadata = identity && identity.presentationMetadata;
+  const pattern = metadata && typeof metadata.mapPattern === "string"
+    ? metadata.mapPattern
+    : "solid";
+  preview.dataset.mapPattern = pattern;
+  preview.style.setProperty("--union-preview-color", identity.defaultColor || "#6b7280");
+  preview.setAttribute("aria-label", `${pattern} map pattern preview`);
+  return preview;
+}
+
+function appendDataManagementField(form, options) {
+  const label = createDataManagementElement("label", "data-management-field");
+  label.appendChild(createDataManagementElement("span", "", options.label));
+  let control;
+
+  if (options.type === "select") {
+    control = document.createElement("select");
+    options.options.forEach((entry) => {
+      const option = document.createElement("option");
+      option.value = entry.value;
+      option.textContent = entry.label;
+      option.selected = entry.value === options.value;
+      control.appendChild(option);
+    });
+  } else {
+    control = document.createElement("input");
+    control.type = options.type || "text";
+    control.value = options.value || "";
+    if (options.maxLength) control.maxLength = options.maxLength;
+  }
+
+  control.name = options.name;
+  control.required = options.required !== false;
+  if (options.action) control.setAttribute("data-data-management-action", options.action);
+  label.appendChild(control);
+  form.appendChild(label);
+  return control;
+}
+
+function renderUnionRegistryForm(container, editingIdentity, nativeServerLabel) {
+  const isEditing = Boolean(editingIdentity);
+  const panel = createDataManagementElement("section", "data-management-panel data-management-form-panel");
+  panel.appendChild(createDataManagementElement(
+    "h3",
+    "",
+    isEditing ? `Edit ${editingIdentity.tag}` : "Register a union"
+  ));
+  panel.appendChild(createDataManagementElement(
+    "p",
+    "data-management-help",
+    isEditing
+      ? (nativeServerLabel
+          ? "Update the union's visible identity. A confirmed native server requires a reviewed correction."
+          : "Update the union's identity or assign its native server.")
+      : "Create the union identity and confirm its native server in one action."
+  ));
+
+  const form = createDataManagementElement("form", "data-management-form");
+  form.setAttribute("data-data-management-form", "union-registry");
+  appendDataManagementField(form, {
+    label: "Union name",
+    name: "displayName",
+    value: isEditing ? editingIdentity.displayName : "",
+    maxLength: 80
+  });
+  appendDataManagementField(form, {
+    label: "Tag",
+    name: "tag",
+    value: isEditing ? editingIdentity.tag : "",
+    maxLength: 20
+  });
+  appendDataManagementField(form, {
+    label: "Colour",
+    name: "defaultColor",
+    type: "color",
+    value: isEditing ? editingIdentity.defaultColor : "#4f8fd8",
+    action: "preview-union"
+  });
+  appendDataManagementField(form, {
+    label: "Map pattern",
+    name: "mapPattern",
+    type: "select",
+    value: isEditing
+      ? ((editingIdentity.presentationMetadata || {}).mapPattern || "solid")
+      : "solid",
+    options: DATA_MANAGEMENT_PATTERNS,
+    action: "preview-union"
+  });
+
+  if (isEditing && nativeServerLabel) {
+    const nativeField = createDataManagementElement("div", "data-management-readonly-field");
+    nativeField.appendChild(createDataManagementElement("span", "", "Native server"));
+    nativeField.appendChild(createDataManagementElement("strong", "", nativeServerLabel));
+    form.appendChild(nativeField);
+  } else {
+    appendDataManagementField(form, {
+      label: "Native server",
+      name: "serverId",
+      type: "select",
+      value: appState.servers[0] ? appState.servers[0].id : "",
+      options: appState.servers.map((server) => ({
+        value: server.id,
+        label: server.label || server.id
+      }))
+    });
+  }
+
+  const previewIdentity = editingIdentity || {
+    defaultColor: "#4f8fd8",
+    presentationMetadata: { mapPattern: "solid" }
+  };
+  form.appendChild(createUnionPatternPreview(previewIdentity, "union-pattern-preview--form"));
+
+  const actions = createDataManagementElement("div", "data-management-form-actions");
+  const submit = createDataManagementElement(
+    "button",
+    "data-management-primary-action",
+    dataManagementState.isSaving ? "Saving…" : (isEditing ? "Save changes" : "Create union")
+  );
+  submit.type = "submit";
+  submit.disabled = dataManagementState.isSaving;
+  actions.appendChild(submit);
+  if (isEditing) {
+    if (!nativeServerLabel) {
+      const assignNativeServer = createDataManagementElement(
+        "button",
+        "data-management-secondary-action",
+        "Assign native server"
+      );
+      assignNativeServer.type = "button";
+      assignNativeServer.setAttribute("data-data-management-action", "assign-native-server");
+      assignNativeServer.setAttribute("data-union-id", editingIdentity.unionId);
+      assignNativeServer.disabled = dataManagementState.isSaving;
+      actions.appendChild(assignNativeServer);
+    }
+    const cancel = createDataManagementElement("button", "data-management-secondary-action", "Cancel");
+    cancel.type = "button";
+    cancel.setAttribute("data-data-management-action", "cancel-edit");
+    cancel.disabled = dataManagementState.isSaving;
+    actions.appendChild(cancel);
+  }
+  form.appendChild(actions);
+  panel.appendChild(form);
+  container.appendChild(panel);
+}
+
+function renderUnionRegistryList(container, identities, nativeServerLabels) {
+  const panel = createDataManagementElement("section", "data-management-panel");
+  const head = createDataManagementElement("div", "data-management-section-head");
+  head.appendChild(createDataManagementElement("h3", "", "Registered unions"));
+  head.appendChild(createDataManagementElement(
+    "span",
+    "data-management-count",
+    `${identities.length} total`
+  ));
+  panel.appendChild(head);
+
+  if (identities.length === 0) {
+    panel.appendChild(createDataManagementElement(
+      "p",
+      "data-management-empty",
+      "No unions have been registered for this installation."
+    ));
+  }
+
+  const list = createDataManagementElement("div", "union-registry-list");
+  identities.forEach((identity) => {
+    const archived = identity.registryStatus === "archived";
+    const card = createDataManagementElement(
+      "article",
+      `union-registry-card${archived ? " is-archived" : ""}`
+    );
+    card.appendChild(createUnionPatternPreview(identity));
+    const body = createDataManagementElement("div", "union-registry-card-body");
+    const title = createDataManagementElement("div", "union-registry-title");
+    title.appendChild(createDataManagementElement("strong", "", identity.tag));
+    title.appendChild(createDataManagementElement("span", "", identity.displayName));
+    body.appendChild(title);
+    body.appendChild(createDataManagementElement(
+      "div",
+      "union-registry-meta",
+      `Native server: ${nativeServerLabels.get(identity.unionId) || "Not confirmed"}`
+    ));
+    body.appendChild(createDataManagementElement(
+      "span",
+      `union-registry-status ${archived ? "is-archived" : "is-current"}`,
+      archived ? "Archived" : "Current"
+    ));
+    card.appendChild(body);
+
+    const actions = createDataManagementElement("div", "union-registry-actions");
+    if (archived) {
+      const restore = createDataManagementElement("button", "data-management-secondary-action", "Restore");
+      restore.type = "button";
+      restore.setAttribute("data-data-management-action", "restore-union");
+      restore.setAttribute("data-union-id", identity.unionId);
+      restore.disabled = dataManagementState.isSaving;
+      actions.appendChild(restore);
+    } else {
+      const edit = createDataManagementElement("button", "data-management-secondary-action", "Edit");
+      edit.type = "button";
+      edit.setAttribute("data-data-management-action", "edit-union");
+      edit.setAttribute("data-union-id", identity.unionId);
+      edit.disabled = dataManagementState.isSaving;
+      actions.appendChild(edit);
+      const archive = createDataManagementElement("button", "data-management-danger-action", "Archive");
+      archive.type = "button";
+      archive.setAttribute("data-data-management-action", "archive-union");
+      archive.setAttribute("data-union-id", identity.unionId);
+      archive.disabled = dataManagementState.isSaving;
+      actions.appendChild(archive);
+    }
+    card.appendChild(actions);
+    list.appendChild(card);
+  });
+  panel.appendChild(list);
+  container.appendChild(panel);
+}
+
+function renderDataManagement() {
+  if (!dataManagementContent) return;
+  dataManagementContent.replaceChildren();
+
+  const header = createDataManagementElement("div", "data-management-header");
+  const heading = createDataManagementElement("div");
+  heading.appendChild(createDataManagementElement("h2", "", "Data Management"));
+  heading.appendChild(createDataManagementElement(
+    "p",
+    "",
+    "Maintain the union identities used by maps, ownership, evidence, and server intelligence."
+  ));
+  header.appendChild(heading);
+  header.appendChild(createDataManagementElement("span", "data-management-area-label", "Union Registry"));
+  dataManagementContent.appendChild(header);
+
+  if (dataManagementState.errorMessage) {
+    dataManagementContent.appendChild(createDataManagementElement(
+      "div",
+      "data-management-error",
+      dataManagementState.errorMessage
+    ));
+  }
+
+  try {
+    const identities = refreshUnionRegistryWorkspace();
+    const nativeServerLabels = resolveNativeServerLabels(identities);
+    const editingIdentity = dataManagementState.mode === "edit"
+      ? identities.find((identity) => identity.unionId === dataManagementState.editingUnionId)
+      : null;
+    renderUnionRegistryForm(
+      dataManagementContent,
+      editingIdentity || null,
+      editingIdentity ? nativeServerLabels.get(editingIdentity.unionId) : null
+    );
+    renderUnionRegistryList(dataManagementContent, identities, nativeServerLabels);
+  } catch (error) {
+    dataManagementContent.appendChild(createDataManagementElement(
+      "div",
+      "data-management-error",
+      error && error.message ? error.message : "Unable to load Data Management."
+    ));
+  }
+}
+
+async function runDataManagementMutation(mutation) {
+  if (dataManagementState.isSaving) return;
+  dataManagementState.isSaving = true;
+  dataManagementState.errorMessage = null;
+  renderDataManagement();
+
+  try {
+    await mutation();
+    refreshUnionRegistryWorkspace();
+    dataManagementState.mode = "list";
+    dataManagementState.editingUnionId = null;
+    refreshOwnershipView();
+    refreshCommandCentreCards();
+    Promise.resolve()
+      .then(() => dataManagementPersistenceController.requestSave())
+      .catch((error) => {
+        dataManagementState.errorMessage = error && error.message
+          ? `The change was applied but could not be saved: ${error.message}`
+          : "The change was applied but could not be saved.";
+        renderDataManagement();
+      });
+  } catch (error) {
+    dataManagementState.errorMessage = error && error.message
+      ? error.message
+      : "Unable to save the union registry change.";
+  } finally {
+    dataManagementState.isSaving = false;
+    renderDataManagement();
+  }
+}
+
+async function handleDataManagementSubmit(event) {
+  const form = event.target.closest("[data-data-management-form='union-registry']");
+  if (!form) return;
+  event.preventDefault();
+  const formData = new FormData(form);
+  const values = {
+    displayName: String(formData.get("displayName") || "").trim(),
+    tag: String(formData.get("tag") || "").trim(),
+    defaultColor: String(formData.get("defaultColor") || ""),
+    mapPattern: String(formData.get("mapPattern") || "")
+  };
+
+  if (dataManagementState.mode === "edit") {
+    const unionId = dataManagementState.editingUnionId;
+    await runDataManagementMutation(() => {
+      const identities = refreshUnionRegistryWorkspace();
+      const identity = identities.find((entry) => entry.unionId === unionId);
+      if (!identity) throw new Error("The selected union no longer exists.");
+      const management = getDataManagementRuntimeService(
+        "unionRegistryManagementService",
+        ["updateUnionIdentity"]
+      );
+      return management.updateUnionIdentity(localActor, unionId, {
+        displayName: values.displayName,
+        tag: values.tag,
+        defaultColor: values.defaultColor,
+        presentationMetadata: Object.assign({}, identity.presentationMetadata, {
+          mapPattern: values.mapPattern
+        })
+      });
+    });
+    return;
+  }
+
+  await runDataManagementMutation(() => {
+    const registration = getDataManagementRuntimeService(
+      "unionRegistrationCoordinator",
+      ["registerUnion"]
+    );
+    return registration.registerUnion(localActor, {
+      seasonId: seasonIdentity.seasonId,
+      serverId: String(formData.get("serverId") || ""),
+      displayName: values.displayName,
+      tag: values.tag,
+      defaultColor: values.defaultColor,
+      mapPattern: values.mapPattern
+    });
+  });
+}
+
+function handleDataManagementInput(event) {
+  if (event.target.getAttribute("data-data-management-action") !== "preview-union") return;
+  const form = event.target.closest("[data-data-management-form='union-registry']");
+  const preview = form && form.querySelector(".union-pattern-preview--form");
+  if (!preview) return;
+  const colorInput = form.elements.namedItem("defaultColor");
+  const patternInput = form.elements.namedItem("mapPattern");
+  preview.style.setProperty("--union-preview-color", colorInput.value);
+  preview.dataset.mapPattern = patternInput.value;
+  preview.setAttribute("aria-label", `${patternInput.value} map pattern preview`);
+}
+
+function handleDataManagementClick(event) {
+  const actionButton = event.target.closest("[data-data-management-action]");
+  if (!actionButton || actionButton.matches("input, select")) return;
+  const action = actionButton.getAttribute("data-data-management-action");
+  const unionId = actionButton.getAttribute("data-union-id");
+
+  if (action === "edit-union") {
+    dataManagementState.mode = "edit";
+    dataManagementState.editingUnionId = unionId;
+    dataManagementState.errorMessage = null;
+    renderDataManagement();
+    return;
+  }
+  if (action === "cancel-edit") {
+    dataManagementState.mode = "list";
+    dataManagementState.editingUnionId = null;
+    dataManagementState.errorMessage = null;
+    renderDataManagement();
+    return;
+  }
+  if (action === "assign-native-server") {
+    const form = actionButton.closest("[data-data-management-form='union-registry']");
+    const serverControl = form && form.elements.namedItem("serverId");
+    runDataManagementMutation(() => getDataManagementRuntimeService(
+      "unionRegistrationCoordinator",
+      ["assignNativeServer"]
+    ).assignNativeServer(localActor, {
+      seasonId: seasonIdentity.seasonId,
+      serverId: String(serverControl ? serverControl.value : ""),
+      unionId
+    }));
+    return;
+  }
+  if (action === "archive-union") {
+    const confirmed = typeof window.confirm !== "function"
+      || window.confirm("Archive this union? Its history will be preserved and it can be restored later.");
+    if (!confirmed) return;
+    runDataManagementMutation(() => getDataManagementRuntimeService(
+      "unionRegistryManagementService",
+      ["archiveUnionIdentity"]
+    ).archiveUnionIdentity(localActor, unionId));
+    return;
+  }
+  if (action === "restore-union") {
+    runDataManagementMutation(() => getDataManagementRuntimeService(
+      "unionRegistryManagementService",
+      ["restoreUnionIdentity"]
+    ).restoreUnionIdentity(localActor, unionId));
+  }
+}
+
 function updateWorkspaceShellUI() {
   if (!workspaceShell) {
     return;
@@ -915,6 +1694,7 @@ function updateWorkspaceShellUI() {
 
   const isCommandCentre = appState.activeWorkspace === "command-centre";
   const isSeasonSetup = appState.activeWorkspace === "season-setup";
+  const isDataManagement = appState.activeWorkspace === "data-management";
   workspaceShell.dataset.activeWorkspace = appState.activeWorkspace;
 
   if (commandCentreView) {
@@ -925,8 +1705,12 @@ function updateWorkspaceShellUI() {
     seasonSetupView.setAttribute("aria-hidden", String(!isSeasonSetup));
   }
 
+  if (dataManagementView) {
+    dataManagementView.setAttribute("aria-hidden", String(!isDataManagement));
+  }
+
   if (mapWorkspaceView) {
-    mapWorkspaceView.setAttribute("aria-hidden", String(isCommandCentre || isSeasonSetup));
+    mapWorkspaceView.setAttribute("aria-hidden", String(isCommandCentre || isSeasonSetup || isDataManagement));
   }
 
   if (workspaceMapTitle) {
@@ -945,16 +1729,30 @@ function updateWorkspaceShellUI() {
     const serverId = button.getAttribute("data-server-id");
     const isActiveCommand = targetWorkspace === "command-centre" && isCommandCentre;
     const isActiveSetup = targetWorkspace === "season-setup" && isSeasonSetup;
+    const isActiveDataManagement = targetWorkspace === "data-management" && isDataManagement;
     const isActiveServer = targetWorkspace === "server-map"
       && !isCommandCentre
       && !isSeasonSetup
+      && !isDataManagement
       && serverId === appState.activeServer;
 
-    button.classList.toggle("is-active", isActiveCommand || isActiveSetup || isActiveServer);
+    button.classList.toggle(
+      "is-active",
+      isActiveCommand || isActiveSetup || isActiveDataManagement || isActiveServer
+    );
   });
 }
 
 function setActiveWorkspace(nextWorkspace, nextServerId = null) {
+  if (nextWorkspace === "data-management") {
+    appState.activeWorkspace = "data-management";
+    appState.activeServer = null;
+    clearSelection();
+    renderDataManagement();
+    updateWorkspaceShellUI();
+    return;
+  }
+
   if (nextWorkspace === "season-setup") {
     appState.activeWorkspace = "season-setup";
     appState.activeServer = null;
@@ -1000,7 +1798,11 @@ function handleWorkspaceShellClick(event) {
     return;
   }
 
-  setActiveWorkspace(targetWorkspace === "season-setup" ? "season-setup" : "command-centre");
+  if (targetWorkspace === "season-setup" || targetWorkspace === "data-management") {
+    setActiveWorkspace(targetWorkspace);
+    return;
+  }
+  setActiveWorkspace("command-centre");
 }
 
 function attachWorkspaceShellHandlers() {
@@ -1029,6 +1831,13 @@ function attachWorkspaceShellHandlers() {
   if (seasonSetupView) {
     seasonSetupView.addEventListener("click", handleSeasonSetupClick);
     seasonSetupView.addEventListener("change", handleSeasonSetupChange);
+  }
+
+  if (dataManagementView) {
+    dataManagementView.addEventListener("click", handleDataManagementClick);
+    dataManagementView.addEventListener("input", handleDataManagementInput);
+    dataManagementView.addEventListener("change", handleDataManagementInput);
+    dataManagementView.addEventListener("submit", handleDataManagementSubmit);
   }
 
   updateWorkspaceShellUI();
@@ -1180,7 +1989,7 @@ function initializeSummaryService() {
     getMapData: () => loadedMapData,
     getUnionRegistry: () => appState.unionRegistry,
     getGameRulesEngine: () => appState.gameRulesEngine,
-    getDesignatedUnionId: () => appSummaryConfig.designatedUnionId,
+    getNativeUnionIds: (server) => getCurrentNativeUnionIds(server),
     getTerritoryOwner: serverStateService.getTerritoryOwner.bind(serverStateService)
   });
 }
@@ -1917,6 +2726,13 @@ function buildTerritoryEditor(item) {
   editorRow.appendChild(ownerLabel);
   editorRow.appendChild(ownerSelect);
   territorySection.appendChild(editorRow);
+  if (selectionState.errorMessage) {
+    territorySection.appendChild(createDataManagementElement(
+      "div",
+      "data-management-error territory-editor-error",
+      selectionState.errorMessage
+    ));
+  }
   selectionPanel.appendChild(territorySection);
 }
 
@@ -1951,6 +2767,7 @@ async function handleSelectionPanelChange(event) {
   }
 
   const ownerId = ownerSelect.value || null;
+  selectionState.errorMessage = null;
   ownerSelect.disabled = true;
 
   try {
@@ -1974,13 +2791,24 @@ async function handleSelectionPanelChange(event) {
 
     refreshOwnershipView();
     refreshCommandCentreCards();
-    await Promise.all([
+    Promise.all([
       serverStatePersistenceController.requestSave(),
       dataManagementPersistenceController.requestSave()
-    ]);
+    ]).catch((error) => {
+      if (selectionState.selectedItem === selectedItem) {
+        selectionState.errorMessage = error && error.message
+          ? `Ownership changed but could not be saved: ${error.message}`
+          : "Ownership changed but could not be saved.";
+        renderSelectionPanel(selectedItem);
+      }
+    });
   } catch (error) {
     refreshOwnershipView();
     refreshCommandCentreCards();
+    selectionState.errorMessage = error && error.message
+      ? error.message
+      : "Unable to update ownership.";
+    renderSelectionPanel(selectedItem);
     console.error("Unable to apply or persist updated map ownership", error);
   } finally {
     ownerSelect.disabled = false;
@@ -2326,6 +3154,7 @@ function clearSelection() {
   clearHoverEffects();
   selectionState.selectedElements = [];
   selectionState.selectedItem = null;
+  selectionState.errorMessage = null;
   renderSelectionPanel(null);
 }
 
@@ -2384,6 +3213,7 @@ function selectTile(tile, element) {
   clearSelection();
   selectionState.selectedItem = tile;
   selectionState.selectedElements = [element];
+  selectionState.errorMessage = null;
   clearSelectionClasses([element]);
   element.classList.add(SELECTED_TILE_CLASS);
   renderSelectionPanel(tile);
@@ -2398,6 +3228,7 @@ function selectMarker(marker) {
   const footprintElements = getTileElementsForFootprint(marker);
   selectionState.selectedItem = marker;
   selectionState.selectedElements = footprintElements;
+  selectionState.errorMessage = null;
 
   if (footprintElements.length === 0) {
     renderSelectionPanel(marker);
@@ -2628,14 +3459,13 @@ function initializeMap() {
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
       initializeDataManagementRuntime();
-      appState.servers = serverStateService.listServers();
+      appState.allServers = serverStateService.listServers();
       const activeSeason = seasonAdministrationService.getActiveSeason();
-      if (activeSeason) {
-        const allowedServers = new Set(activeSeason.serverIds);
-        appState.servers = appState.servers.filter((server) => allowedServers.has(server.id));
-      }
+      appState.servers = activeSeason
+        ? appState.allServers.filter((server) => activeSeason.serverIds.includes(server.id))
+        : [];
       seasonSetupState.selectedServerIds = new Set(
-        activeSeason ? activeSeason.serverIds : appState.servers.map((server) => server.id)
+        activeSeason ? activeSeason.serverIds : appState.allServers.map((server) => server.id)
       );
       loadedMapData = mapData;
       initializeOwnershipService();
@@ -2693,7 +3523,8 @@ function configureRenderer(bootstrapContext) {
   if (!bootstrapContext.serverStatePersistenceController
       || typeof bootstrapContext.serverStatePersistenceController !== "object"
       || typeof bootstrapContext.serverStatePersistenceController.initialize !== "function"
-      || typeof bootstrapContext.serverStatePersistenceController.requestSave !== "function") {
+      || typeof bootstrapContext.serverStatePersistenceController.requestSave !== "function"
+      || typeof bootstrapContext.serverStatePersistenceController.flush !== "function") {
     throw new Error("Renderer requires a server state persistence controller.");
   }
 
@@ -2709,7 +3540,10 @@ function configureRenderer(bootstrapContext) {
       || typeof bootstrapContext.seasonAdministrationService.listPreparedSeasons !== "function"
       || typeof bootstrapContext.seasonAdministrationService.getPreparedSeason !== "function"
       || typeof bootstrapContext.seasonAdministrationService.getActiveSeason !== "function"
-      || typeof bootstrapContext.seasonAdministrationService.activateSeason !== "function") {
+      || typeof bootstrapContext.seasonAdministrationService.listCompletedSeasons !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.activateSeason !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.updateActiveSeasonServers !== "function"
+      || typeof bootstrapContext.seasonAdministrationService.completeActiveSeason !== "function") {
     throw new Error("Renderer requires a Season Administration Service.");
   }
 

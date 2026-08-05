@@ -154,6 +154,7 @@
       authorizationPolicyService,
       unionRegistryManagementService,
       serverIntelligenceManagementService,
+      relationService: strategic.relationService,
       executeAtomically: atomicOperationExecutor.executeAtomically.bind(atomicOperationExecutor),
       createId: input.createId
     });

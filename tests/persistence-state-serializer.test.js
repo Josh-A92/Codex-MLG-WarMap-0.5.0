@@ -119,13 +119,24 @@ runTest("missing required top-level fields are reported", () => {
 runTest("unknown top-level and server fields are rejected", () => {
   const candidate = createCanonicalEnvelope();
   candidate.extra = true;
-  candidate.servers[0].label = "Not allowed";
+  candidate.servers[0].extra = "Not allowed";
 
   const result = validatePersistenceEnvelope(candidate);
 
   assert.strictEqual(result.valid, false);
   assertError(result, "UNKNOWN_FIELD", "extra");
-  assertError(result, "UNKNOWN_FIELD", "servers[0].label");
+  assertError(result, "UNKNOWN_FIELD", "servers[0].extra");
+});
+
+runTest("optional server labels are validated", () => {
+  const candidate = createCanonicalEnvelope();
+  candidate.servers[0].label = "Server 366";
+  assert.strictEqual(validatePersistenceEnvelope(candidate).valid, true);
+
+  candidate.servers[0].label = "   ";
+  const result = validatePersistenceEnvelope(candidate);
+  assert.strictEqual(result.valid, false);
+  assertError(result, "INVALID_STRING", "servers[0].label");
 });
 
 runTest("unsupported schema version is rejected", () => {
@@ -243,6 +254,7 @@ runTest("serialization from fake service produces canonical envelope", () => {
   assert.strictEqual(envelope.seasonId, "season-1");
   assert.strictEqual(envelope.baseMapId, "season1-map");
   assert.strictEqual(envelope.savedAt, "2026-07-28T12:00:00.000Z");
+  assert.strictEqual(envelope.servers[0].label, "Server 366");
   assert.deepStrictEqual(envelope.servers[0].ownership["10-11"], null);
 });
 
@@ -253,7 +265,7 @@ runTest("only permitted fields are serialized", () => {
 
   assert.deepStrictEqual(Object.keys(envelope).sort(), ["baseMapId", "savedAt", "schemaVersion", "seasonId", "servers"]);
   envelope.servers.forEach((serverRecord) => {
-    assert.deepStrictEqual(Object.keys(serverRecord).sort(), ["id", "ownership"]);
+    assert.deepStrictEqual(Object.keys(serverRecord).sort(), ["id", "label", "ownership"]);
   });
 });
 

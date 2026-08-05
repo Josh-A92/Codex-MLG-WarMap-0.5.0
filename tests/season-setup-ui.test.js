@@ -17,10 +17,12 @@ function test(name, fn) {
   }
 }
 
-test("Season Setup is a dedicated workspace rather than a subordinate selector", () => {
+test("Season Management is a dedicated workspace with persistent re-entry routes", () => {
   assert.match(html, /data-workspace-target="season-setup"/);
   assert.match(html, /id="seasonSetupView"/);
-  assert.strictEqual((html.match(/data-workspace-target="season-setup"/g) || []).length, 1);
+  assert.match(html, />Season Management<\/button>/);
+  assert.match(html, />Manage Season<\/button>/);
+  assert.strictEqual((html.match(/data-workspace-target="season-setup"/g) || []).length, 2);
 });
 
 test("strategic-network scripts load before the renderer and bootstrap in dependency order", () => {
@@ -83,6 +85,66 @@ test("activation uses the authorized service with both confirmations and server 
   assert.match(renderer, /resourcesAndValues: seasonSetupState\.resourcesAndValuesConfirmed/);
 });
 
+test("active season management explicitly clears live maps while preserving history", () => {
+  assert.match(renderer, /data-season-setup-action", "complete-season"/);
+  assert.match(renderer, /seasonAdministrationService\.completeActiveSeason\(localActor\)/);
+  assert.match(renderer, /clears live map ownership while preserving union, evidence, and audit history/);
+  assert.match(renderer, /clears live map ownership while preserving union, evidence, and audit history/);
+  assert.match(renderer, /seasonSetupState\.isCompleting/);
+  assert.match(renderer, /serverStateService\.replaceTerritoryOwnership\(\{\}\)/);
+  assert.match(renderer, /serverStateService\.restoreTransactionState\(ownershipSnapshot\)/);
+  assert.match(renderer, /serverStatePersistenceController\.flush\(\)/);
+});
+
+test("active Season Management can update participating servers", () => {
+  assert.match(renderer, /data-active-season-server/);
+  assert.match(renderer, /Save participating servers/);
+  assert.match(renderer, /seasonAdministrationService\.updateActiveSeasonServers/);
+  assert.match(renderer, /appState\.allServers\.filter/);
+});
+
+test("Season Management registers user-entered server numbers and persists them", () => {
+  assert.match(renderer, /Add a server number/);
+  assert.match(renderer, /data-server-number-input/);
+  assert.match(renderer, /data-season-setup-action", "register-server"/);
+  assert.match(renderer, /\^\[1-9\]\\d\*\$/);
+  assert.match(renderer, /serverStateService\.hasServer\(serverId\)/);
+  assert.match(renderer, /serverStateService\.registerServer\(\{ id: serverId, label: `Server \$\{serverNumber\}` \}\)/);
+  assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\);[\s\S]*seasonSetupState\.selectedServerIds\.add\(serverId\);[\s\S]*renderSeasonSetup\(\);[\s\S]*serverStatePersistenceController\.requestSave\(\)/);
+  assert.match(renderer, /serverStatePersistenceController\.requestSave\(\)/);
+  assert.match(renderer, /serverStatePersistenceController\.flush\(\)/);
+  assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\)/);
+  assert.match(renderer, /actionTarget\.closest\("\.season-setup-server-registration"\)/);
+  assert.match(renderer, /Server \$\{serverNumber\} was added, but could not be saved/);
+  const registrationBranch = renderer.match(
+    /if \(action === "register-server"\) \{[\s\S]*?\n\s*return;\n\s*\}/
+  );
+  assert.ok(registrationBranch, "registration action branch should exist");
+  assert.doesNotMatch(registrationBranch[0], /unregisterServer/);
+  assert.doesNotMatch(registrationBranch[0], /selectedServerIds\.delete/);
+});
+
+test("registering a server keeps creation separate from active-season participation", () => {
+  const registrationBranch = renderer.match(
+    /if \(action === "register-server"\) \{[\s\S]*?\n\s*return;\n\s*\}/
+  );
+  assert.ok(registrationBranch, "registration action branch should exist");
+  assert.doesNotMatch(registrationBranch[0], /updateActiveSeasonServers/);
+  assert.doesNotMatch(registrationBranch[0], /activeSeason\.serverIds\.concat/);
+  assert.match(renderer, /Create the server here, then select it below and save the participating servers/);
+});
+
+test("Command Centre exposes no server cards without an active season", () => {
+  assert.match(renderer, /No servers are available until a season is active/);
+  assert.match(renderer, /appState\.servers = activeSeason[\s\S]*:\s*\[\]/);
+});
+
+test("renderer requires the complete season-administration lifecycle API", () => {
+  assert.match(renderer, /typeof bootstrapContext\.seasonAdministrationService\.listCompletedSeasons !== "function"/);
+  assert.match(renderer, /typeof bootstrapContext\.seasonAdministrationService\.updateActiveSeasonServers !== "function"/);
+  assert.match(renderer, /typeof bootstrapContext\.seasonAdministrationService\.completeActiveSeason !== "function"/);
+});
+
 test("Season Setup handlers attach during workspace initialization", () => {
   const attachStart = renderer.indexOf("function attachWorkspaceShellHandlers()");
   const nextFunction = renderer.indexOf("function createHeadCell(", attachStart);
@@ -96,7 +158,7 @@ test("Season Setup handlers attach during workspace initialization", () => {
 });
 
 test("persisted and newly activated contexts filter participating servers", () => {
-  assert.match(renderer, /allowedServers\.has\(server\.id\)/);
+  assert.match(renderer, /appState\.allServers\.filter\(\(server\) => allowed\.has\(server\.id\)\)/);
   assert.match(renderer, /applyActivatedServerSelection\(activeSeason\)/);
 });
 

@@ -142,6 +142,44 @@
       return state.serversById.has(normalizedServerId);
     }
 
+    function registerServer(server) {
+      if (!isPlainObject(server)) {
+        throw new Error("Server State Service requires server to be an object.");
+      }
+
+      const unknownFields = Object.keys(server).filter((key) => !["id", "label"].includes(key));
+      if (unknownFields.length > 0) {
+        throw new Error(`Server State Service does not recognize server field '${unknownFields.sort()[0]}'.`);
+      }
+
+      const serverId = requireNonEmptyString(server.id, "server.id");
+      const label = requireNonEmptyString(server.label, "server.label");
+      if (state.serversById.has(serverId)) {
+        throw new Error(`Server State Service already contains server '${serverId}'.`);
+      }
+
+      const serverState = {
+        id: serverId,
+        label,
+        baseMapId: state.baseMapId,
+        ownership: {}
+      };
+      state.serversById.set(serverId, serverState);
+      state.serverIds.push(serverId);
+      return deepClone(serverState);
+    }
+
+    function unregisterServer(serverId) {
+      const server = requireServer(serverId);
+      if (Object.keys(server.ownership || {}).length > 0) {
+        throw new Error(`Server State Service cannot remove server '${server.id}' while it has ownership data.`);
+      }
+
+      state.serversById.delete(server.id);
+      state.serverIds = state.serverIds.filter((id) => id !== server.id);
+      return true;
+    }
+
     function getTerritoryOwnership(serverId) {
       const server = requireServer(serverId);
       return deepClone(server.ownership || {});
@@ -255,6 +293,8 @@
       listServers,
       getServer,
       hasServer,
+      registerServer,
+      unregisterServer,
       getTerritoryOwnership,
       getTerritoryOwner,
       setTerritoryOwner,

@@ -65,6 +65,7 @@ function createSummaryServiceFixture(options) {
   const unionRegistry = config.unionRegistry || [];
   const ownershipByServerAndKey = config.ownershipByServerAndKey || {};
   const designatedByServerId = config.designatedByServerId || {};
+  const nativeByServerId = config.nativeByServerId || null;
   const gameRulesEngine = config.gameRulesEngine || createGameRulesEngine();
 
   const ownershipCalls = [];
@@ -73,6 +74,11 @@ function createSummaryServiceFixture(options) {
     getMapData: () => mapData,
     getUnionRegistry: () => unionRegistry,
     getGameRulesEngine: () => gameRulesEngine,
+    getNativeUnionIds: nativeByServerId === null
+      ? undefined
+      : (server) => Array.isArray(nativeByServerId[server && server.id])
+        ? nativeByServerId[server.id].slice()
+        : [],
     getDesignatedUnionId: (server) => {
       if (!server || typeof server.id !== "string") {
         return null;
@@ -411,6 +417,130 @@ runTest("designated union label is resolved from registry", () => {
   const summary = service.getServerSummary(server);
 
   assert.strictEqual(summary.designatedUnionLabel, "Alpha");
+});
+
+runTest("leading union excludes a higher-scoring union that is not native to the server", () => {
+  const server = { id: "367", label: "Server 367" };
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "season-score",
+        calculationModelId: "structure-output-holdings-total",
+        configured: true,
+        resourceId: "points",
+        displayLabel: "Points"
+      }],
+      resources: [{
+        resourceId: "points",
+        displayName: "Points",
+        unit: "points",
+        metricType: "season-resource"
+      }],
+      structureOutputs: {
+        HIGH: [{ resourceId: "points", value: 500 }],
+        NATIVE: [{ resourceId: "points", value: 495 }]
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "HIGH", type: "City", ownerId: null },
+        { row: 1, col: 2, code: "NATIVE", type: "City", ownerId: null }
+      ]],
+      structures: []
+    },
+    ownershipByServerAndKey: {
+      "367": { "1-1": "union-mlg", "1-2": "union-sos" }
+    },
+    nativeByServerId: {
+      "367": ["union-sos"]
+    },
+    unionRegistry: [
+      { unionId: "union-mlg", tag: "MLG" },
+      { unionId: "union-sos", tag: "SOS" }
+    ]
+  });
+
+  const summary = service.getServerSummary(server);
+  assert.deepStrictEqual(summary.leadingUnionIds, ["union-sos"]);
+  assert.strictEqual(summary.leadingUnionLabel, "SOS");
+  assert.strictEqual(summary.leadingUnionScore, 495);
+  assert.strictEqual(summary.leadingUnionControlledTileCount, 1);
+});
+
+runTest("equal highest positive scores produce joint native leaders", () => {
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "season-score",
+        calculationModelId: "structure-output-holdings-total",
+        configured: true,
+        resourceId: "points"
+      }],
+      resources: [{ resourceId: "points", displayName: "Points", unit: "points", metricType: "season-resource" }],
+      structureOutputs: {
+        A: [{ resourceId: "points", value: 100 }],
+        B: [{ resourceId: "points", value: 100 }]
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "A", ownerId: null },
+        { row: 1, col: 2, code: "B", ownerId: null }
+      ]],
+      structures: []
+    },
+    ownershipByServerAndKey: { "server-1": { "1-1": "union-a", "1-2": "union-b" } },
+    nativeByServerId: { "server-1": ["union-a", "union-b"] },
+    unionRegistry: [
+      { unionId: "union-a", tag: "A" },
+      { unionId: "union-b", tag: "B" }
+    ]
+  });
+
+  const summary = service.getServerSummary({ id: "server-1", label: "Server 1" });
+  assert.deepStrictEqual(summary.leadingUnionIds, ["union-a", "union-b"]);
+  assert.strictEqual(summary.leadingUnionId, null);
+  assert.strictEqual(summary.leadingUnionLabel, "A + B");
+  assert.strictEqual(summary.leadingUnionScore, 100);
+});
+
+runTest("native unions without a positive score do not create a leader", () => {
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "season-score",
+        calculationModelId: "structure-output-holdings-total",
+        configured: true,
+        resourceId: "points"
+      }],
+      resources: [{ resourceId: "points", displayName: "Points", unit: "points", metricType: "season-resource" }]
+    }),
+    nativeByServerId: { "server-1": ["union-a"] }
+  });
+
+  const summary = service.getServerSummary({ id: "server-1", label: "Server 1" });
+  assert.strictEqual(summary.leadershipStatus, "no_native_leader");
+  assert.strictEqual(summary.leadingUnionLabel, "No native leader yet");
+  assert.deepStrictEqual(summary.leadingUnionIds, []);
+});
+
+runTest("unconfigured scoring reports that the leader is unavailable", () => {
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "future-score",
+        calculationModelId: "structure-output-holdings-total",
+        configured: false,
+        resourceId: "points"
+      }],
+      resources: [{ resourceId: "points", displayName: "Points", unit: "points", metricType: "season-resource" }]
+    }),
+    nativeByServerId: { "server-1": ["union-a"] }
+  });
+
+  const summary = service.getServerSummary({ id: "server-1", label: "Server 1" });
+  assert.strictEqual(summary.leadershipStatus, "unavailable");
+  assert.strictEqual(summary.leadingUnionLabel, "Leader unavailable");
 });
 
 runTest("configured scoring uses calculationId and supports two independent totals for one model", () => {

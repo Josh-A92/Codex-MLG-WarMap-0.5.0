@@ -96,21 +96,44 @@
     }
   }
 
-  function buildOwnershipReplacement(envelope, hasServer) {
-    const ownershipByServerId = {};
+  function rollbackRegisteredServers(registeredServerIds, unregisterServer) {
+    if (typeof unregisterServer !== "function") {
+      return;
+    }
 
-    envelope.servers.forEach((serverRecord) => {
-      if (!hasServer(serverRecord.id)) {
-        throw createPersistenceServiceError(
-          "UNKNOWN_PERSISTED_SERVER",
-          `Saved envelope contains unknown server id '${serverRecord.id}'.`
-        );
-      }
-
-      ownershipByServerId[serverRecord.id] = deepClone(serverRecord.ownership);
+    registeredServerIds.slice().reverse().forEach((serverId) => {
+      unregisterServer(serverId);
     });
+  }
 
-    return ownershipByServerId;
+  function buildOwnershipReplacement(envelope, hasServer, registerServer, unregisterServer) {
+    const ownershipByServerId = {};
+    const registeredServerIds = [];
+
+    try {
+      envelope.servers.forEach((serverRecord) => {
+        if (!hasServer(serverRecord.id)) {
+          if (typeof registerServer !== "function") {
+            throw createPersistenceServiceError(
+              "UNKNOWN_PERSISTED_SERVER",
+              `Saved envelope contains unknown server id '${serverRecord.id}'.`
+            );
+          }
+          registerServer({
+            id: serverRecord.id,
+            label: serverRecord.label || serverRecord.id
+          });
+          registeredServerIds.push(serverRecord.id);
+        }
+
+        ownershipByServerId[serverRecord.id] = deepClone(serverRecord.ownership);
+      });
+    } catch (error) {
+      rollbackRegisteredServers(registeredServerIds, unregisterServer);
+      throw error;
+    }
+
+    return { ownershipByServerId, registeredServerIds };
   }
 
   function createPersistenceService(dependencies) {
@@ -135,6 +158,12 @@
       const getSeasonId = requireServerStateMethod(serverStateService, "getSeasonId", "load");
       const getBaseMapId = requireServerStateMethod(serverStateService, "getBaseMapId", "load");
       const hasServer = requireServerStateMethod(serverStateService, "hasServer", "load");
+      const registerServer = typeof serverStateService.registerServer === "function"
+        ? serverStateService.registerServer.bind(serverStateService)
+        : null;
+      const unregisterServer = typeof serverStateService.unregisterServer === "function"
+        ? serverStateService.unregisterServer.bind(serverStateService)
+        : null;
       const replaceTerritoryOwnership = requireServerStateMethod(serverStateService, "replaceTerritoryOwnership", "load");
 
       const seasonId = getSeasonId();
@@ -172,11 +201,17 @@
 
       assertEnvelopeIdentityMatch(deserializedEnvelope, seasonId, baseMapId);
 
-      const ownershipByServerId = buildOwnershipReplacement(deserializedEnvelope, hasServer);
+      const replacement = buildOwnershipReplacement(
+        deserializedEnvelope,
+        hasServer,
+        registerServer,
+        unregisterServer
+      );
 
       try {
-        replaceTerritoryOwnership(ownershipByServerId);
+        replaceTerritoryOwnership(replacement.ownershipByServerId);
       } catch (error) {
+        rollbackRegisteredServers(replacement.registeredServerIds, unregisterServer);
         throw createPersistenceServiceError(
           "RESTORATION_FAILED",
           "Persistence load failed while applying restored ownership state.",

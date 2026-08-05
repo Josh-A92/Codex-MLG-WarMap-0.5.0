@@ -63,6 +63,15 @@
     const getDesignatedUnionId = typeof config.getDesignatedUnionId === "function"
       ? config.getDesignatedUnionId
       : () => null;
+    const getNativeUnionIds = typeof config.getNativeUnionIds === "function"
+      ? config.getNativeUnionIds
+      : (server) => {
+          const legacyUnionId = normalizeUnionId(getDesignatedUnionId(server));
+          return legacyUnionId ? [legacyUnionId] : [];
+        };
+    const getLeadershipCalculationId = typeof config.getLeadershipCalculationId === "function"
+      ? config.getLeadershipCalculationId
+      : () => null;
 
     function getResolvedResourceModel() {
       const engine = getGameRulesEngine();
@@ -102,7 +111,7 @@
       return resourceModel.resources.find((entry) => entry && entry.resourceId === resourceId) || null;
     }
 
-    function getOwnedStructureOutputsForResource(server, resourceId) {
+    function getOwnedStructureOutputsForResource(server, resourceId, unionId) {
       const engine = getGameRulesEngine();
       if (!engine || typeof engine.getStructureResourceProfile !== "function" || typeof resourceId !== "string" || resourceId.trim() === "") {
         return 0;
@@ -110,8 +119,8 @@
 
       const tileContext = buildTileContext();
       const serverId = isObject(server) ? server.id : null;
-      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
-      if (!designatedUnionId) {
+      const normalizedUnionId = normalizeUnionId(unionId);
+      if (!normalizedUnionId) {
         return 0;
       }
 
@@ -124,7 +133,7 @@
         }
 
         getStructureFootprintKeys(structure).forEach((key) => logicalStructureFootprints.add(key));
-        if (!isStructureOwnedBy(serverId, designatedUnionId, structure, tileContext)) {
+        if (!isStructureOwnedBy(serverId, normalizedUnionId, structure, tileContext)) {
           return;
         }
 
@@ -151,7 +160,7 @@
         }
 
         const ownerId = resolveTerritoryOwner(serverId, tile.territoryKey, tile.fallbackOwnerId);
-        if (ownerId !== designatedUnionId) {
+        if (ownerId !== normalizedUnionId) {
           return;
         }
 
@@ -175,7 +184,7 @@
       return total;
     }
 
-    function getScoringDisplays(server) {
+    function getScoringDisplays(server, unionId) {
       const calculations = getResolvedScoringCalculations();
 
       return calculations.map((calculation) => {
@@ -183,7 +192,7 @@
         const configured = calculation.configured === true;
         const supportedModel = calculation.calculationModelId === "structure-output-holdings-total";
         const canResolve = configured && supportedModel && resource !== null;
-        const value = canResolve ? getOwnedStructureOutputsForResource(server, calculation.resourceId) : null;
+        const value = canResolve ? getOwnedStructureOutputsForResource(server, calculation.resourceId, unionId) : null;
         const text = value === null
           ? (typeof calculation.unconfiguredLabel === "string" && calculation.unconfiguredLabel.trim() !== ""
             ? calculation.unconfiguredLabel
@@ -209,6 +218,54 @@
             : null
         };
       });
+    }
+
+    function getNativeCandidates(server) {
+      const suppliedIds = getNativeUnionIds(server);
+      if (!Array.isArray(suppliedIds)) {
+        return [];
+      }
+
+      return Array.from(new Set(suppliedIds.map(normalizeUnionId).filter(Boolean)));
+    }
+
+    function getLeadershipResult(server) {
+      const calculations = getResolvedScoringCalculations();
+      const requestedCalculationId = normalizeUnionId(getLeadershipCalculationId(server));
+      const eligibleCalculations = calculations.filter((calculation) => (
+        calculation
+        && calculation.configured === true
+        && calculation.calculationModelId === "structure-output-holdings-total"
+        && getResourceById(calculation.resourceId) !== null
+      ));
+      const calculation = requestedCalculationId
+        ? eligibleCalculations.find((entry) => entry.calculationId === requestedCalculationId) || null
+        : eligibleCalculations.length === 1 ? eligibleCalculations[0] : null;
+
+      if (!calculation) {
+        return {
+          status: "unavailable",
+          calculationId: requestedCalculationId,
+          score: null,
+          unionIds: []
+        };
+      }
+
+      const ranked = getNativeCandidates(server).map((unionId) => ({
+        unionId,
+        score: getOwnedStructureOutputsForResource(server, calculation.resourceId, unionId)
+      }));
+      const highestScore = ranked.reduce((highest, entry) => Math.max(highest, entry.score), 0);
+      const unionIds = highestScore > 0
+        ? ranked.filter((entry) => entry.score === highestScore).map((entry) => entry.unionId)
+        : [];
+
+      return {
+        status: unionIds.length > 0 ? "available" : "no_native_leader",
+        calculationId: calculation.calculationId,
+        score: unionIds.length > 0 ? highestScore : 0,
+        unionIds
+      };
     }
 
     function buildTileContext() {
@@ -306,10 +363,14 @@
       return union.tag || union.displayName || union.unionId;
     }
 
-    function getTileOwnershipStats(server) {
+    function getTileOwnershipStats(server, focusUnionIds) {
       const tileContext = buildTileContext();
       const serverId = isObject(server) ? server.id : null;
-      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
+      const normalizedFocusUnionIds = Array.isArray(focusUnionIds)
+        ? focusUnionIds.map(normalizeUnionId).filter(Boolean)
+        : [];
+      const focusUnionIdSet = new Set(normalizedFocusUnionIds);
+      const designatedUnionId = normalizedFocusUnionIds[0] || null;
       let controlledTileCount = 0;
       let designatedUnionControlledTileCount = 0;
 
@@ -320,7 +381,7 @@
           controlledTileCount += 1;
         }
 
-        if (designatedUnionId && resolvedOwnerId === designatedUnionId) {
+        if (focusUnionIdSet.has(resolvedOwnerId)) {
           designatedUnionControlledTileCount += 1;
         }
       });
@@ -343,10 +404,12 @@
       };
     }
 
-    function getStructureOwnershipByType(server) {
+    function getStructureOwnershipByType(server, focusUnionIds) {
       const tileContext = buildTileContext();
       const serverId = isObject(server) ? server.id : null;
-      const designatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
+      const normalizedFocusUnionIds = Array.isArray(focusUnionIds)
+        ? focusUnionIds.map(normalizeUnionId).filter(Boolean)
+        : [];
       const summaryByType = new Map();
 
       toSafeArray(tileContext.structures).forEach((structure) => {
@@ -361,12 +424,9 @@
           return;
         }
 
-        const isDesignatedOwned = isStructureOwnedBy(
-          serverId,
-          designatedUnionId,
-          structure,
-          tileContext
-        );
+        const isDesignatedOwned = normalizedFocusUnionIds.some((unionId) => (
+          isStructureOwnedBy(serverId, unionId, structure, tileContext)
+        ));
 
         const bucket = summaryByType.get(type) || {
           structureType: type,
@@ -390,10 +450,23 @@
     }
 
     function getServerSummary(server) {
-      const tileStats = getTileOwnershipStats(server);
-      const structureOwnershipByType = getStructureOwnershipByType(server);
-      const designatedUnionLabel = tileStats.designatedUnionId
-        ? getUnionLabel(tileStats.designatedUnionId)
+      const leadership = getLeadershipResult(server);
+      const legacyDesignatedUnionId = normalizeUnionId(getDesignatedUnionId(server));
+      const tileStats = getTileOwnershipStats(server, legacyDesignatedUnionId ? [legacyDesignatedUnionId] : []);
+      const leadingTileStats = getTileOwnershipStats(server, leadership.unionIds);
+      const structureOwnershipByType = getStructureOwnershipByType(
+        server,
+        legacyDesignatedUnionId ? [legacyDesignatedUnionId] : []
+      );
+      const leadingStructureOwnershipByType = getStructureOwnershipByType(server, leadership.unionIds);
+      const leadingUnionLabels = leadership.unionIds.map(getUnionLabel);
+      const leadingUnionLabel = leadership.status === "unavailable"
+        ? "Leader unavailable"
+        : leadership.status === "no_native_leader"
+          ? "No native leader yet"
+          : leadingUnionLabels.join(" + ");
+      const designatedUnionLabel = legacyDesignatedUnionId
+        ? getUnionLabel(legacyDesignatedUnionId)
         : DEFAULT_UNASSIGNED_UNION_LABEL;
       const resourceModel = getResolvedResourceModel();
 
@@ -403,13 +476,26 @@
         totalCapturableTileCount: tileStats.totalCapturableTileCount,
         controlledTileCount: tileStats.controlledTileCount,
         controlledTerritoryPercent: tileStats.controlledTerritoryPercent,
-        designatedUnionId: tileStats.designatedUnionId,
+        designatedUnionId: legacyDesignatedUnionId,
         designatedUnionLabel,
         designatedUnionControlledTileCount: tileStats.designatedUnionControlledTileCount,
         designatedUnionTerritoryPercent: tileStats.designatedUnionTerritoryPercent,
+        leadershipStatus: leadership.status,
+        leadershipCalculationId: leadership.calculationId,
+        leadingUnionIds: leadership.unionIds.slice(),
+        leadingUnionId: leadership.unionIds.length === 1 ? leadership.unionIds[0] : null,
+        leadingUnionLabels,
+        leadingUnionLabel,
+        leadingUnionScore: leadership.score,
+        leadingUnionControlledTileCount: leadingTileStats.designatedUnionControlledTileCount,
+        leadingUnionTerritoryPercent: leadingTileStats.designatedUnionTerritoryPercent,
         structureOwnershipByType,
+        leadingStructureOwnershipByType,
         resourceModel,
-        scoringDisplays: getScoringDisplays(server)
+        scoringDisplays: getScoringDisplays(
+          server,
+          leadership.unionIds[0] || legacyDesignatedUnionId || null
+        )
       };
     }
 

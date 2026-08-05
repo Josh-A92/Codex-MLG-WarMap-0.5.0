@@ -6,7 +6,7 @@ Define the first storage-neutral persistence contract for the currently implemen
 This contract standardizes what is saved and restored so local files, browser storage, databases, or remote APIs can implement the same boundary later.
 
 ## Scope
-Version 1 persistence scope is limited to mutable per-server territory ownership state.
+Version 1 persistence scope is limited to the server identities required to address mutable per-server territory ownership state, plus that ownership state itself.
 
 In scope:
 - Persist per-server `ownership` maps keyed by territory key (`"row-col"` style key such as `"10-11"`).
@@ -19,6 +19,7 @@ In scope:
 - Setting ownership to `null` remains distinct from removal: `null` suppresses fallback and represents unclaimed ownership.
 - Scope each payload to exactly one `seasonId` and one `baseMapId`.
 - Identify each server by stable server `id`.
+- Preserve user-registered server display labels across restarts.
 - Support exactly one current envelope per `seasonId` + `baseMapId` combination.
 
 ## Authority boundaries
@@ -38,6 +39,7 @@ In scope:
   "servers": [
     {
       "id": "server-366",
+      "label": "Server 366",
       "ownership": {
         "10-10": "union-0001",
         "10-11": null
@@ -57,6 +59,7 @@ Top level:
 
 Server record:
 - `id`: non-empty, non-whitespace stable server ID string.
+- `label`: optional non-empty, non-whitespace display label. It is persisted for user-registered servers; its omission remains accepted for older version 1 saves.
 - `ownership`: plain object keyed by non-empty, non-whitespace territory keys.
 
 Ownership map entry:
@@ -72,11 +75,12 @@ Ownership map entry:
 - `savedAt` must be a valid UTC ISO-8601 timestamp in canonical format `YYYY-MM-DDTHH:mm:ss.sssZ`.
 - `servers` must be an array.
 - Server IDs must be unique within one payload.
+- A present server `label` must be a non-empty, non-whitespace string.
 - Each server `ownership` must be a plain object.
 - Ownership keys must be non-empty, non-whitespace strings.
 - Ownership values must be `null` or non-empty, non-whitespace union-ID strings.
 - Unknown fields at top level are rejected in version 1.
-- Unknown fields inside each server record are rejected in version 1.
+- Unknown fields other than the optional server `label` inside each server record are rejected in version 1.
 - Invalid payloads fail as a whole and are not partially applied.
 - Loading must not mutate the supplied payload.
 - Saving must serialize safe copies, not live mutable references.
@@ -89,15 +93,14 @@ Ownership map entry:
 - Version 1 does not define migrations. Migration behavior is future work.
 
 ## Restoration rules
-- Restoration requires active runtime context from Server State Service (`seasonId`, `baseMapId`, active server IDs).
+- Restoration requires active runtime context from Server State Service (`seasonId`, `baseMapId`, and its server-registration boundary).
 - Persisted `seasonId` must match active runtime `seasonId` before apply.
 - Persisted `baseMapId` must match active runtime `baseMapId` before apply.
-- Persisted server IDs must all exist in active runtime service.
-- Unknown persisted server IDs must cause clear restoration failure (not silent ignore).
+- Persisted server IDs that do not yet exist in the runtime are registered through the Server State Service before ownership is restored. Their persisted `label` is used when present; older payloads without a label fall back to the server ID.
+- A runtime that does not expose server registration must still reject unknown persisted server IDs clearly rather than silently ignoring them.
 - Successful restoration replaces complete per-server ownership state atomically rather than merging individual keys.
 - Active servers omitted from persisted `servers` must receive empty ownership maps (`{}`) as part of that same successful atomic replacement.
-- Restoration applies atomically after full validation succeeds.
-- Replacement semantics imply a future service-level atomic restoration API; this contract does not claim that API is already implemented.
+- Restoration applies atomically after full validation succeeds. If ownership replacement fails, servers created solely for that restoration attempt are removed again.
 
 ## Storage-adapter boundary
 Persistence responsibilities are split without selecting a backend:

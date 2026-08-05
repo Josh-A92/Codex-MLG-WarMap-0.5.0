@@ -64,8 +64,16 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
 .workspace-shell:not([data-active-workspace="season-setup"]) .season-setup-view {
   display:none;
 }
+.workspace-shell:not([data-active-workspace="data-management"]) .data-management-view {
+  display:none;
+}
 .workspace-shell[data-active-workspace="season-setup"] .command-centre-view,
 .workspace-shell[data-active-workspace="season-setup"] .map-frame {
+  display:none;
+}
+.workspace-shell[data-active-workspace="data-management"] .command-centre-view,
+.workspace-shell[data-active-workspace="data-management"] .season-setup-view,
+.workspace-shell[data-active-workspace="data-management"] .map-frame {
   display:none;
 }
 .server-dock {
@@ -100,6 +108,249 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
   cursor:pointer;
   opacity:.8;
   transition:opacity .14s ease, background-color .14s ease, border-color .14s ease, transform .14s ease;
+}
+.server-dock-button--data {
+  min-width:118px;
+}
+
+.data-management-view {
+  display:block;
+  min-width:0;
+}
+.data-management-header {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+  padding:18px;
+  border:1px solid #38536a;
+  border-radius:14px;
+  background:linear-gradient(145deg,#15293a,#0b1825);
+}
+.data-management-header h2,
+.data-management-panel h3 {
+  margin:0;
+}
+.data-management-header p,
+.data-management-help,
+.data-management-empty {
+  margin:6px 0 0;
+  color:var(--muted);
+  line-height:1.45;
+}
+.data-management-area-label,
+.data-management-count,
+.union-registry-status {
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:4px 9px;
+  border:1px solid rgba(185,213,236,.3);
+  border-radius:999px;
+  color:#dbeeff;
+  background:#102638;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.data-management-panel {
+  margin-bottom:14px;
+  padding:18px;
+  border:1px solid #304b61;
+  border-radius:14px;
+  background:linear-gradient(180deg,#112334,#0b1824);
+}
+.data-management-error {
+  margin-bottom:14px;
+  padding:12px 14px;
+  border:1px solid #c65d68;
+  border-radius:10px;
+  color:#ffe3e6;
+  background:#421d25;
+}
+.data-management-form {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin-top:16px;
+}
+.data-management-field,
+.data-management-readonly-field {
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  min-width:0;
+  color:#d5e4f0;
+  font-size:13px;
+  font-weight:700;
+}
+.data-management-field input,
+.data-management-field select,
+.data-management-readonly-field strong {
+  width:100%;
+  min-height:42px;
+  padding:9px 11px;
+  border:1px solid #48647c;
+  border-radius:9px;
+  color:var(--text);
+  background:#091725;
+  font:inherit;
+}
+.data-management-field input[type="color"] {
+  padding:5px;
+  cursor:pointer;
+}
+.data-management-readonly-field strong {
+  display:flex;
+  align-items:center;
+  color:#bacddd;
+  font-weight:600;
+}
+.union-pattern-preview {
+  width:96px;
+  min-width:96px;
+  height:72px;
+  overflow:hidden;
+  border:2px solid rgba(238,248,255,.75);
+  border-radius:10px;
+  background-color:var(--union-preview-color);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.22);
+}
+.union-pattern-preview--form {
+  width:100%;
+  min-width:0;
+  height:88px;
+  align-self:end;
+}
+.union-pattern-preview[data-map-pattern="diagonal"] {
+  background-image:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.4) 10px 16px);
+}
+.union-pattern-preview[data-map-pattern="crosshatch"] {
+  background-image:
+    repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,255,255,.35) 10px 14px),
+    repeating-linear-gradient(-45deg,transparent 0 10px,rgba(0,0,0,.24) 10px 14px);
+}
+.union-pattern-preview[data-map-pattern="dots"] {
+  background-image:radial-gradient(circle,rgba(255,255,255,.72) 0 3px,transparent 3.5px);
+  background-size:18px 18px;
+}
+.data-management-form-actions,
+.union-registry-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.data-management-form-actions {
+  grid-column:1 / -1;
+}
+.data-management-primary-action,
+.data-management-secondary-action,
+.data-management-danger-action {
+  min-height:38px;
+  padding:8px 13px;
+  border:1px solid #57748c;
+  border-radius:9px;
+  color:#edf7ff;
+  background:#162a3a;
+  font-weight:800;
+  cursor:pointer;
+}
+.data-management-primary-action {
+  border-color:#7661be;
+  background:#38265f;
+}
+.data-management-danger-action {
+  border-color:#a85660;
+  color:#ffe5e7;
+  background:#482129;
+}
+.data-management-primary-action:disabled,
+.data-management-secondary-action:disabled,
+.data-management-danger-action:disabled {
+  opacity:.55;
+  cursor:wait;
+}
+.data-management-section-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.union-registry-list {
+  display:grid;
+  gap:10px;
+}
+.union-registry-card {
+  display:grid;
+  grid-template-columns:96px minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  padding:12px;
+  border:1px solid #355269;
+  border-radius:12px;
+  background:#0b1a27;
+}
+.union-registry-card.is-archived {
+  opacity:.74;
+  background:#101820;
+}
+.union-registry-title {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.union-registry-title strong {
+  font-size:17px;
+}
+.union-registry-title span,
+.union-registry-meta {
+  color:var(--muted);
+}
+.union-registry-meta {
+  margin:6px 0;
+  font-size:13px;
+}
+.union-registry-status.is-current {
+  border-color:#3f8d72;
+  color:#c7f4e1;
+  background:#123a31;
+}
+.union-registry-status.is-archived {
+  color:#c2ccd5;
+  background:#27313a;
+}
+
+@media (max-width:700px) {
+  .data-management-header {
+    flex-direction:column;
+  }
+  .data-management-form {
+    grid-template-columns:1fr;
+  }
+  .data-management-form-actions {
+    grid-column:auto;
+  }
+  .data-management-primary-action,
+  .data-management-secondary-action,
+  .data-management-danger-action {
+    flex:1 1 auto;
+  }
+  .union-registry-card {
+    grid-template-columns:1fr;
+  }
+  .union-pattern-preview {
+    width:100%;
+    min-width:0;
+    height:94px;
+  }
+  .union-registry-actions {
+    justify-content:stretch;
+  }
 }
 .server-dock-button--home {
   min-width:126px;
@@ -141,6 +392,29 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
 .command-centre-head span {
   color:#b6c8d9;
   font-size:13px;
+}
+.command-centre-head-actions {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.command-centre-manage-season {
+  border:1px solid rgba(191,143,255,.56);
+  border-radius:9px;
+  padding:7px 10px;
+  background:rgba(69,43,116,.5);
+  color:#f4ebff;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+.command-centre-empty-state {
+  grid-column:1/-1;
+  padding:24px;
+  border:1px dashed rgba(180,203,220,.38);
+  border-radius:12px;
+  color:#b8cad8;
+  text-align:center;
 }
 .command-centre-overview-title {
   margin:0 0 12px 0;
@@ -587,6 +861,39 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
   border-color:rgba(225,238,248,.3);
   background:rgba(14,29,43,.8);
 }
+.season-setup-field input {
+  width:100%;
+  min-height:42px;
+  border:1px solid rgba(225,238,248,.35);
+  border-radius:9px;
+  padding:8px 10px;
+  background:#0c1d2c;
+  color:#f4f8ff;
+}
+.season-setup-server-registration {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+  margin-top:12px;
+}
+.season-setup-server-registration .season-setup-help {
+  grid-column:1 / -1;
+  margin:0;
+}
+.season-setup-active-servers {
+  margin:14px 0;
+  padding-top:12px;
+  border-top:1px solid rgba(180,203,220,.2);
+}
+.season-setup-active-servers > strong {
+  display:block;
+  margin-bottom:4px;
+}
+.season-setup-button.is-danger {
+  border-color:rgba(255,139,139,.72);
+  background:rgba(132,34,34,.72);
+}
 .season-setup-button:disabled {
   cursor:not-allowed;
   opacity:.45;
@@ -1030,6 +1337,9 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
   .season-setup-server-grid,
   .season-setup-summary-grid,
   .season-setup-confirmations {
+    grid-template-columns:1fr;
+  }
+  .season-setup-server-registration {
     grid-template-columns:1fr;
   }
   .season-setup-structure-grid {

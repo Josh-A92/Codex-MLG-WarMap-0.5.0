@@ -2,7 +2,7 @@
   const SUPPORTED_SCHEMA_VERSION = 1;
   const ALLOWED_TOP_LEVEL_KEYS = ["schemaVersion", "seasonId", "baseMapId", "savedAt", "servers"];
   const REQUIRED_TOP_LEVEL_KEYS = ["schemaVersion", "seasonId", "baseMapId", "savedAt", "servers"];
-  const ALLOWED_SERVER_KEYS = ["id", "ownership"];
+  const ALLOWED_SERVER_KEYS = ["id", "label", "ownership"];
   const REQUIRED_SERVER_KEYS = ["id", "ownership"];
   const CANONICAL_UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
@@ -150,6 +150,10 @@
       }
     }
 
+    if (Object.prototype.hasOwnProperty.call(serverRecord, "label")) {
+      validateNonEmptyString(result, serverRecord.label, `${serverPath}.label`, `${serverPath}.label`);
+    }
+
     if (Object.prototype.hasOwnProperty.call(serverRecord, "ownership")) {
       validateOwnershipObject(result, serverRecord.ownership, `${serverPath}.ownership`);
     }
@@ -268,10 +272,14 @@
           ? serverRecord.ownership
           : {};
 
-        return {
+        const persistedServer = {
           id: serverRecord.id,
           ownership: deepClone(ownershipSource)
         };
+        if (Object.prototype.hasOwnProperty.call(serverRecord, "label")) {
+          persistedServer.label = serverRecord.label;
+        }
+        return persistedServer;
       })
     };
 

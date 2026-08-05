@@ -15,6 +15,16 @@
     "activatedAt",
     "activatedBy"
   ]);
+  const ADMINISTRATION_STATE_FIELDS = new Set([
+    "schemaVersion",
+    "activeSeason",
+    "completedSeasons"
+  ]);
+  const COMPLETION_FIELDS = new Set([
+    ...ACTIVATION_FIELDS,
+    "completedAt",
+    "completedBy"
+  ]);
   const CONFIRMATION_FIELDS = new Set(["mapAndStructures", "resourcesAndValues"]);
   const REQUEST_FIELDS = new Set(["seasonId", "serverIds", "confirmations"]);
   const STORAGE_IDENTITY = Object.freeze({ scope: "season_activation" });
@@ -168,6 +178,61 @@
     };
   }
 
+  function normalizeCompletedSeason(value, packagesBySeasonId, path) {
+    const record = requireRecord(value, path);
+    rejectUnknownFields(record, COMPLETION_FIELDS, path);
+    const activationRecord = {};
+    ACTIVATION_FIELDS.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(record, field)) activationRecord[field] = record[field];
+    });
+    const activation = normalizeActivationEnvelope(activationRecord, packagesBySeasonId);
+    const completedAt = requireUtcTimestamp(record.completedAt, `${path}.completedAt`);
+    if (Date.parse(completedAt) < Date.parse(activation.activatedAt)) {
+      fail("invalid_activation_state", `${path}.completedAt cannot be earlier than activatedAt.`);
+    }
+    return {
+      ...activation,
+      completedAt,
+      completedBy: requireString(record.completedBy, `${path}.completedBy`)
+    };
+  }
+
+  function normalizeAdministrationState(value, packagesBySeasonId) {
+    const record = requireRecord(value, "administrationState");
+    if (record.schemaVersion === 1) {
+      return {
+        schemaVersion: 2,
+        activeSeason: normalizeActivationEnvelope(record, packagesBySeasonId),
+        completedSeasons: []
+      };
+    }
+    rejectUnknownFields(record, ADMINISTRATION_STATE_FIELDS, "administrationState");
+    if (record.schemaVersion !== 2) {
+      fail("unsupported_activation_version", "administrationState.schemaVersion must equal 1 or 2.");
+    }
+    const activeSeason = record.activeSeason === null || record.activeSeason === undefined
+      ? null
+      : normalizeActivationEnvelope(record.activeSeason, packagesBySeasonId);
+    if (!Array.isArray(record.completedSeasons)) {
+      fail("invalid_activation_state", "administrationState.completedSeasons must be an array.");
+    }
+    const completedIds = new Set();
+    const completedSeasons = record.completedSeasons.map((entry, index) => {
+      const normalized = normalizeCompletedSeason(entry, packagesBySeasonId, `administrationState.completedSeasons[${index}]`);
+      const completionKey = `${normalized.seasonId}\u0000${normalized.activatedAt}`;
+      if (completedIds.has(completionKey)) {
+        fail("invalid_activation_state", `administrationState.completedSeasons contains duplicate completion '${normalized.seasonId}'.`);
+      }
+      completedIds.add(completionKey);
+      return normalized;
+    });
+    return {
+      schemaVersion: 2,
+      activeSeason,
+      completedSeasons
+    };
+  }
+
   function packageSummary(preparedPackage) {
     const identity = preparedPackage.packageIdentity;
     const rules = preparedPackage.rulesDefinition;
@@ -241,14 +306,18 @@
     });
 
     let initialized = false;
-    let activeActivation = null;
+    let administrationState = {
+      schemaVersion: 2,
+      activeSeason: null,
+      completedSeasons: []
+    };
 
     async function initialize() {
       if (initialized) return getActiveSeason();
       const stored = await storage.loadEnvelope(STORAGE_IDENTITY);
-      activeActivation = stored === null || stored === undefined
-        ? null
-        : normalizeActivationEnvelope(stored, packagesBySeasonId);
+      administrationState = stored === null || stored === undefined
+        ? { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
+        : normalizeAdministrationState(stored, packagesBySeasonId);
       initialized = true;
       return getActiveSeason();
     }
@@ -269,7 +338,14 @@
     }
 
     function getActiveSeason() {
-      return activeActivation === null ? null : safeClone(activeActivation);
+      return administrationState.activeSeason === null
+        ? null
+        : safeClone(administrationState.activeSeason);
+    }
+
+    function listCompletedSeasons() {
+      requireInitialized();
+      return safeClone(administrationState.completedSeasons);
     }
 
     async function activateSeason(actor, requestValue) {
@@ -290,10 +366,10 @@
       const confirmations = normalizeConfirmations(request.confirmations, "request.confirmations");
       const decision = authorization.requireAuthorized(actor, "season_rules.manage", { seasonId });
 
-      if (activeActivation && activeActivation.seasonId === seasonId) {
+      if (administrationState.activeSeason) {
         fail(
           "season_already_activated",
-          `Season '${seasonId}' is already active. A controlled versioned correction process is required to replace it.`
+          `Season '${administrationState.activeSeason.seasonId}' is already active and must be completed before another season can be activated.`
         );
       }
 
@@ -311,9 +387,66 @@
         activatedBy: decision.actorId
       };
 
-      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(activation));
-      activeActivation = activation;
+      const nextState = {
+        schemaVersion: 2,
+        activeSeason: activation,
+        completedSeasons: safeClone(administrationState.completedSeasons)
+      };
+      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
+      administrationState = nextState;
       return getActiveSeason();
+    }
+
+    async function updateActiveSeasonServers(actor, serverIdsValue) {
+      requireInitialized();
+      const activeSeason = administrationState.activeSeason;
+      if (!activeSeason) fail("no_active_season", "There is no active season to update.");
+      const serverIds = normalizeServerIds(serverIdsValue, "serverIds");
+      authorization.requireAuthorized(actor, "season_rules.manage", {
+        seasonId: activeSeason.seasonId
+      });
+      const updatedActiveSeason = {
+        ...safeClone(activeSeason),
+        serverIds
+      };
+      const nextState = {
+        schemaVersion: 2,
+        activeSeason: updatedActiveSeason,
+        completedSeasons: safeClone(administrationState.completedSeasons)
+      };
+      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
+      administrationState = nextState;
+      return getActiveSeason();
+    }
+
+    async function completeActiveSeason(actor) {
+      requireInitialized();
+      const activeSeason = administrationState.activeSeason;
+      if (!activeSeason) fail("no_active_season", "There is no active season to complete.");
+      const decision = authorization.requireAuthorized(actor, "season_rules.manage", {
+        seasonId: activeSeason.seasonId
+      });
+      const clockValue = config.clock();
+      if (!(clockValue instanceof Date) || !Number.isFinite(clockValue.getTime())) {
+        fail("invalid_clock", "options.clock must return a valid Date.");
+      }
+      const completedAt = clockValue.toISOString();
+      if (Date.parse(completedAt) < Date.parse(activeSeason.activatedAt)) {
+        fail("invalid_clock", "Season completion time cannot be earlier than activation time.");
+      }
+      const completion = {
+        ...safeClone(activeSeason),
+        completedAt,
+        completedBy: decision.actorId
+      };
+      const nextState = {
+        schemaVersion: 2,
+        activeSeason: null,
+        completedSeasons: administrationState.completedSeasons.concat([completion])
+      };
+      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
+      administrationState = nextState;
+      return safeClone(completion);
     }
 
     return Object.freeze({
@@ -321,7 +454,10 @@
       listPreparedSeasons,
       getPreparedSeason,
       getActiveSeason,
-      activateSeason
+      listCompletedSeasons,
+      activateSeason,
+      updateActiveSeasonServers,
+      completeActiveSeason
     });
   }
 
