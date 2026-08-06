@@ -984,6 +984,7 @@ async function handleSeasonSetupClick(event) {
       }
 
       appState.allServers = serverStateService.listServers();
+
       const activeSeason = seasonAdministrationService.getActiveSeason();
       if (!activeSeason) {
         seasonSetupState.selectedServerIds.add(serverId);
@@ -1137,6 +1138,11 @@ async function handleSeasonSetupClick(event) {
 
 function handleSeasonSetupChange(event) {
   const action = event.target.getAttribute("data-season-setup-action");
+  // Text inputs such as the server-number field emit change when they lose
+  // focus. They must not redraw Season Setup before the following click runs.
+  if (!["select-season", "toggle-server", "confirm-map", "confirm-resource"].includes(action)) {
+    return;
+  }
   if (action === "select-season") {
     seasonSetupState.selectedSeasonId = event.target.value;
     seasonSetupState.preview.status = "idle";

@@ -124,13 +124,22 @@ test("Season Management registers user-entered server numbers and persists them"
   assert.doesNotMatch(registrationBranch[0], /selectedServerIds\.delete/);
 });
 
+test("leaving the server-number field does not redraw it before registration", () => {
+  const changeHandlerStart = renderer.indexOf("function handleSeasonSetupChange(event)");
+  const changeHandlerEnd = renderer.indexOf("const DATA_MANAGEMENT_PATTERNS", changeHandlerStart);
+  const changeHandler = renderer.slice(changeHandlerStart, changeHandlerEnd);
+
+  assert.ok(changeHandlerStart >= 0 && changeHandlerEnd > changeHandlerStart);
+  assert.match(changeHandler, /if \(!\["select-season", "toggle-server", "confirm-map", "confirm-resource"\]\.includes\(action\)\) \{\s*return;/);
+});
+
 test("registering a server keeps creation separate from active-season participation", () => {
-  const registrationBranch = renderer.match(
-    /if \(action === "register-server"\) \{[\s\S]*?\n\s*return;\n\s*\}/
-  );
-  assert.ok(registrationBranch, "registration action branch should exist");
-  assert.doesNotMatch(registrationBranch[0], /updateActiveSeasonServers/);
-  assert.doesNotMatch(registrationBranch[0], /activeSeason\.serverIds\.concat/);
+  const branchStart = renderer.indexOf('if (action === "register-server")');
+  const branchEnd = renderer.indexOf('if (action === "back")', branchStart);
+  const registrationBranch = renderer.slice(branchStart, branchEnd);
+  assert.ok(branchStart >= 0 && branchEnd > branchStart, "registration action branch should exist");
+  assert.doesNotMatch(registrationBranch, /updateActiveSeasonServers/);
+  assert.doesNotMatch(registrationBranch, /activeSeason\.serverIds\.concat/);
   assert.match(renderer, /Create the server here, then select it below and save the participating servers/);
 });
 
