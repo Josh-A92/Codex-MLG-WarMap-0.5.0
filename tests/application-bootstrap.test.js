@@ -467,6 +467,59 @@ runTest("bootstrap uses and safely exposes persisted active season context", asy
   assert.deepStrictEqual(rendererCalls[0].seasonContext.serverIds, ["366", "367"]);
 });
 
+runTest("no active season selects Season 1 by default", async () => {
+  const { scope, rendererCalls } = createValidScope({ activeSeasonActivation: null });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.strictEqual(rendererCalls[0].seasonContext.seasonId, "season-1");
+  assert.strictEqual(rendererCalls[0].gameRulesEngine.inputDefinition, scope.SEASON_1_PACKAGE.rulesDefinition);
+  assert.strictEqual(rendererCalls[0].applicationConfig.workspace.mapLabel, "Season 1 Blueprint");
+});
+
+runTest("active season-1 selects Season 1", async () => {
+  const { scope, rendererCalls } = createValidScope({
+    activeSeasonActivation: {
+      seasonId: "season-1",
+      serverIds: []
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.strictEqual(rendererCalls[0].seasonContext.seasonId, "season-1");
+  assert.strictEqual(rendererCalls[0].gameRulesEngine.inputDefinition, scope.SEASON_1_PACKAGE.rulesDefinition);
+});
+
+runTest("active season-2 selects Season 2 rules and application configuration", async () => {
+  const { scope, rendererCalls } = createValidScope({
+    activeSeasonActivation: {
+      seasonId: "season-2",
+      serverIds: []
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+
+  assert.strictEqual(rendererCalls[0].seasonContext.seasonId, "season-2");
+  assert.strictEqual(rendererCalls[0].gameRulesEngine.inputDefinition, scope.SEASON_2_PACKAGE.rulesDefinition);
+  assert.strictEqual(rendererCalls[0].applicationConfig.map.dataUrl, "data/season2-map.json");
+  assert.strictEqual(rendererCalls[0].applicationConfig.workspace.mapLabel, "Season II: Desert Dynasty");
+});
+
+runTest("unknown active season prevents renderer initialization", async () => {
+  const { scope, rendererCalls } = createValidScope({
+    activeSeasonActivation: {
+      seasonId: "season-99",
+      serverIds: []
+    }
+  });
+  const bootstrap = createApplicationBootstrap(scope);
+
+  await assert.rejects(
+    () => bootstrap.resolveBootstrapContext(),
+    /does not recognize active seasonId 'season-99'/
+  );
+  assert.strictEqual(rendererCalls.length, 0);
+});
+
 runTest("missing season administration dependencies prevents renderer initialization", async () => {
   for (const field of ["createSeasonAdministrationService", "createAuthorizationPolicyService"]) {
     const { scope, rendererCalls } = createValidScope();

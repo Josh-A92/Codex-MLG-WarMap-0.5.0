@@ -85,15 +85,32 @@
     return seasonId;
   }
 
-  function createSeasonPackageResolver(seasonPackage) {
-    const requestedSeasonId = resolveRequestedSeasonId(seasonPackage);
+  function createSeasonPackageResolver(preparedPackages) {
+    const packageLookup = new Map();
 
-    return async function resolvePackage(seasonId) {
-      if (seasonId === requestedSeasonId) {
-        return seasonPackage;
+    preparedPackages.forEach((candidatePackage) => {
+      if (!candidatePackage || typeof candidatePackage !== "object") {
+        return;
       }
 
-      return null;
+      const packageIdentity = candidatePackage.packageIdentity && typeof candidatePackage.packageIdentity === "object"
+        ? candidatePackage.packageIdentity
+        : null;
+      const seasonId = packageIdentity && typeof packageIdentity.seasonId === "string"
+        ? packageIdentity.seasonId.trim()
+        : "";
+
+      if (seasonId !== "") {
+        packageLookup.set(seasonId, candidatePackage);
+      }
+    });
+
+    return async function resolvePackage(seasonId) {
+      if (typeof seasonId !== "string" || seasonId.trim() === "") {
+        return null;
+      }
+
+      return packageLookup.get(seasonId) || null;
     };
   }
 
@@ -262,14 +279,27 @@
         clock: () => new Date()
       });
       const activeSeasonActivation = await seasonAdministrationService.initialize();
-      const requestedSeasonId = activeSeasonActivation === null
-        ? resolveRequestedSeasonId(bundledSeasonPackage)
-        : activeSeasonActivation.seasonId;
+      const activeSeasonId = activeSeasonActivation && typeof activeSeasonActivation.seasonId === "string"
+        ? activeSeasonActivation.seasonId.trim()
+        : "";
+      const requestedSeasonId = activeSeasonId !== ""
+        ? activeSeasonId
+        : resolveRequestedSeasonId(bundledSeasonPackage);
       const seasonLoader = createSeasonLoader({
-        resolvePackage: createSeasonPackageResolver(bundledSeasonPackage),
+        resolvePackage: createSeasonPackageResolver(preparedPackages),
         validateSeasonPackage
       });
-      const loadedSeasonPackage = await seasonLoader.load(requestedSeasonId);
+
+      let loadedSeasonPackage;
+      try {
+        loadedSeasonPackage = await seasonLoader.load(requestedSeasonId);
+      } catch (error) {
+        if (error && error.name === "SeasonPackageLoadError" && error.code === "PACKAGE_NOT_FOUND") {
+          throw new Error(`Application Bootstrap does not recognize active seasonId '${requestedSeasonId}'.`);
+        }
+
+        throw error;
+      }
 
       if (!loadedSeasonPackage || typeof loadedSeasonPackage !== "object") {
         throw new Error("Application Bootstrap could not load a season package.");
