@@ -615,6 +615,141 @@ runTest("configured scoring uses calculationId and supports two independent tota
   assert.strictEqual(summary.scoringDisplays[1].calculationModelId, "structure-output-holdings-total");
 });
 
+runTest("production-rate calculations sum owned strategic structures and honour Royal City's declared zero output", () => {
+  const server = { id: "server-1", label: "Server 1" };
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "dark-oil-production",
+        calculationModelId: "structure-output-production-rate",
+        configured: true,
+        resourceId: "dark-oil",
+        displayLabel: "Dark Oil",
+        serverField: "darkOil",
+        unconfiguredLabel: "Scoring rules not configured"
+      }],
+      resources: [{
+        resourceId: "dark-oil",
+        displayName: "Dark Oil",
+        unit: "units",
+        metricType: "season-resource"
+      }],
+      structureOutputs: {
+        V1: [{ resourceId: "dark-oil", value: 100 }],
+        M2: [{ resourceId: "dark-oil", value: 200 }],
+        F4: [{ resourceId: "dark-oil", value: 400 }],
+        MP7: [{ resourceId: "dark-oil", value: 0 }]
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "RESOURCE-MINE", type: "Resource Mine", ownerId: null },
+        { row: 1, col: 2, code: "RESOURCE-MINE", type: "Resource Mine", ownerId: null }
+      ]],
+      structures: [
+        { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 },
+        { code: "M2", type: "Mine", row: 1, col: 2, rows: 1, cols: 1 },
+        { code: "F4", type: "Factory", row: 2, col: 1, rows: 1, cols: 1 },
+        { code: "MP7", type: "Royal City", row: 2, col: 2, rows: 1, cols: 1 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": {
+        "1-1": "union-a",
+        "1-2": "union-a",
+        "2-1": "union-a",
+        "2-2": "union-a"
+      }
+    },
+    designatedByServerId: {
+      "server-1": "union-a"
+    }
+  });
+
+  const summary = service.getServerSummary(server);
+  assert.strictEqual(summary.scoringDisplays[0].value, 700);
+  assert.strictEqual(summary.scoringDisplays[0].text, "700");
+  assert.strictEqual(summary.scoringDisplays[0].configured, true);
+});
+
+runTest("production-rate calculations are independent across unions and exclude unclaimed or foreign structures", () => {
+  const server = { id: "server-1", label: "Server 1" };
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "dark-oil-production",
+        calculationModelId: "structure-output-production-rate",
+        configured: true,
+        resourceId: "dark-oil",
+        displayLabel: "Dark Oil"
+      }],
+      resources: [{
+        resourceId: "dark-oil",
+        displayName: "Dark Oil",
+        unit: "units",
+        metricType: "season-resource"
+      }],
+      structureOutputs: {
+        V1: [{ resourceId: "dark-oil", value: 100 }],
+        M2: [{ resourceId: "dark-oil", value: 200 }]
+      }
+    }),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "V1", type: "Village", ownerId: null },
+        { row: 1, col: 2, code: "V1", type: "Village", ownerId: null },
+        { row: 2, col: 1, code: "M2", type: "Mine", ownerId: null }
+      ]],
+      structures: [
+        { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 },
+        { code: "V1", type: "Village", row: 1, col: 2, rows: 1, cols: 1 },
+        { code: "M2", type: "Mine", row: 2, col: 1, rows: 1, cols: 1 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": {
+        "1-1": "union-a",
+        "1-2": "union-b",
+        "2-1": null
+      }
+    },
+    designatedByServerId: {
+      "server-1": "union-a"
+    }
+  });
+
+  const unionASummary = service.getServerSummary({ id: "server-1", label: "Server 1", designatedUnionId: "union-a" });
+  const unionBSummary = service.getServerSummary({ id: "server-1", label: "Server 1", designatedUnionId: "union-b" });
+
+  assert.strictEqual(unionASummary.scoringDisplays[0].value, 100);
+  assert.strictEqual(unionBSummary.scoringDisplays[0].value, 100);
+  assert.strictEqual(unionASummary.scoringDisplays[0].text, "100");
+  assert.strictEqual(unionBSummary.scoringDisplays[0].text, "100");
+});
+
+runTest("unconfigured production-rate calculations remain null", () => {
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createGameRulesEngine({
+      calculations: [{
+        calculationId: "dark-oil-production",
+        calculationModelId: "structure-output-production-rate",
+        configured: false,
+        resourceId: "dark-oil"
+      }],
+      resources: [{
+        resourceId: "dark-oil",
+        displayName: "Dark Oil",
+        unit: "units",
+        metricType: "season-resource"
+      }]
+    })
+  });
+
+  const summary = service.getServerSummary({ id: "server-1", label: "Server 1" });
+  assert.strictEqual(summary.scoringDisplays[0].value, null);
+  assert.strictEqual(summary.scoringDisplays[0].text, "Scoring rules not configured");
+});
+
 runTest("unknown model returns a null total and preserves calculation metadata", () => {
   const server = { id: "server-1", label: "Server 1" };
   const { service } = createSummaryServiceFixture({

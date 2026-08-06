@@ -173,3 +173,9 @@ test("structure and capture helpers still work", () => {
   assert.strictEqual(engine.canCaptureStructure("V1"), true);
   assert.strictEqual(engine.canCaptureStructure("missing"), false);
 });
+
+test("recognizes structure-output-production-rate as a supported calculation model", () => {
+  assert.strictEqual(engine.supportsCalculationModel("structure-output-holdings-total"), true);
+  assert.strictEqual(engine.supportsCalculationModel("structure-output-production-rate"), true);
+  assert.strictEqual(engine.supportsCalculationModel("future-model"), false);
+});

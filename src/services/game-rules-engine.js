@@ -254,6 +254,10 @@
       return Boolean(captureRules.defaultCapturable);
     }
 
+    function supportsCalculationModel(modelId) {
+      return modelId === "structure-output-holdings-total" || modelId === "structure-output-production-rate";
+    }
+
     function getStructureResourceProfile(structureCodeOrType) {
       const structure = getCatalogEntry(normalized.structureCatalog, structureCodeOrType);
       if (!structure) {
@@ -316,6 +320,7 @@
       getBuffDefinitions,
       isStructureUnlocked,
       canCaptureStructure,
+      supportsCalculationModel,
       getStructureResourceProfile
     };
   }

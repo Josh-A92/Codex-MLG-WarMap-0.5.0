@@ -190,9 +190,12 @@
       return calculations.map((calculation) => {
         const resource = getResourceById(calculation.resourceId);
         const configured = calculation.configured === true;
-        const supportedModel = calculation.calculationModelId === "structure-output-holdings-total";
+        const supportedModel = calculation.calculationModelId === "structure-output-holdings-total"
+          || calculation.calculationModelId === "structure-output-production-rate";
         const canResolve = configured && supportedModel && resource !== null;
-        const value = canResolve ? getOwnedStructureOutputsForResource(server, calculation.resourceId, unionId) : null;
+        const value = canResolve
+          ? getOwnedStructureOutputsForResource(server, calculation.resourceId, unionId)
+          : null;
         const text = value === null
           ? (typeof calculation.unconfiguredLabel === "string" && calculation.unconfiguredLabel.trim() !== ""
             ? calculation.unconfiguredLabel
@@ -235,7 +238,8 @@
       const eligibleCalculations = calculations.filter((calculation) => (
         calculation
         && calculation.configured === true
-        && calculation.calculationModelId === "structure-output-holdings-total"
+        && (calculation.calculationModelId === "structure-output-holdings-total"
+          || calculation.calculationModelId === "structure-output-production-rate")
         && getResourceById(calculation.resourceId) !== null
       ));
       const calculation = requestedCalculationId
