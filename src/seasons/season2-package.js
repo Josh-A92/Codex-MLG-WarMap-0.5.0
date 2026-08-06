@@ -99,7 +99,7 @@
             calculationId: "dark-oil-production",
             calculationModelId: "structure-output-production-rate",
             resourceId: "dark-oil",
-            configured: false,
+            configured: true,
             displayLabel: "Dark Oil",
             unconfiguredLabel: "Scoring rules not configured"
           },

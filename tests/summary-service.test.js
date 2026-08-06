@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const { createSummaryService } = require("../src/services/summary-service.js");
+const { createGameRulesEngine: createCanonicalGameRulesEngine } = require("../src/services/game-rules-engine.js");
+const { SEASON_2_PACKAGE } = require("../src/seasons/season2-package.js");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -615,7 +617,7 @@ runTest("configured scoring uses calculationId and supports two independent tota
   assert.strictEqual(summary.scoringDisplays[1].calculationModelId, "structure-output-holdings-total");
 });
 
-runTest("production-rate calculations sum owned strategic structures and honour Royal City's declared zero output", () => {
+runTest("production-rate calculations sum owned strategic structures and honour a declared zero output", () => {
   const server = { id: "server-1", label: "Server 1" };
   const { service } = createSummaryServiceFixture({
     gameRulesEngine: createGameRulesEngine({
@@ -650,7 +652,7 @@ runTest("production-rate calculations sum owned strategic structures and honour 
         { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 },
         { code: "M2", type: "Mine", row: 1, col: 2, rows: 1, cols: 1 },
         { code: "F4", type: "Factory", row: 2, col: 1, rows: 1, cols: 1 },
-        { code: "MP7", type: "Royal City", row: 2, col: 2, rows: 1, cols: 1 }
+        { code: "MP7", type: "Metropolis", row: 2, col: 2, rows: 1, cols: 1 }
       ]
     },
     ownershipByServerAndKey: {
@@ -748,6 +750,67 @@ runTest("unconfigured production-rate calculations remain null", () => {
   const summary = service.getServerSummary({ id: "server-1", label: "Server 1" });
   assert.strictEqual(summary.scoringDisplays[0].value, null);
   assert.strictEqual(summary.scoringDisplays[0].text, "Scoring rules not configured");
+});
+
+runTest("Season 2 Dark Oil rules total the real controlled strategic structures and make Dark Oil the only eligible leader calculation", () => {
+  const server = { id: "server-1", label: "Server 1" };
+  const season2Rules = SEASON_2_PACKAGE.rulesDefinition;
+  const { service } = createSummaryServiceFixture({
+    gameRulesEngine: createCanonicalGameRulesEngine(season2Rules),
+    mapData: {
+      tiles: [[
+        { row: 1, col: 1, code: "V1", type: "Village", ownerId: null },
+        { row: 1, col: 2, code: "M2", type: "Mine", ownerId: null },
+        { row: 2, col: 1, code: "MN3", type: "Manor", ownerId: null },
+        { row: 2, col: 2, code: "F4", type: "Factory", ownerId: null },
+        { row: 3, col: 1, code: "T5", type: "Town", ownerId: null },
+        { row: 3, col: 2, code: "MP6", type: "Metropolis", ownerId: null },
+        { row: 4, col: 1, code: "MP7", type: "Metropolis", ownerId: null },
+        { row: 4, col: 2, code: "V1", type: "Village", ownerId: null }
+      ]],
+      structures: [
+        { code: "V1", type: "Village", row: 1, col: 1, rows: 1, cols: 1 },
+        { code: "M2", type: "Mine", row: 1, col: 2, rows: 1, cols: 1 },
+        { code: "MN3", type: "Manor", row: 2, col: 1, rows: 1, cols: 1 },
+        { code: "F4", type: "Factory", row: 2, col: 2, rows: 1, cols: 1 },
+        { code: "T5", type: "Town", row: 3, col: 1, rows: 1, cols: 1 },
+        { code: "MP6", type: "Metropolis", row: 3, col: 2, rows: 1, cols: 1 },
+        { code: "MP7", type: "Metropolis", row: 4, col: 1, rows: 1, cols: 1 },
+        { code: "V1", type: "Village", row: 4, col: 2, rows: 1, cols: 1 }
+      ]
+    },
+    ownershipByServerAndKey: {
+      "server-1": {
+        "1-1": "union-a",
+        "1-2": "union-a",
+        "2-1": "union-a",
+        "2-2": "union-a",
+        "3-1": "union-a",
+        "3-2": "union-a",
+        "4-1": "union-a",
+        "4-2": "union-b"
+      }
+    },
+    nativeByServerId: {
+      "server-1": ["union-a", "union-b"]
+    },
+    unionRegistry: [
+      { unionId: "union-a", tag: "A" },
+      { unionId: "union-b", tag: "B" }
+    ],
+    designatedByServerId: {
+      "server-1": "union-a"
+    }
+  });
+
+  const summary = service.getServerSummary(server);
+  assert.strictEqual(summary.scoringDisplays[0].value, 2100);
+  assert.strictEqual(summary.scoringDisplays[0].text, "2,100");
+  assert.strictEqual(summary.scoringDisplays[1].value, null);
+  assert.strictEqual(summary.scoringDisplays[2].value, null);
+  assert.strictEqual(summary.leadingUnionId, "union-a");
+  assert.strictEqual(summary.leadingUnionScore, 2100);
+  assert.strictEqual(summary.leadingUnionLabel, "A");
 });
 
 runTest("unknown model returns a null total and preserves calculation metadata", () => {

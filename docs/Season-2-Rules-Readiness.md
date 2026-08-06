@@ -122,11 +122,12 @@ not_ready
 
 Reason:
 - A structurally valid draft package now exists for Season 2 and is represented by a canonical schema-version-2 package with the verified geometry, structure catalogue, and ordered resource identities.
-- Dark Oil is now treated as the union progression/ranking resource in the package data, while the distinct strategic structure outputs record Dark Oil production for cities and the separate resource-mine layer remains a distinct domain from those strategic outputs.
+- Dark Oil is now treated as the union progression/ranking resource in the package data, and the Dark Oil production calculation is configured for the Season 2 draft package while Red Copper and Holy Water remain unconfigured.
+- The distinct strategic structure outputs record Dark Oil production for V1, M2, MN3, F4, T5, MP6, and MP7, and the separate resource-mine layer remains a distinct domain from those strategic outputs.
 - Resource mines are represented as the source of Red Copper in the map layer, while Trade Centre discount and tax values remain outside application scope for this package revision.
-- The remaining technical gap is runtime support for production-rate calculations, not missing Season 2 evidence.
+- Full runtime activation of the Season 2 calculation flow remains pending beyond the package-data configuration change.
 - Geometry and structure identity catalogue are ready from verified reconstruction (including 145 strategic nodes, 268 connections, 168 resource-mine tiles, and explicit Trade Centre levels/counts/positions).
-- Confirmed Dark Oil production rates for strategic structures are now populated in the package. The related production-rate calculations remain deliberately unconfigured because that calculation model is not yet implemented at runtime; this is a technical integration gap rather than a missing-evidence gap.
+- Confirmed Dark Oil production rates for strategic structures are populated and the Dark Oil production calculation is configured. Red Copper and Holy Water calculations remain unconfigured until their relevant runtime rules are established.
 - Runtime configuration inputs (data-source paths, workspace, participating-server scope) are the next blocker for runnable publication.
 - Unknown optional rule details do not automatically fail schema validation when required containers are present and valid; they still block trustworthy publication if left unjustified.
 

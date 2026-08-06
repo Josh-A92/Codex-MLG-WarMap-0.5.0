@@ -106,11 +106,11 @@ runTest("resources appear in the required order and strategic dark-oil outputs r
   assert.strictEqual(Object.values(outputs).every((entries) => entries.length === 1), true);
 });
 
-runTest("calculations remain unconfigured for production-rate rules", () => {
+runTest("the Dark Oil production calculation is configured while Red Copper and Holy Water remain unconfigured", () => {
   const calculations = SEASON_2_PACKAGE.rulesDefinition.scoringModel.calculations;
   assert.strictEqual(calculations.length, 3);
   assert.deepStrictEqual(calculations.map((entry) => entry.resourceId), ["dark-oil", "red-copper", "holy-water"]);
-  assert.deepStrictEqual(calculations.map((entry) => entry.configured), [false, false, false]);
+  assert.deepStrictEqual(calculations.map((entry) => entry.configured), [true, false, false]);
   assert.deepStrictEqual(calculations.map((entry) => entry.calculationId), ["dark-oil-production", "red-copper-production", "holy-water-production"]);
   assert.deepStrictEqual(calculations.map((entry) => entry.displayLabel), ["Dark Oil", "Red Copper", "Holy Water"]);
   assert.deepStrictEqual(calculations.map((entry) => entry.calculationModelId), ["structure-output-production-rate", "structure-output-production-rate", "structure-output-production-rate"]);
