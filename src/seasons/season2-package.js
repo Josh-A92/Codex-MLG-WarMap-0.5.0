@@ -65,6 +65,12 @@
       resourceModel: {
         resources: [
           {
+            resourceId: "dark-oil",
+            displayName: "Dark Oil",
+            unit: "units",
+            metricType: "season-resource"
+          },
+          {
             resourceId: "red-copper",
             displayName: "Red Copper",
             unit: "units",
@@ -77,21 +83,37 @@
             metricType: "season-resource"
           }
         ],
-        structureOutputs: {}
+        structureOutputs: {
+          V1: [{ resourceId: "dark-oil", value: 100 }],
+          M2: [{ resourceId: "dark-oil", value: 200 }],
+          MN3: [{ resourceId: "dark-oil", value: 300 }],
+          F4: [{ resourceId: "dark-oil", value: 400 }],
+          T5: [{ resourceId: "dark-oil", value: 500 }],
+          MP6: [{ resourceId: "dark-oil", value: 600 }],
+          MP7: [{ resourceId: "dark-oil", value: 0 }]
+        }
       },
       scoringModel: {
         calculations: [
           {
-            calculationId: "red-copper-holdings",
-            calculationModelId: "structure-output-holdings-total",
+            calculationId: "dark-oil-production",
+            calculationModelId: "structure-output-production-rate",
+            resourceId: "dark-oil",
+            configured: false,
+            displayLabel: "Dark Oil",
+            unconfiguredLabel: "Scoring rules not configured"
+          },
+          {
+            calculationId: "red-copper-production",
+            calculationModelId: "structure-output-production-rate",
             resourceId: "red-copper",
             configured: false,
             displayLabel: "Red Copper",
             unconfiguredLabel: "Scoring rules not configured"
           },
           {
-            calculationId: "holy-water-holdings",
-            calculationModelId: "structure-output-holdings-total",
+            calculationId: "holy-water-production",
+            calculationModelId: "structure-output-production-rate",
             resourceId: "holy-water",
             configured: false,
             displayLabel: "Holy Water",

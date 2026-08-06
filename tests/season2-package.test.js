@@ -61,9 +61,15 @@ runTest("Season 2 topology, dimensions, catalogue, and expected node count are c
   assert.strictEqual(catalog.reduce((sum, entry) => sum + entry.expectedCount, 0), 145);
 });
 
-runTest("resources appear in the required order and no outputs are fabricated", () => {
+runTest("resources appear in the required order and strategic dark-oil outputs remain distinct from resource-mine rules", () => {
   const resources = SEASON_2_PACKAGE.rulesDefinition.resourceModel.resources;
   assert.deepStrictEqual(resources, [
+    {
+      resourceId: "dark-oil",
+      displayName: "Dark Oil",
+      unit: "units",
+      metricType: "season-resource"
+    },
     {
       resourceId: "red-copper",
       displayName: "Red Copper",
@@ -78,21 +84,37 @@ runTest("resources appear in the required order and no outputs are fabricated", 
     }
   ]);
 
-  assert.deepStrictEqual(SEASON_2_PACKAGE.rulesDefinition.resourceModel.structureOutputs, {});
   const outputs = SEASON_2_PACKAGE.rulesDefinition.resourceModel.structureOutputs;
-  assert.strictEqual(Object.keys(outputs).length, 0);
-  assert.strictEqual(Object.values(outputs).every((entries) => entries.length === 0), true);
+  const expectedDarkOilRates = {
+    V1: 100,
+    M2: 200,
+    MN3: 300,
+    F4: 400,
+    T5: 500,
+    MP6: 600,
+    MP7: 0
+  };
+
+  Object.entries(expectedDarkOilRates).forEach(([structureCode, expectedValue]) => {
+    assert.deepStrictEqual(outputs[structureCode], [{ resourceId: "dark-oil", value: expectedValue }]);
+  });
+
+  assert.strictEqual(Object.keys(outputs).length, 7);
+  assert.strictEqual(outputs.M2[0].value, 200);
+  assert.strictEqual(outputs.MP7[0].value, 0);
+  assert.strictEqual(outputs.V1.some((entry) => entry.resourceId === "red-copper"), false);
+  assert.strictEqual(Object.values(outputs).every((entries) => entries.length === 1), true);
 });
 
-runTest("both calculations are unconfigured and independently identified", () => {
+runTest("calculations remain unconfigured for production-rate rules", () => {
   const calculations = SEASON_2_PACKAGE.rulesDefinition.scoringModel.calculations;
-  assert.strictEqual(calculations.length, 2);
-  assert.deepStrictEqual(calculations.map((entry) => entry.resourceId), ["red-copper", "holy-water"]);
-  assert.deepStrictEqual(calculations.map((entry) => entry.configured), [false, false]);
-  assert.deepStrictEqual(calculations.map((entry) => entry.calculationId), ["red-copper-holdings", "holy-water-holdings"]);
-  assert.deepStrictEqual(calculations.map((entry) => entry.displayLabel), ["Red Copper", "Holy Water"]);
-  assert.deepStrictEqual(calculations.map((entry) => entry.calculationModelId), ["structure-output-holdings-total", "structure-output-holdings-total"]);
-  assert.deepStrictEqual(calculations.map((entry) => Object.prototype.hasOwnProperty.call(entry, "serverField")), [false, false]);
+  assert.strictEqual(calculations.length, 3);
+  assert.deepStrictEqual(calculations.map((entry) => entry.resourceId), ["dark-oil", "red-copper", "holy-water"]);
+  assert.deepStrictEqual(calculations.map((entry) => entry.configured), [false, false, false]);
+  assert.deepStrictEqual(calculations.map((entry) => entry.calculationId), ["dark-oil-production", "red-copper-production", "holy-water-production"]);
+  assert.deepStrictEqual(calculations.map((entry) => entry.displayLabel), ["Dark Oil", "Red Copper", "Holy Water"]);
+  assert.deepStrictEqual(calculations.map((entry) => entry.calculationModelId), ["structure-output-production-rate", "structure-output-production-rate", "structure-output-production-rate"]);
+  assert.deepStrictEqual(calculations.map((entry) => Object.prototype.hasOwnProperty.call(entry, "serverField")), [false, false, false]);
 });
 
 runTest("loader can load the package without mutating it", async () => {

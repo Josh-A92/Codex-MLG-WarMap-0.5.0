@@ -122,8 +122,11 @@ not_ready
 
 Reason:
 - A structurally valid draft package now exists for Season 2 and is represented by a canonical schema-version-2 package with the verified geometry, structure catalogue, and ordered resource identities.
+- Dark Oil is now treated as the union progression/ranking resource in the package data, while the distinct strategic structure outputs record Dark Oil production for cities and the separate resource-mine layer remains a distinct domain from those strategic outputs.
+- Resource mines are represented as the source of Red Copper in the map layer, while Trade Centre discount and tax values remain outside application scope for this package revision.
+- The remaining technical gap is runtime support for production-rate calculations, not missing Season 2 evidence.
 - Geometry and structure identity catalogue are ready from verified reconstruction (including 145 strategic nodes, 268 connections, 168 resource-mine tiles, and explicit Trade Centre levels/counts/positions).
-- Resource outputs and scoring remain deliberately unconfigured in the draft package because authoritative map-output/scoring relationships for the declared resources are still missing.
+- Confirmed Dark Oil production rates for strategic structures are now populated in the package. The related production-rate calculations remain deliberately unconfigured because that calculation model is not yet implemented at runtime; this is a technical integration gap rather than a missing-evidence gap.
 - Runtime configuration inputs (data-source paths, workspace, participating-server scope) are the next blocker for runnable publication.
 - Unknown optional rule details do not automatically fail schema validation when required containers are present and valid; they still block trustworthy publication if left unjustified.
 
