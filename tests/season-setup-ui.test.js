@@ -83,6 +83,14 @@ test("activation uses the authorized service with both confirmations and server 
   assert.match(renderer, /serverIds: Array\.from\(seasonSetupState\.selectedServerIds\)/);
   assert.match(renderer, /mapAndStructures: seasonSetupState\.mapAndStructuresConfirmed/);
   assert.match(renderer, /resourcesAndValues: seasonSetupState\.resourcesAndValuesConfirmed/);
+  assert.match(renderer, /window\.location\.reload\(\);/);
+});
+
+test("startup initialization failures are surfaced visibly with the error name and message", () => {
+  assert.match(renderer, /Application initialization failed/);
+  assert.match(renderer, /errorName/);
+  assert.match(renderer, /errorMessage/);
+  assert.match(renderer, /document\.body\.prepend/);
 });
 
 test("active season management explicitly clears live maps while preserving history", () => {
@@ -116,12 +124,14 @@ test("Season Management registers user-entered server numbers and persists them"
   assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\)/);
   assert.match(renderer, /actionTarget\.closest\("\.season-setup-server-registration"\)/);
   assert.match(renderer, /Server \$\{serverNumber\} was added, but could not be saved/);
-  const registrationBranch = renderer.match(
-    /if \(action === "register-server"\) \{[\s\S]*?\n\s*return;\n\s*\}/
-  );
-  assert.ok(registrationBranch, "registration action branch should exist");
-  assert.doesNotMatch(registrationBranch[0], /unregisterServer/);
-  assert.doesNotMatch(registrationBranch[0], /selectedServerIds\.delete/);
+  const registrationBranchStart = renderer.indexOf('if (action === "register-server")');
+  const registrationBranchEnd = renderer.indexOf('if (action === "back")', registrationBranchStart);
+  const registrationBranch = registrationBranchStart >= 0 && registrationBranchEnd > registrationBranchStart
+    ? renderer.slice(registrationBranchStart, registrationBranchEnd)
+    : "";
+  assert.ok(registrationBranch.includes('if (action === "register-server")'), "registration action branch should exist");
+  assert.doesNotMatch(registrationBranch, /unregisterServer/);
+  assert.doesNotMatch(registrationBranch, /selectedServerIds\.delete/);
 });
 
 test("leaving the server-number field does not redraw it before registration", () => {
@@ -256,4 +266,44 @@ test("season setup preview styling uses a bounded horizontally scrollable surfac
   assert.match(svgBlock, /min-width:620px/);
   assert.match(svgBlock, /max-width:none/);
   assert.doesNotMatch(svgBlock, /max-width:100%/);
+});
+
+test("territory_grid still uses the existing grid renderer path", () => {
+  assert.match(renderer, /if \(topologyType === "territory_grid"\)/);
+  assert.match(renderer, /renderGridHeaders\(gridSize\);/);
+  assert.match(renderer, /renderTiles\(tiles\);/);
+  assert.match(renderer, /renderMarkers\(markers\);/);
+});
+
+test("strategic_node_network uses projection then SVG rendering", () => {
+  assert.match(renderer, /const projection = strategicNodeNetworkProjectionService\.project\(mapData\);/);
+  assert.match(renderer, /const previewResult = strategicNodeNetworkSvgRenderer\.render\(projection, \{/);
+  assert.match(renderer, /theme: createPreviewTheme\(\)/);
+  assert.match(renderer, /assetByTypeCode: createPreviewAssetMap\(\)/);
+  assert.match(renderer, /map\.innerHTML = previewResult\.markup;/);
+});
+
+test("strategic rendering skips grid headers, grid tiles, markers, and grid camera initialization", () => {
+  assert.match(renderer, /function clearMapWorkspaceContent\(\)/);
+  assert.match(renderer, /map\.className = "map";/);
+  assert.match(renderer, /if \(topologyType === "strategic_node_network"\) \{/);
+  assert.match(renderer, /const topologyType = gameRulesEngine && typeof gameRulesEngine\.getMapDefinition === "function"/);
+  assert.match(renderer, /if \(topologyType === "territory_grid"\) \{[\s\S]*?initializeCamera\(mapData\);/);
+});
+
+test("unknown topology fails clearly", () => {
+  assert.match(renderer, /throw new Error\(`Renderer does not support topology '\$\{topologyType \|\| "unknown"\}'\.`\);/);
+});
+
+test("live strategic topology uses a dedicated scrollable SVG surface", () => {
+  const strategicSurfaceBlock = (styles.match(/\.map\[data-topology-type="strategic_node_network"\]\s*\{([\s\S]*?)\n\}/) || [])[1] || "";
+  const strategicSvgBlock = (styles.match(/\.map\[data-topology-type="strategic_node_network"\] svg\s*\{([\s\S]*?)\n\}/) || [])[1] || "";
+
+  assert.ok(strategicSurfaceBlock, "Expected a strategic topology CSS block");
+  assert.ok(strategicSvgBlock, "Expected a strategic topology SVG CSS block");
+  assert.match(strategicSurfaceBlock, /overflow-x:auto/);
+  assert.match(strategicSurfaceBlock, /min-width:620px/);
+  assert.match(strategicSvgBlock, /width:100%/);
+  assert.match(strategicSvgBlock, /min-width:620px/);
+  assert.match(strategicSvgBlock, /max-width:none/);
 });

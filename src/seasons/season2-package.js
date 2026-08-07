@@ -21,7 +21,7 @@
       packageVersion: "0.5.0",
       seasonId: "season-2",
       displayName: "Season II: Desert Dynasty",
-      seasonStatus: "draft"
+      seasonStatus: "active"
     },
     rulesDefinition: {
       seasonIdentity: {

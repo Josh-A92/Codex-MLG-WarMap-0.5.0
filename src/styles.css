@@ -613,6 +613,23 @@ h1 { margin:0; font-size:22px; letter-spacing:.4px; }
   border:2px solid rgba(210,205,185,.42);
   padding:0;
 }
+.map[data-topology-type="strategic_node_network"] {
+  display:block;
+  overflow-x:auto;
+  overflow-y:hidden;
+  min-width:620px;
+  background:transparent;
+  border:none;
+  padding:0;
+}
+.map[data-topology-type="strategic_node_network"] svg {
+  display:block;
+  width:100%;
+  height:auto;
+  min-width:620px;
+  max-width:none;
+  margin:0 auto;
+}
 .tile {
   width:var(--tile);
   height:var(--tile);

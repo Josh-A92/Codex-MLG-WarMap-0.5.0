@@ -371,6 +371,19 @@
       };
     }
 
+    function displayBootstrapError(error) {
+      console.error("Unable to start application bootstrap.", error);
+      const errorName = error && typeof error.name === "string" ? error.name : "Error";
+      const errorMessage = error && typeof error.message === "string" ? error.message : String(error);
+      if (typeof document !== "undefined" && document && document.body) {
+        const bootstrapError = document.createElement("div");
+        bootstrapError.className = "app-bootstrap-error";
+        bootstrapError.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;padding:12px 16px;background:#b00020;color:#ffffff;font:14px/1.4 sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);";
+        bootstrapError.textContent = `Application bootstrap failed (${errorName}): ${errorMessage}`;
+        document.body.prepend(bootstrapError);
+      }
+    }
+
     function startApplication(bootstrapContext) {
       const initializeMapRenderer = requireFunction(safeScope.initializeMapRenderer, "initializeMapRenderer");
       return Promise.resolve(initializeMapRenderer(bootstrapContext));
@@ -384,7 +397,7 @@
         if (documentRef && documentRef.readyState === "loading") {
           documentRef.addEventListener("DOMContentLoaded", () => {
             startApplication(bootstrapContext).catch((error) => {
-              console.error("Unable to start application bootstrap.", error);
+              displayBootstrapError(error);
             });
           }, { once: true });
           return;
@@ -392,7 +405,7 @@
 
         await startApplication(bootstrapContext);
       } catch (error) {
-        console.error("Unable to start application bootstrap.", error);
+        displayBootstrapError(error);
       }
     }
 

@@ -1126,6 +1126,10 @@ async function handleSeasonSetupClick(event) {
       serverIds: activeSeason.serverIds.slice()
     };
     applyActivatedServerSelection(activeSeason);
+    if (window.location && typeof window.location.reload === "function") {
+      window.location.reload();
+      return;
+    }
   } catch (error) {
     seasonSetupState.errorMessage = error && error.message
       ? error.message
@@ -3345,20 +3349,85 @@ function renderMarkers(markers) {
   });
 }
 
-function renderMap(data) {
-  const gridSize = Number(data.gridSize || DEFAULT_GRID_SIZE);
-  const tiles = data.tiles || [];
-  const markers = data.structures || [];
+function clearMapWorkspaceContent() {
+  if (map) {
+    map.innerHTML = "";
+    map.className = "map";
+    map.removeAttribute("data-topology-type");
+  }
 
-  currentGridSize = gridSize;
+  if (colheads) {
+    colheads.innerHTML = "";
+  }
+  if (colheadsBottom) {
+    colheadsBottom.innerHTML = "";
+  }
+  if (rowheads) {
+    rowheads.innerHTML = "";
+  }
+  if (rowheadsRight) {
+    rowheadsRight.innerHTML = "";
+  }
 
-  renderGridHeaders(gridSize);
-  renderTiles(tiles);
-  markers.forEach((marker) => {
-    applyFootprintVisuals(marker);
+  tileElementsByPosition.clear();
+  tileDataByPosition.clear();
+  clearSelection();
+}
+
+function renderStrategicNodeNetworkMap(mapData) {
+  if (!strategicNodeNetworkProjectionService || typeof strategicNodeNetworkProjectionService.project !== "function") {
+    throw new Error("Renderer requires a strategic node network projection service.");
+  }
+  if (!strategicNodeNetworkSvgRenderer || typeof strategicNodeNetworkSvgRenderer.render !== "function") {
+    throw new Error("Renderer requires a strategic node network SVG renderer.");
+  }
+
+  const projection = strategicNodeNetworkProjectionService.project(mapData);
+  const previewResult = strategicNodeNetworkSvgRenderer.render(projection, {
+    selectedNodeId: null,
+    theme: createPreviewTheme(),
+    assetByTypeCode: createPreviewAssetMap()
   });
-  renderMarkers(markers);
-  applyOwnershipOverlays(markers);
+
+  if (map) {
+    map.classList.add("map--strategic-node-network");
+    map.setAttribute("data-topology-type", "strategic_node_network");
+    map.innerHTML = previewResult.markup;
+  }
+
+  return previewResult;
+}
+
+function renderMap(data) {
+  const topologyType = gameRulesEngine && typeof gameRulesEngine.getMapDefinition === "function"
+    ? gameRulesEngine.getMapDefinition().topologyType
+    : null;
+
+  clearMapWorkspaceContent();
+
+  if (topologyType === "territory_grid") {
+    const gridSize = Number(data.gridSize || DEFAULT_GRID_SIZE);
+    const tiles = data.tiles || [];
+    const markers = data.structures || [];
+
+    currentGridSize = gridSize;
+
+    renderGridHeaders(gridSize);
+    renderTiles(tiles);
+    markers.forEach((marker) => {
+      applyFootprintVisuals(marker);
+    });
+    renderMarkers(markers);
+    applyOwnershipOverlays(markers);
+    return;
+  }
+
+  if (topologyType === "strategic_node_network") {
+    renderStrategicNodeNetworkMap(data);
+    return;
+  }
+
+  throw new Error(`Renderer does not support topology '${topologyType || "unknown"}'.`);
 }
 
 function initializeCamera(data) {
@@ -3478,7 +3547,12 @@ function initializeMap() {
       initializeSummaryService();
       renderWorkspaceNavigation();
       renderMap(mapData);
-      initializeCamera(mapData);
+      const topologyType = gameRulesEngine && typeof gameRulesEngine.getMapDefinition === "function"
+        ? gameRulesEngine.getMapDefinition().topologyType
+        : null;
+      if (topologyType === "territory_grid") {
+        initializeCamera(mapData);
+      }
       attachWorkspaceShellHandlers();
       attachCameraInputHandlers();
       attachCameraToolbarHandlers();
@@ -3634,6 +3708,15 @@ function initializeMapRenderer(bootstrapContext) {
   applicationStarted = true;
   return initializeMap().catch((error) => {
     console.error("Unable to load application data", error);
+    const errorName = error && typeof error.name === "string" ? error.name : "Error";
+    const errorMessage = error && typeof error.message === "string" ? error.message : String(error);
+    if (typeof document !== "undefined" && document.body) {
+      const startupError = document.createElement("div");
+      startupError.className = "app-startup-error";
+      startupError.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;padding:12px 16px;background:#b00020;color:#ffffff;font:14px/1.4 sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);";
+      startupError.textContent = `Application initialization failed (${errorName}): ${errorMessage}`;
+      document.body.prepend(startupError);
+    }
   });
 }
 

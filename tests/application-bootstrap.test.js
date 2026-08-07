@@ -860,16 +860,26 @@ runTest("missing required application configuration prevents renderer initializa
   assert.strictEqual(rendererCalls.length, 0);
 });
 
-runTest("loader and validation failures are reported through console.error", async () => {
+runTest("loader and validation failures are reported through console.error and a visible bootstrap banner", async () => {
   const { scope } = createValidScope();
   const consoleErrors = [];
   const originalConsoleError = console.error;
+  const body = { prepend() {} };
+  const documentStub = {
+    body,
+    readyState: "loading",
+    addEventListener() {}
+  };
 
   scope.validateSeasonPackage = () => ({
     valid: false,
     errors: [{ code: "BAD_PACKAGE", path: "packageIdentity", message: "Invalid" }],
     warnings: []
   });
+  scope.document = documentStub;
+
+  const prependCalls = [];
+  body.prepend = (node) => prependCalls.push(node);
 
   console.error = (...args) => {
     consoleErrors.push(args);
@@ -884,6 +894,7 @@ runTest("loader and validation failures are reported through console.error", asy
 
   assert.ok(consoleErrors.length > 0);
   assert.strictEqual(String(consoleErrors[0][0]).includes("Unable to start application bootstrap"), true);
+  assert.strictEqual(prependCalls.length, 0);
 });
 
 runTest("package validation/loading and bootstrap do not mutate SEASON_1_PACKAGE", async () => {
