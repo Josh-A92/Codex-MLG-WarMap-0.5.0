@@ -181,6 +181,25 @@ test("persisted and newly activated contexts filter participating servers", () =
   assert.match(renderer, /applyActivatedServerSelection\(activeSeason\)/);
 });
 
+test("startup materializes selected active-season servers before filtering workspaces", () => {
+  assert.match(renderer, /async function ensureActiveSeasonServers\(activeSeason\)/);
+  assert.match(renderer, /activeSeason\.serverIds\.forEach/);
+  assert.match(renderer, /serverStateService\.registerServer\(\{ id: serverId, label: `Server \$\{serverNumber\}` \}\)/);
+  assert.match(renderer, /await ensureActiveSeasonServers\(seasonContext\.activated \? seasonContext : null\);[\s\S]*appState\.allServers = serverStateService\.listServers\(\);/);
+  assert.match(renderer, /registeredServer[\s\S]*serverStatePersistenceController\.requestSave\(\)[\s\S]*serverStatePersistenceController\.flush\(\)/);
+});
+
+test("runtime shell replaces Season 1 fallback labels from the loaded package", () => {
+  assert.match(html, /id="applicationSeasonSubtitle"/);
+  assert.match(html, /id="applicationMapSummary"/);
+  assert.match(html, /id="commandCentreSeasonLabel"/);
+  assert.match(html, /id="commandCentreOverviewTitle"/);
+  assert.match(renderer, /function renderSeasonRuntimeShell\(mapData\)/);
+  assert.match(renderer, /seasonIdentity\.seasonName/);
+  assert.match(renderer, /strategic nodes/);
+  assert.match(renderer, /renderSeasonRuntimeShell\(mapData\);[\s\S]*renderWorkspaceNavigation\(\);/);
+});
+
 test("Season Setup has responsive single-column phone rules", () => {
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /\.season-setup-progress[\s\S]*grid-template-columns:1fr/);

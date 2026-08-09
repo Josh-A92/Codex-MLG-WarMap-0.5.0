@@ -59,8 +59,12 @@ const cameraToolbar = document.getElementById("cameraToolbar");
 const workspaceShell = document.getElementById("workspaceShell");
 const serverDock = document.getElementById("serverDock");
 const serverDockButtons = document.getElementById("serverDockButtons");
+const applicationSeasonSubtitle = document.getElementById("applicationSeasonSubtitle");
+const applicationMapSummary = document.getElementById("applicationMapSummary");
 const commandCentreView = document.getElementById("commandCentreView");
 const commandCentreCards = document.getElementById("commandCentreCards");
+const commandCentreSeasonLabel = document.getElementById("commandCentreSeasonLabel");
+const commandCentreOverviewTitle = document.getElementById("commandCentreOverviewTitle");
 const dataManagementView = document.getElementById("dataManagementView");
 const dataManagementContent = document.getElementById("dataManagementContent");
 const seasonSetupView = document.getElementById("seasonSetupView");
@@ -328,6 +332,54 @@ function renderCommandCentreCards() {
 function renderWorkspaceNavigation() {
   renderServerDockNavigation();
   renderCommandCentreCards();
+}
+
+function renderSeasonRuntimeShell(mapData) {
+  const seasonName = typeof seasonIdentity.seasonName === "string" && seasonIdentity.seasonName.trim() !== ""
+    ? seasonIdentity.seasonName
+    : seasonIdentity.seasonId;
+  const mapDefinition = gameRulesEngine && typeof gameRulesEngine.getMapDefinition === "function"
+    ? gameRulesEngine.getMapDefinition()
+    : {};
+  const topologyType = mapDefinition.topologyType;
+  const mapSummary = topologyType === "strategic_node_network"
+    ? `${Array.isArray(mapData.nodes) ? mapData.nodes.length : 0} strategic nodes · ${Array.isArray(mapData.connections) ? mapData.connections.length : 0} connections`
+    : `${Array.isArray(mapData.tiles) ? mapData.tiles.flat().length : 0} tiles · ${Array.isArray(mapData.structures) ? mapData.structures.length : 0} structures/markers`;
+
+  if (applicationSeasonSubtitle) {
+    applicationSeasonSubtitle.textContent = `${seasonName} Command Centre · ${mapWorkspaceLabel} workspaces`;
+  }
+  if (applicationMapSummary) {
+    applicationMapSummary.textContent = mapSummary;
+  }
+  if (commandCentreSeasonLabel) {
+    commandCentreSeasonLabel.textContent = `${seasonName} dashboard`;
+  }
+  if (commandCentreOverviewTitle) {
+    commandCentreOverviewTitle.textContent = `${seasonName} Overview`;
+  }
+}
+
+async function ensureActiveSeasonServers(activeSeason) {
+  if (!activeSeason || !Array.isArray(activeSeason.serverIds)) {
+    return;
+  }
+
+  let registeredServer = false;
+  activeSeason.serverIds.forEach((serverId) => {
+    if (serverStateService.hasServer(serverId)) {
+      return;
+    }
+
+    const serverNumber = serverId.startsWith("server-") ? serverId.slice("server-".length) : serverId;
+    serverStateService.registerServer({ id: serverId, label: `Server ${serverNumber}` });
+    registeredServer = true;
+  });
+
+  if (registeredServer) {
+    await serverStatePersistenceController.requestSave();
+    await serverStatePersistenceController.flush();
+  }
 }
 
 function refreshCommandCentreCards() {
@@ -3533,6 +3585,7 @@ function initializeMap() {
       await initializePersistedDataManagementDomains(bundledIdentities);
       initializeServerStateService(seasonServerState);
       await serverStatePersistenceController.initialize(serverStateService);
+      await ensureActiveSeasonServers(seasonContext.activated ? seasonContext : null);
       initializeDataManagementRuntime();
       appState.allServers = serverStateService.listServers();
       const activeSeason = seasonAdministrationService.getActiveSeason();
@@ -3545,6 +3598,7 @@ function initializeMap() {
       loadedMapData = mapData;
       initializeOwnershipService();
       initializeSummaryService();
+      renderSeasonRuntimeShell(mapData);
       renderWorkspaceNavigation();
       renderMap(mapData);
       const topologyType = gameRulesEngine && typeof gameRulesEngine.getMapDefinition === "function"

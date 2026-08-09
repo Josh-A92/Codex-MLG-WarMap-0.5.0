@@ -9,9 +9,9 @@
 <header>
   <div>
     <h1>MLG WarMap · Map Render Test</h1>
-    <div class="sub">Season 1 Command Centre shell · shared base map workspaces</div>
+    <div class="sub" id="applicationSeasonSubtitle">Season 1 Command Centre shell · shared base map workspaces</div>
   </div>
-  <div class="badge">400 tiles · 80 structures/markers</div>
+  <div class="badge" id="applicationMapSummary">400 tiles · 80 structures/markers</div>
 </header>
 
 <div class="stage">
@@ -27,11 +27,11 @@
       <div class="command-centre-head">
         <strong>Command Centre</strong>
         <div class="command-centre-head-actions">
-          <span>Season 1 shared-base-map dashboard</span>
+          <span id="commandCentreSeasonLabel">Season 1 shared-base-map dashboard</span>
           <button class="command-centre-manage-season" data-workspace-target="season-setup" type="button">Manage Season</button>
         </div>
       </div>
-      <h2 class="command-centre-overview-title">Season 1 Overview</h2>
+      <h2 class="command-centre-overview-title" id="commandCentreOverviewTitle">Season 1 Overview</h2>
       <div class="command-centre-grid" id="commandCentreCards"></div>
 
       <div class="command-centre-note">Ownership changes save automatically. Season scoring remains unconfigured.</div>
