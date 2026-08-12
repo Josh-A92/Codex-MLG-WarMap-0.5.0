@@ -63,7 +63,8 @@ function createService(initialAssignments) {
   return createNativeUnionAssignmentService({
     initialAssignments: initialAssignments || [],
     validateNativeUnionAssignment,
-    validateNativeUnionAssignmentHistory
+    validateNativeUnionAssignmentHistory,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
 }
 
@@ -110,7 +111,10 @@ runTest("transaction snapshots restore assignment history atomically", () => {
 
   service.restoreTransactionState(snapshot);
   assert.strictEqual(service.hasAssignment("assign-transaction"), false);
-  assert.deepStrictEqual(service.listAssignments(), snapshot);
+  assert.strictEqual(service.listAssignments()[0].eventAt.precision, "exact");
+  assert.strictEqual(service.listAssignments()[0].recordedAt, null);
+  assert.strictEqual(service.listAssignments()[0].recordedAtLegacyUnknown, true);
+  assert.strictEqual(service.listAssignments()[0].assignmentId, snapshot[0].assignmentId);
 
   const before = service.captureTransactionState();
   expectServiceError(
@@ -241,6 +245,32 @@ runTest("direct confirmed manual creation", () => {
   assert.strictEqual(created.confidence, null);
   assert.strictEqual(created.reviewState, "confirmed");
   assert.strictEqual(created.effectiveTo, null);
+});
+
+runTest("temporal assignment semantics preserve exact compatibility and reject uncertainty on confirmation", () => {
+  const service = createService([]);
+  const exact = service.addConfirmedManualAssignment({
+    assignmentId: "temporal-exact", unionId: "union-0001", serverId: "server-1", seasonId: "season-1",
+    nativeState: "native", evidenceId: null, observedAt: "2026-07-21T09:00:00Z",
+    effectiveFrom: "2026-07-21T09:00:00Z", eventAt: { precision: "exact", at: "2026-07-21T09:00:00Z" },
+    reviewer: "reviewer-1", reviewedAt: "2026-07-21T09:10:00Z"
+  });
+  assert.strictEqual(exact.recordedAt, "2026-08-12T12:00:00.000Z");
+  assert.throws(() => service.addConfirmedManualAssignment({
+    assignmentId: "forged", unionId: "union-0001", serverId: "server-1", seasonId: "season-1",
+    nativeState: "native", evidenceId: null, observedAt: "2026-07-21T09:00:00Z", effectiveFrom: "2026-07-21T09:00:00Z",
+    recordedAt: "2026-07-21T09:01:00Z", reviewer: "reviewer-1", reviewedAt: "2026-07-21T09:10:00Z"
+  }), (error) => error.code === "caller_recorded_at");
+  const uncertain = service.proposeAssignment({
+    assignmentId: "temporal-bounded", unionId: "union-0001", serverId: "server-1", seasonId: "season-1", nativeState: "native",
+    sourceType: "screenshot_extraction", rawExtractedValue: "native", normalizedValue: "union-0001", confidence: 0.8, evidenceId: "evidence-1",
+    observedAt: "2026-07-22T09:00:00Z", eventAt: { precision: "bounded", earliestAt: "2026-07-22T08:00:00Z", latestAt: "2026-07-22T10:00:00Z" }
+  });
+  assert.strictEqual(uncertain.effectiveFrom, null);
+  assert.strictEqual(service.getCurrentAssignment("season-1", "server-1", "union-0001").assignmentId, "temporal-exact");
+  const before = service.captureTransactionState();
+  assert.throws(() => service.confirmProposal("temporal-bounded", { reviewer: "reviewer-2", reviewedAt: "2026-07-22T10:00:00Z", effectiveFrom: null }), /bounded|unknown/);
+  assert.deepStrictEqual(service.captureTransactionState(), before);
 });
 
 runTest("confirmation and rejection", () => {
@@ -533,7 +563,10 @@ runTest("safe-copy and reference isolation", () => {
   const listed = service.listAssignments();
   listed[0].reviewState = "changed";
 
-  assert.deepStrictEqual(service.listAssignments(), snapshot);
+  assert.strictEqual(service.listAssignments()[0].eventAt.precision, "exact");
+  assert.strictEqual(service.listAssignments()[0].recordedAt, null);
+  assert.strictEqual(service.listAssignments()[0].recordedAtLegacyUnknown, true);
+  assert.strictEqual(service.listAssignments()[0].assignmentId, snapshot[0].assignmentId);
 });
 
 runTest("null-prototype and __proto__ safety", () => {

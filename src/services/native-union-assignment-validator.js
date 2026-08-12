@@ -1,4 +1,7 @@
 (function initializeNativeUnionAssignmentValidator(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : { validateEventAt(value) { if (value === null || typeof value !== "object" || !["exact", "bounded", "unknown"].includes(value.precision)) throw new Error("eventAt is invalid."); return value; }, validateRuleVersionRef(value) { if (value === null || typeof value !== "object" || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) throw new Error("ruleVersionRef is invalid."); return value; } };
   const CANONICAL_FIELDS = [
     "assignmentId",
     "unionId",
@@ -16,7 +19,7 @@
     "effectiveTo",
     "reviewer",
     "reviewedAt",
-    "supersededBy"
+    "supersededBy", "eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ];
 
   const NATIVE_STATES = new Set(["native", "not_native", "unknown"]);
@@ -102,6 +105,7 @@
   function validateRequiredFieldPresence(record, basePath, errors) {
     for (let index = 0; index < CANONICAL_FIELDS.length; index += 1) {
       const fieldName = CANONICAL_FIELDS[index];
+      if (["eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"].includes(fieldName)) continue;
       if (!Object.prototype.hasOwnProperty.call(record, fieldName)) {
         pushError(
           errors,
@@ -267,6 +271,24 @@
     const effectiveFrom = validateNullableTimestamp(errors, record.effectiveFrom, effectiveFromPath, effectiveFromPath);
     const effectiveTo = validateNullableTimestamp(errors, record.effectiveTo, effectiveToPath, effectiveToPath);
     const reviewedAt = validateNullableTimestamp(errors, record.reviewedAt, reviewedAtPath, reviewedAtPath);
+    if (Object.prototype.hasOwnProperty.call(record, "eventAt")) {
+      try { temporalExports.validateEventAt(record.eventAt); } catch (error) { pushError(errors, "INVALID_EVENT_TIME", composePath(basePath, "eventAt"), error.message); }
+      if (record.eventAt && record.eventAt.precision === "exact" && record.effectiveFrom !== null && record.effectiveFrom !== record.eventAt.at) {
+        pushError(errors, "INVALID_COMPATIBILITY_TIME", effectiveFromPath, "effectiveFrom must match exact eventAt.at.");
+      }
+      if (record.eventAt && record.eventAt.precision !== "exact" && record.effectiveFrom !== null) {
+        pushError(errors, "INVALID_UNCERTAIN_EFFECTIVE_TIME", effectiveFromPath, "Bounded or unknown eventAt requires effectiveFrom to be null.");
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAt") && record.recordedAt !== null && validateRequiredTimestamp(errors, record.recordedAt, composePath(basePath, "recordedAt"), composePath(basePath, "recordedAt")) === null) {
+      // validation error already recorded
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAtLegacyUnknown") && typeof record.recordedAtLegacyUnknown !== "boolean") {
+      pushError(errors, "INVALID_BOOLEAN", composePath(basePath, "recordedAtLegacyUnknown"), "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "ruleVersionRef") && record.ruleVersionRef !== null) {
+      try { temporalExports.validateRuleVersionRef(record.ruleVersionRef); } catch (error) { pushError(errors, "INVALID_RULE_VERSION", composePath(basePath, "ruleVersionRef"), error.message); }
+    }
 
     if (sourceTypeValid) {
       if (record.sourceType === "manual_entry") {

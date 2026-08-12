@@ -143,7 +143,8 @@
     const nativeAssignmentService = modules.createNativeUnionAssignmentService({
       initialAssignments: initialState.nativeAssignments,
       validateNativeUnionAssignment: modules.validateNativeUnionAssignment,
-      validateNativeUnionAssignmentHistory: modules.validateNativeUnionAssignmentHistory
+      validateNativeUnionAssignmentHistory: modules.validateNativeUnionAssignmentHistory,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const activeStatusEvaluator = modules.createActiveUnionStatusEvaluator({
       validateActiveUnionStatus: modules.validateActiveUnionStatus

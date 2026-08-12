@@ -1,4 +1,6 @@
 (function initializeNativeUnionAssignmentServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function" ? require("./temporal-metadata-contract.js").createTemporalMetadataContract : null);
   const PROPOSAL_INPUT_FIELDS = new Set([
     "assignmentId",
     "unionId",
@@ -10,7 +12,7 @@
     "normalizedValue",
     "confidence",
     "evidenceId",
-    "observedAt"
+    "observedAt", "eventAt", "ruleVersionRef", "recordedAt"
   ]);
 
   const MANUAL_CONFIRMED_INPUT_FIELDS = new Set([
@@ -23,13 +25,13 @@
     "observedAt",
     "effectiveFrom",
     "reviewer",
-    "reviewedAt"
+    "reviewedAt", "eventAt", "ruleVersionRef", "recordedAt"
   ]);
 
   const CONFIRM_REVIEW_FIELDS = new Set([
     "reviewer",
     "reviewedAt",
-    "effectiveFrom"
+    "effectiveFrom", "eventAt", "ruleVersionRef"
   ]);
 
   const REJECT_REVIEW_FIELDS = new Set([
@@ -252,7 +254,7 @@
 
   function createNativeUnionAssignmentService(input) {
     const factoryInput = requireRecordObject(input, "input");
-    requireKnownFields(factoryInput, new Set(["initialAssignments", "validateNativeUnionAssignment", "validateNativeUnionAssignmentHistory"]), "input");
+    requireKnownFields(factoryInput, new Set(["initialAssignments", "validateNativeUnionAssignment", "validateNativeUnionAssignmentHistory", "clock"]), "input");
     requireRequiredFields(factoryInput, ["initialAssignments", "validateNativeUnionAssignment", "validateNativeUnionAssignmentHistory"], "input");
 
     const initialAssignments = requireArray(factoryInput.initialAssignments, "input.initialAssignments");
@@ -264,6 +266,25 @@
       assignmentIndexById: new Map(),
       currentAssignmentByGroup: new Map()
     };
+    const temporalContract = temporalContractFactory({ clock: typeof factoryInput.clock === "function" ? factoryInput.clock : () => new Date() });
+
+    function normalizeTemporal(record, mode) {
+      const preservedRecordedAt = mode === "existing" ? record.recordedAt : undefined;
+      const inputRecord = mode === "existing" && Object.prototype.hasOwnProperty.call(record, "recordedAt")
+        ? (() => { const copy = deepClone(record); delete copy.recordedAt; return copy; })()
+        : record;
+      const eventAt = inputRecord.eventAt || (inputRecord.effectiveFrom
+        ? { precision: "exact", at: inputRecord.effectiveFrom }
+        : { precision: "unknown" });
+      const normalizedEventAt = inputRecord.effectiveFrom && eventAt.precision !== "exact"
+        ? { precision: "exact", at: inputRecord.effectiveFrom }
+        : eventAt;
+      const normalized = mode === "legacy"
+        ? temporalContract.normalizeLegacy({ ...inputRecord, eventAt: normalizedEventAt })
+        : temporalContract.normalizeNew({ ...inputRecord, eventAt: normalizedEventAt });
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      return normalized;
+    }
 
     function rebuildIndexes() {
       state.assignmentIndexById = new Map();
@@ -339,6 +360,9 @@
       defineOwnDataProperty(record, "confidence", proposalInput.confidence);
       defineOwnDataProperty(record, "evidenceId", proposalInput.evidenceId);
       defineOwnDataProperty(record, "observedAt", proposalInput.observedAt);
+      if (Object.prototype.hasOwnProperty.call(proposalInput, "eventAt")) defineOwnDataProperty(record, "eventAt", deepClone(proposalInput.eventAt));
+      if (Object.prototype.hasOwnProperty.call(proposalInput, "ruleVersionRef")) defineOwnDataProperty(record, "ruleVersionRef", deepClone(proposalInput.ruleVersionRef));
+      if (Object.prototype.hasOwnProperty.call(proposalInput, "recordedAt")) defineOwnDataProperty(record, "recordedAt", proposalInput.recordedAt);
       defineOwnDataProperty(record, "effectiveFrom", null);
       defineOwnDataProperty(record, "effectiveTo", null);
       defineOwnDataProperty(record, "reviewer", null);
@@ -364,6 +388,9 @@
       defineOwnDataProperty(record, "confidence", null);
       defineOwnDataProperty(record, "evidenceId", manualInput.evidenceId);
       defineOwnDataProperty(record, "observedAt", manualInput.observedAt);
+      if (Object.prototype.hasOwnProperty.call(manualInput, "eventAt")) defineOwnDataProperty(record, "eventAt", deepClone(manualInput.eventAt));
+      if (Object.prototype.hasOwnProperty.call(manualInput, "ruleVersionRef")) defineOwnDataProperty(record, "ruleVersionRef", deepClone(manualInput.ruleVersionRef));
+      if (Object.prototype.hasOwnProperty.call(manualInput, "recordedAt")) defineOwnDataProperty(record, "recordedAt", manualInput.recordedAt);
       defineOwnDataProperty(record, "effectiveFrom", manualInput.effectiveFrom);
       defineOwnDataProperty(record, "effectiveTo", null);
       defineOwnDataProperty(record, "reviewer", manualInput.reviewer);
@@ -447,21 +474,21 @@
     function requireProposalInput(value) {
       const inputRecord = requireRecordObject(value, "input");
       requireKnownFields(inputRecord, PROPOSAL_INPUT_FIELDS, "input");
-      requireRequiredFields(inputRecord, Array.from(PROPOSAL_INPUT_FIELDS), "input");
+      requireRequiredFields(inputRecord, Array.from(PROPOSAL_INPUT_FIELDS).filter((field) => !["eventAt", "ruleVersionRef", "recordedAt"].includes(field)), "input");
       return inputRecord;
     }
 
     function requireManualConfirmedInput(value) {
       const inputRecord = requireRecordObject(value, "input");
       requireKnownFields(inputRecord, MANUAL_CONFIRMED_INPUT_FIELDS, "input");
-      requireRequiredFields(inputRecord, Array.from(MANUAL_CONFIRMED_INPUT_FIELDS), "input");
+      requireRequiredFields(inputRecord, Array.from(MANUAL_CONFIRMED_INPUT_FIELDS).filter((field) => !["eventAt", "ruleVersionRef", "recordedAt"].includes(field)), "input");
       return inputRecord;
     }
 
     function requireConfirmReview(value) {
       const review = requireRecordObject(value, "review");
       requireKnownFields(review, CONFIRM_REVIEW_FIELDS, "review");
-      requireRequiredFields(review, Array.from(CONFIRM_REVIEW_FIELDS), "review");
+      requireRequiredFields(review, Array.from(CONFIRM_REVIEW_FIELDS).filter((field) => !["eventAt", "ruleVersionRef"].includes(field)), "review");
       return review;
     }
 
@@ -531,7 +558,7 @@
         throwInvalidInput("Native Union Assignment Service does not allow manual_entry proposals.");
       }
 
-      const candidateRecord = createCanonicalProposalRecord(proposalInput);
+      const candidateRecord = normalizeTemporal(createCanonicalProposalRecord(proposalInput), "new");
       validateSingleRecord(validateNativeUnionAssignment, candidateRecord);
 
       if (state.assignmentIndexById.has(candidateRecord.assignmentId)) {
@@ -547,7 +574,7 @@
 
     function addConfirmedManualAssignment(input) {
       const manualInput = requireManualConfirmedInput(input);
-      const candidateRecord = createCanonicalManualConfirmedRecord(manualInput);
+      const candidateRecord = normalizeTemporal(createCanonicalManualConfirmedRecord(manualInput), "new");
       validateSingleRecord(validateNativeUnionAssignment, candidateRecord);
 
       if (state.assignmentIndexById.has(candidateRecord.assignmentId)) {
@@ -585,7 +612,10 @@
         throwInvalidTransition("Native Union Assignment Service only allows confirming proposed assignments.");
       }
 
-      const candidateRecord = createConfirmedFromProposal(existingRecord, normalizedReview);
+      const candidateRecord = normalizeTemporal(createConfirmedFromProposal(existingRecord, normalizedReview), "existing");
+      if (candidateRecord.eventAt && candidateRecord.eventAt.precision !== "exact") {
+        throwInvalidTransition("Native Union Assignment Service cannot confirm bounded or unknown assignment time.");
+      }
       validateSingleRecord(validateNativeUnionAssignment, candidateRecord);
 
       const current = findCurrentForRecord(candidateRecord);
@@ -619,7 +649,7 @@
         throwInvalidTransition("Native Union Assignment Service only allows rejecting proposed assignments.");
       }
 
-      const candidateRecord = createRejectedFromProposal(existingRecord, normalizedReview);
+      const candidateRecord = normalizeTemporal(createRejectedFromProposal(existingRecord, normalizedReview), "existing");
       validateSingleRecord(validateNativeUnionAssignment, candidateRecord);
 
       const nextAssignments = state.assignments.map((assignment) => cloneAssignmentRecord(assignment));
@@ -639,8 +669,8 @@
       commit(restoredAssignments);
     }
 
-    validateHistory(validateNativeUnionAssignmentHistory, initialAssignments);
-    state.assignments = deepClone(initialAssignments);
+    state.assignments = initialAssignments.map((assignment) => normalizeTemporal(assignment, "legacy"));
+    validateHistory(validateNativeUnionAssignmentHistory, state.assignments);
     rebuildIndexes();
 
     return {

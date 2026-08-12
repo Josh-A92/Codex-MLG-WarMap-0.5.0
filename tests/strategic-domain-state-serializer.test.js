@@ -186,6 +186,11 @@ state.confirmedSnapshots = [
   { snapshotId: "snapshot-exact", seasonId: "season-1", serverId: "server-366", createdAt: "2026-07-30T10:00:00.000Z", recordedAt: "2026-07-30T10:01:00.000Z", ownershipRecordIds: [], structureOwnershipRecordIds: [], verificationRecordIds: [], unionStatusRecordIds: [], evidenceIds: [], creatorId: "creator", reviewerId: "reviewer", completenessRecordIds: [], previousConfirmedSnapshotId: null },
   { snapshotId: "snapshot-unknown", seasonId: "season-1", serverId: "server-366", createdAt: "2026-07-30T11:00:00.000Z", recordedAt: null, recordedAtLegacyUnknown: true, ownershipRecordIds: [], structureOwnershipRecordIds: [], verificationRecordIds: [], unionStatusRecordIds: [], evidenceIds: [], creatorId: "creator", reviewerId: "reviewer", completenessRecordIds: [], previousConfirmedSnapshotId: "snapshot-exact" }
 ];
+state.nativeAssignments = [
+  { ...state.nativeAssignments[0], eventAt: { precision: "exact", at: "2026-07-30T09:00:00.000Z" }, recordedAt: "2026-07-30T10:01:00.000Z" },
+  { ...state.nativeAssignments[0], recordId: "native-bounded", eventAt: { precision: "bounded", earliestAt: "2026-07-30T08:00:00.000Z", latestAt: "2026-07-30T09:30:00.000Z" }, recordedAt: "2026-07-30T10:01:00.000Z" },
+  { ...state.nativeAssignments[0], recordId: "native-unknown", eventAt: { precision: "unknown" }, recordedAt: null, recordedAtLegacyUnknown: true }
+];
 const serialized = serializeStrategicDomainRuntime(
   runtime,
   "season-1",
