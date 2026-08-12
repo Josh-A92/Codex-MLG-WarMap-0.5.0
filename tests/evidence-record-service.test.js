@@ -38,7 +38,8 @@ function service(initial = [], knownAssets = ["asset-1", "asset-2"]) {
       hasAsset(assetId) {
         return knownAssets.includes(assetId);
       }
-    }
+    },
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
 }
 
@@ -81,6 +82,24 @@ const manual = record({
   confidence: null
 });
 assert.doesNotThrow(() => service().addEvidenceRecord(manual));
+
+const temporal = service();
+const exact = temporal.addEvidenceRecord(record({
+  evidenceId: "temporal-exact",
+  eventAt: { precision: "exact", at: "2026-07-25T08:00:00Z" },
+  ruleVersionRef: { seasonId: "season-1", packageVersion: "0.5.0", rulesVersion: "rules-v1" }
+}));
+assert.strictEqual(exact.observedAt, "2026-07-25T09:15:00Z");
+assert.strictEqual(exact.recordedAt, "2026-08-12T12:00:00.000Z");
+assert.throws(() => temporal.addEvidenceRecord(record({ evidenceId: "forged", recordedAt: "2026-07-25T09:00:00Z" })), (error) => error.code === "caller_recorded_at");
+const bounded = temporal.addEvidenceRecord(record({ evidenceId: "temporal-bounded", eventAt: { precision: "bounded", earliestAt: "2026-07-25T08:00:00Z", latestAt: "2026-07-25T10:00:00Z" } }));
+const unknown = temporal.addEvidenceRecord(record({ evidenceId: "temporal-unknown", eventAt: { precision: "unknown" } }));
+assert.strictEqual(bounded.eventAt.precision, "bounded");
+assert.strictEqual(unknown.eventAt.precision, "unknown");
+const legacy = service([record({ evidenceId: "legacy" })]).getEvidenceRecord("legacy");
+assert.strictEqual(Object.prototype.hasOwnProperty.call(legacy, "eventAt"), false);
+assert.strictEqual(legacy.recordedAt, null);
+assert.strictEqual(legacy.recordedAtLegacyUnknown, true);
 
 const input = record({ normalizedValue: { candidate: "union-1" } });
 const isolated = service([input]);

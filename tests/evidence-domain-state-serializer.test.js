@@ -29,7 +29,9 @@ function evidenceRecord() {
     rawExtractedValue: "MLG", normalizedValue: "union-1", confidence: 0.9,
     observedAt: "2026-07-25T09:00:00Z", reviewState: "proposed",
     actorId: "system-extractor", reviewerId: null, reviewedAt: null, notes: null,
-    linkedEntityType: "UnionMatchProposal", linkedEntityId: "proposal-1", supersededBy: null
+    linkedEntityType: "UnionMatchProposal", linkedEntityId: "proposal-1", supersededBy: null,
+    eventAt: { precision: "bounded", earliestAt: "2026-07-25T08:00:00Z", latestAt: "2026-07-25T10:00:00Z" },
+    recordedAt: "2026-07-30T10:00:00Z"
   };
 }
 const serializer = createEvidenceDomainStateSerializer({
@@ -50,6 +52,8 @@ assert.strictEqual(Object.prototype.hasOwnProperty.call(envelope.assets[0].sourc
 assert.strictEqual({}.polluted, undefined);
 
 const restored = serializer.deserializeEnvelope(envelope);
+assert.deepStrictEqual(restored.evidenceRecords[0].eventAt, evidenceRecord().eventAt);
+assert.strictEqual(restored.evidenceRecords[0].recordedAt, "2026-07-30T10:00:00Z");
 const restoredRuntime = createEvidenceDomainRuntime({
   modules,
   initialState: { assets: restored.assets, evidenceRecords: restored.evidenceRecords }

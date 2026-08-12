@@ -72,7 +72,8 @@ function createServices() {
     initialEvidenceRecords: [],
     validateEvidenceRecord,
     validateEvidenceRecordHistory,
-    evidenceAssetService
+    evidenceAssetService,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
   return {
     activeStatuses: createActiveUnionStatusService({

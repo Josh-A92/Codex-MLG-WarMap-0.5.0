@@ -47,7 +47,10 @@
 
   function createEvidenceDomainRuntime(options) {
     const input = requireRecord(options, "options");
+    const unknownOptions = Object.keys(input).filter((field) => !FACTORY_FIELDS.has(field) && field !== "clock").sort();
+    if (unknownOptions.length > 0) fail(`Evidence Domain Runtime does not recognize options.${unknownOptions[0]}.`);
     exactFields(input, FACTORY_FIELDS, "options");
+    const clock = typeof input.clock === "function" ? input.clock : () => new Date();
     const modules = requireRecord(input.modules, "options.modules");
     exactFields(modules, MODULE_FIELDS, "options.modules");
     MODULE_FIELDS.forEach((field) => {
@@ -72,7 +75,8 @@
       initialEvidenceRecords: state.evidenceRecords,
       validateEvidenceRecord: modules.validateEvidenceRecord,
       validateEvidenceRecordHistory: modules.validateEvidenceRecordHistory,
-      evidenceAssetService
+      evidenceAssetService,
+      clock
     });
 
     return Object.freeze({ evidenceAssetService, evidenceRecordService });

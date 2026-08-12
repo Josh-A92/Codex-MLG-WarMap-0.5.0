@@ -1,9 +1,14 @@
 (function initializeEvidenceRecordServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function"
+      ? require("./temporal-metadata-contract.js").createTemporalMetadataContract
+      : null);
   const FACTORY_FIELDS = new Set([
     "initialEvidenceRecords",
     "validateEvidenceRecord",
     "validateEvidenceRecordHistory",
-    "evidenceAssetService"
+    "evidenceAssetService",
+    "clock"
   ]);
   const FILTER_FIELDS = new Set([
     "evidenceId", "assetId", "sourceType", "reviewState", "actorId", "reviewerId",
@@ -69,6 +74,7 @@
   function createEvidenceRecordService(options) {
     const input = requireRecord(options, "options", "invalid_factory");
     exactFields(input, FACTORY_FIELDS, "options", true);
+    if (typeof input.clock !== "function") fail("invalid_factory", "Evidence Record Service requires options.clock.");
     if (!Array.isArray(input.initialEvidenceRecords)
         || typeof input.validateEvidenceRecord !== "function"
         || typeof input.validateEvidenceRecordHistory !== "function") {
@@ -86,6 +92,21 @@
     const validateHistory = input.validateEvidenceRecordHistory.bind(input);
     let records = [];
     let indexById = new Map();
+    const temporalContract = temporalContractFactory({ clock: input.clock });
+
+    function normalizeTemporal(record, mode) {
+      const preservedRecordedAt = mode === "existing" ? record.recordedAt : undefined;
+      const inputRecord = mode === "existing" && Object.prototype.hasOwnProperty.call(record, "recordedAt")
+        ? (() => { const copy = clone(record); delete copy.recordedAt; return copy; })()
+        : record;
+      const hadEventAt = Object.prototype.hasOwnProperty.call(inputRecord, "eventAt");
+      const normalized = mode === "legacy"
+        ? temporalContract.normalizeLegacy({ ...inputRecord, eventAt: inputRecord.eventAt || { precision: "unknown" } })
+        : temporalContract.normalizeNew({ ...inputRecord, eventAt: inputRecord.eventAt || { precision: "unknown" } });
+      if (!hadEventAt) delete normalized.eventAt;
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      return normalized;
+    }
 
     function validate(validator, value, label) {
       let result;
@@ -143,7 +164,7 @@
     }
 
     function addEvidenceRecord(record) {
-      const candidate = requireRecord(record, "record");
+      const candidate = normalizeTemporal(requireRecord(record, "record"), "new");
       validate(validateRecord, candidate, "Evidence record");
       if (indexById.has(candidate.evidenceId)) {
         fail("duplicate_evidence", `Evidence record '${candidate.evidenceId}' already exists.`);
@@ -169,7 +190,7 @@
       if (current.reviewState !== "proposed") {
         fail("invalid_transition", "Only proposed evidence records may be reviewed.");
       }
-      const replacement = requireRecord(reviewedRecord, "reviewedRecord");
+      const replacement = normalizeTemporal({ ...current, ...requireRecord(reviewedRecord, "reviewedRecord") }, "existing");
       validate(validateRecord, replacement, "Reviewed evidence record");
       if (replacement.evidenceId !== id
           || (replacement.reviewState !== "confirmed" && replacement.reviewState !== "rejected")) {
@@ -196,7 +217,7 @@
       if (current.reviewState !== "confirmed") {
         fail("invalid_transition", "Only confirmed evidence records may be corrected.");
       }
-      const replacement = requireRecord(replacementRecord, "replacementRecord");
+      const replacement = normalizeTemporal(requireRecord(replacementRecord, "replacementRecord"), "new");
       validate(validateRecord, replacement, "Replacement evidence record");
       if (replacement.reviewState !== "confirmed" || replacement.evidenceId === id) {
         fail("invalid_transition", "Correction requires a new confirmed evidence ID.");
@@ -211,7 +232,7 @@
       return { superseded: clone(superseded), replacement: clone(replacement) };
     }
 
-    commit(input.initialEvidenceRecords);
+    commit(input.initialEvidenceRecords.map((record) => normalizeTemporal(record, "legacy")));
     return {
       listEvidenceRecords,
       getEvidenceRecord,
