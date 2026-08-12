@@ -33,7 +33,8 @@ function create(initialObservations = []) {
   return createServerObservationService({
     initialObservations,
     validateServerObservation,
-    validateServerObservationHistory
+    validateServerObservationHistory,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
 }
 
@@ -101,6 +102,33 @@ assert.strictEqual(isolated.getObservation("isolated").evidenceIds[0], "evidence
 assert.throws(() => createServerObservationService({}), /requires options/);
 assert.throws(() => service.listObservations({ unknown: "value" }), /does not recognize/);
 assert.throws(() => service.getObservation(" "), /non-empty/);
+
+const temporalService = create();
+const exactObservation = temporalService.addObservation(observation({
+  observationId: "temporal-exact",
+  eventAt: { precision: "exact", at: "2026-07-25T08:00:00Z" },
+  observedAt: "2026-07-25T09:15:00Z",
+  reviewedAt: "2026-07-25T09:16:00Z",
+  ruleVersionRef: { seasonId: "season-1", packageVersion: "0.5.0", rulesVersion: "rules-v1" }
+}));
+assert.strictEqual(exactObservation.observedAt, "2026-07-25T09:15:00Z");
+assert.strictEqual(exactObservation.recordedAt, "2026-08-12T12:00:00.000Z");
+assert.throws(() => temporalService.addObservation(observation({
+  observationId: "forged-recorded", recordedAt: "2026-07-25T09:00:00Z"
+})), (error) => error.code === "caller_recorded_at");
+const boundedObservation = temporalService.addObservation(observation({
+  observationId: "temporal-bounded",
+  eventAt: { precision: "bounded", earliestAt: "2026-07-25T08:00:00Z", latestAt: "2026-07-25T10:00:00Z" }
+}));
+const unknownObservation = temporalService.addObservation(observation({
+  observationId: "temporal-unknown", eventAt: { precision: "unknown" }
+}));
+assert.strictEqual(boundedObservation.eventAt.precision, "bounded");
+assert.strictEqual(unknownObservation.eventAt.precision, "unknown");
+const legacy = create([observation({ observationId: "legacy" })]).getObservation("legacy");
+assert.strictEqual(legacy.eventAt.precision, "unknown");
+assert.strictEqual(legacy.recordedAt, null);
+assert.strictEqual(legacy.recordedAtLegacyUnknown, true);
 
 const source = fs.readFileSync(
   path.join(__dirname, "..", "src", "services", "server-observation-service.js"),

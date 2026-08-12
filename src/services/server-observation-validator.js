@@ -1,7 +1,26 @@
 (function initializeServerObservationValidator(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : {
+      validateEventAt(value) {
+        if (value === null || typeof value !== "object" || Array.isArray(value)
+            || !["exact", "bounded", "unknown"].includes(value.precision)) throw new Error("eventAt is invalid.");
+        if (value.precision === "exact" && parseTimestamp(value.at) === null) throw new Error("eventAt timestamp is invalid.");
+        if (value.precision === "bounded") {
+          if (parseTimestamp(value.earliestAt) === null || parseTimestamp(value.latestAt) === null) throw new Error("eventAt timestamp is invalid.");
+          if (Date.parse(value.earliestAt) > Date.parse(value.latestAt)) throw new Error("eventAt bounds are reversed.");
+        }
+        return value;
+      },
+      validateRuleVersionRef(value) {
+        if (value === null || typeof value !== "object" || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) throw new Error("ruleVersionRef is invalid.");
+        return value;
+      }
+    };
   const FIELDS = [
     "observationId", "serverId", "seasonId", "text", "observedAt", "sourceType",
-    "evidenceIds", "actorId", "reviewState", "reviewerId", "reviewedAt", "supersededBy"
+    "evidenceIds", "actorId", "reviewState", "reviewerId", "reviewedAt", "supersededBy",
+    "eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ];
   const SOURCES = new Set([
     "manual_entry", "screenshot_extraction", "imported_data", "api_integration", "bot_integration"
@@ -40,7 +59,7 @@
       return { valid: false, record: null, observedAt: null, reviewedAt: null };
     }
     const path = prefix ? `${prefix}.` : "";
-    FIELDS.forEach((field) => {
+    FIELDS.filter((field) => !["eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"].includes(field)).forEach((field) => {
       if (!Object.prototype.hasOwnProperty.call(record, field)) {
         add(errors, "MISSING_REQUIRED_FIELD", `${path}${field}`, `${path}${field} is required.`);
       }
@@ -59,6 +78,20 @@
     if (record.reviewedAt !== null && reviewedAt === null) add(errors, "INVALID_TIMESTAMP", `${path}reviewedAt`, "reviewedAt is invalid.");
     if (observedAt !== null && reviewedAt !== null && reviewedAt < observedAt) {
       add(errors, "INVALID_TIMESTAMP_ORDER", `${path}reviewedAt`, "reviewedAt cannot precede observedAt.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "eventAt")) {
+      try { temporalExports.validateEventAt(record.eventAt); } catch (error) { add(errors, "INVALID_EVENT_TIME", `${path}eventAt`, error.message); }
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAt") && record.recordedAt !== null
+        && parseTimestamp(record.recordedAt) === null) {
+      add(errors, "INVALID_TIMESTAMP", `${path}recordedAt`, "recordedAt is invalid.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAtLegacyUnknown")
+        && typeof record.recordedAtLegacyUnknown !== "boolean") {
+      add(errors, "INVALID_BOOLEAN", `${path}recordedAtLegacyUnknown`, "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "ruleVersionRef") && record.ruleVersionRef !== null) {
+      try { temporalExports.validateRuleVersionRef(record.ruleVersionRef); } catch (error) { add(errors, "INVALID_RULE_VERSION", `${path}ruleVersionRef`, error.message); }
     }
     if (!Array.isArray(record.evidenceIds)) {
       add(errors, "INVALID_ARRAY", `${path}evidenceIds`, "evidenceIds must be an array.");

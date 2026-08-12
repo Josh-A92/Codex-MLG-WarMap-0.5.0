@@ -82,7 +82,8 @@ function createServices() {
       initialObservations: [], validateCombatStrengthObservation, validateCombatStrengthObservationHistory
     }),
     serverObservations: createServerObservationService({
-      initialObservations: [], validateServerObservation, validateServerObservationHistory
+      initialObservations: [], validateServerObservation, validateServerObservationHistory,
+      clock: () => new Date("2026-08-12T12:00:00.000Z")
     }),
     snapshots: createConfirmedServerSnapshotService({
       initialSnapshots: [],

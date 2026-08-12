@@ -167,6 +167,11 @@ state.territoryOwnershipRecords = [
     recordedAtLegacyUnknown: true
   }
 ];
+state.serverObservations = [
+  { seasonId: "season-1", observationId: "observation-exact", observedAt: "2026-07-30T10:00:00.000Z", eventAt: { precision: "exact", at: "2026-07-30T09:00:00.000Z" }, recordedAt: "2026-07-30T10:05:00.000Z" },
+  { seasonId: "season-1", observationId: "observation-bounded", observedAt: "2026-07-30T10:00:00.000Z", eventAt: { precision: "bounded", earliestAt: "2026-07-30T08:00:00.000Z", latestAt: "2026-07-30T09:30:00.000Z" }, recordedAt: "2026-07-30T10:05:00.000Z" },
+  { seasonId: "season-1", observationId: "observation-unknown", observedAt: "2026-07-30T10:00:00.000Z", eventAt: { precision: "unknown" }, recordedAt: null, recordedAtLegacyUnknown: true }
+];
 const serialized = serializeStrategicDomainRuntime(
   runtime,
   "season-1",
@@ -193,6 +198,7 @@ assert.strictEqual(serialized.state.nativeAssignments[0].recordId, "native");
 const deserialized = deserializeStrategicDomainEnvelope(serialized);
 assert.deepStrictEqual(deserialized, serialized);
 assert.deepStrictEqual(deserialized.state.territoryOwnershipRecords, state.territoryOwnershipRecords);
+assert.deepStrictEqual(deserialized.state.serverObservations, state.serverObservations);
 assert.notStrictEqual(deserialized, serialized);
 assert.notStrictEqual(deserialized.state, serialized.state);
 deserialized.state.activeStatuses[0].recordId = "deserialized-change";

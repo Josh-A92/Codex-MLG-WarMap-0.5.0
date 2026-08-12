@@ -1,12 +1,18 @@
 (function initializeServerObservationServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function"
+      ? require("./temporal-metadata-contract.js").createTemporalMetadataContract
+      : null);
   const FACTORY_FIELDS = new Set([
     "initialObservations",
     "validateServerObservation",
-    "validateServerObservationHistory"
+    "validateServerObservationHistory",
+    "clock"
   ]);
   const FILTER_FIELDS = new Set([
     "observationId", "serverId", "seasonId", "sourceType",
     "reviewState", "actorId", "reviewerId"
+    ,"eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ]);
 
   class ServerObservationServiceError extends Error {
@@ -77,6 +83,7 @@
   function createServerObservationService(options) {
     const input = requireRecord(options, "options", "invalid_factory");
     exactFields(input, FACTORY_FIELDS, "options", true);
+    if (typeof input.clock !== "function") fail("invalid_factory", "Server Observation Service requires options.clock.");
     if (!Array.isArray(input.initialObservations)
         || typeof input.validateServerObservation !== "function"
         || typeof input.validateServerObservationHistory !== "function") {
@@ -87,6 +94,22 @@
     const validateHistory = input.validateServerObservationHistory.bind(input);
     let observations = [];
     let indexById = new Map();
+    const temporalContract = temporalContractFactory({ clock: input.clock });
+
+    function normalizeTemporal(record, mode) {
+      const preservedRecordedAt = mode === "existing" ? record.recordedAt : undefined;
+      const inputRecord = mode === "existing" && Object.prototype.hasOwnProperty.call(record, "recordedAt")
+        ? (() => { const copy = clone(record); delete copy.recordedAt; return copy; })()
+        : record;
+      const normalized = mode === "legacy"
+        ? temporalContract.normalizeLegacy(inputRecord)
+        : temporalContract.normalizeNew({
+          ...inputRecord,
+          eventAt: inputRecord.eventAt || { precision: "unknown" }
+        });
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      return normalized;
+    }
 
     function validate(validator, value, label) {
       let validation;
@@ -137,12 +160,13 @@
 
     function addObservation(observation) {
       const candidate = requireRecord(observation, "observation");
-      validate(validateRecord, candidate, "Server observation");
-      if (indexById.has(candidate.observationId)) {
-        fail("duplicate_observation", `Server observation '${candidate.observationId}' already exists.`);
+      const normalized = normalizeTemporal(candidate, "new");
+      validate(validateRecord, normalized, "Server observation");
+      if (indexById.has(normalized.observationId)) {
+        fail("duplicate_observation", `Server observation '${normalized.observationId}' already exists.`);
       }
-      commit(observations.concat([clone(candidate)]));
-      return clone(candidate);
+      commit(observations.concat([clone(normalized)]));
+      return clone(normalized);
     }
 
     function captureTransactionState() {
@@ -164,7 +188,10 @@
       if (current.reviewState !== "proposed") {
         fail("invalid_transition", "Only proposed server observations may be reviewed.");
       }
-      const replacement = requireRecord(reviewedObservation, "reviewedObservation");
+      const replacement = normalizeTemporal({
+        ...current,
+        ...requireRecord(reviewedObservation, "reviewedObservation")
+      }, "existing");
       validate(validateRecord, replacement, "Reviewed server observation");
       if (replacement.observationId !== id
           || (replacement.reviewState !== "confirmed" && replacement.reviewState !== "rejected")) {
@@ -193,7 +220,7 @@
       if (current.reviewState !== "confirmed") {
         fail("invalid_transition", "Only confirmed server observations may be corrected.");
       }
-      const replacement = requireRecord(replacementObservation, "replacementObservation");
+      const replacement = normalizeTemporal(requireRecord(replacementObservation, "replacementObservation"), "new");
       validate(validateRecord, replacement, "Replacement server observation");
       if (replacement.reviewState !== "confirmed" || replacement.observationId === id) {
         fail("invalid_transition", "Correction requires a new confirmed observation ID.");
@@ -211,7 +238,7 @@
       return { superseded: clone(superseded), replacement: clone(replacement) };
     }
 
-    commit(input.initialObservations);
+    commit(input.initialObservations.map((observation) => normalizeTemporal(observation, "legacy")));
     return {
       listObservations,
       getObservation,

@@ -161,7 +161,8 @@
     const serverObservationService = modules.createServerObservationService({
       initialObservations: initialState.serverObservations,
       validateServerObservation: modules.validateServerObservation,
-      validateServerObservationHistory: modules.validateServerObservationHistory
+      validateServerObservationHistory: modules.validateServerObservationHistory,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const ownershipRecordService = modules.createOwnershipRecordService({
       initialTerritoryRecords: initialState.territoryOwnershipRecords,
