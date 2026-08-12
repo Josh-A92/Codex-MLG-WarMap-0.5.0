@@ -1,8 +1,13 @@
 (function initializeTargetVerificationServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function"
+      ? require("./temporal-metadata-contract.js").createTemporalMetadataContract
+      : null);
   const FACTORY_FIELDS = new Set([
     "initialVerifications",
     "validateTargetVerificationRecord",
-    "validateTargetVerificationHistory"
+    "validateTargetVerificationHistory",
+    "clock"
   ]);
 
   const FILTER_FIELDS = new Set([
@@ -231,6 +236,7 @@
     const input = requireRecordObject(options, "options");
     requireKnownFields(input, FACTORY_FIELDS, "options");
     requireRequiredFields(input, FACTORY_FIELDS, "options");
+    if (typeof input.clock !== "function") throwServiceError("invalid_input", "Target Verification Service requires options.clock.");
 
     if (!Array.isArray(input.initialVerifications)) {
       throwServiceError("invalid_input", "Target Verification Service requires options.initialVerifications to be an array.");
@@ -252,6 +258,19 @@
       recordIndexById: new Map(),
       currentRecordByTarget: new Map()
     };
+    const temporalContract = temporalContractFactory({ clock: input.clock });
+
+    function normalizeTemporal(record, mode) {
+      const preservedRecordedAt = mode === "existing" ? record.recordedAt : undefined;
+      const inputRecord = mode === "existing" && Object.prototype.hasOwnProperty.call(record, "recordedAt")
+        ? (() => { const copy = deepClone(record); delete copy.recordedAt; return copy; })()
+        : record;
+      const normalized = mode === "legacy"
+        ? temporalContract.normalizeLegacy(inputRecord)
+        : temporalContract.normalizeNew({ ...inputRecord, eventAt: inputRecord.eventAt || { precision: "unknown" } });
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      return normalized;
+    }
 
     function commit(nextRecords) {
       validateHistory(validateTargetVerificationHistory, nextRecords);
@@ -330,7 +349,7 @@
     }
 
     function addConfirmedVerification(value) {
-      const record = requireRecordObject(value, "record");
+      const record = normalizeTemporal(requireRecordObject(value, "record"), "new");
       validateRecord(validateTargetVerificationRecord, record);
       if (record.reviewState !== "confirmed" || record.supersededBy !== null) {
         throwServiceError("invalid_transition", "Target Verification Service only adds current confirmed verification records.");
@@ -357,7 +376,7 @@
         throwServiceError("invalid_transition", "Target Verification Service only corrects confirmed non-superseded records.");
       }
 
-      const replacement = requireRecordObject(replacementValue, "replacement");
+      const replacement = normalizeTemporal(requireRecordObject(replacementValue, "replacement"), "new");
       validateRecord(validateTargetVerificationRecord, replacement);
       if (replacement.reviewState !== "confirmed" || replacement.supersededBy !== null) {
         throwServiceError("invalid_transition", "Target Verification Service requires a current confirmed replacement.");
@@ -396,8 +415,8 @@
       state.currentRecordByTarget = indexes.currentRecordByTarget;
     }
 
-    validateHistory(validateTargetVerificationHistory, input.initialVerifications);
-    const initialRecords = deepClone(input.initialVerifications);
+    const initialRecords = input.initialVerifications.map((record) => normalizeTemporal(record, "legacy"));
+    validateHistory(validateTargetVerificationHistory, initialRecords);
     const initialIndexes = buildIndexes(initialRecords);
     state.records = initialRecords;
     state.recordIndexById = initialIndexes.recordIndexById;

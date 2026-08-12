@@ -1,4 +1,24 @@
 (function initializeTargetVerificationValidator(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : {
+      validateEventAt(value) {
+        if (value === null || typeof value !== "object" || Array.isArray(value) || !["exact", "bounded", "unknown"].includes(value.precision)) throw new Error("eventAt is invalid.");
+        const timestamp = (candidate) => {
+          if (typeof candidate !== "string" || parseUtcTimestamp(candidate) === null) throw new Error("eventAt timestamp is invalid.");
+        };
+        if (value.precision === "exact") timestamp(value.at);
+        if (value.precision === "bounded") {
+          timestamp(value.earliestAt); timestamp(value.latestAt);
+          if (Date.parse(value.earliestAt) > Date.parse(value.latestAt)) throw new Error("eventAt bounds are reversed.");
+        }
+        return value;
+      },
+      validateRuleVersionRef(value) {
+        if (value === null || typeof value !== "object" || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) throw new Error("ruleVersionRef is invalid.");
+        return value;
+      }
+    };
   const CANONICAL_FIELDS = [
     "verificationId",
     "serverId",
@@ -12,7 +32,7 @@
     "actorId",
     "reviewerId",
     "reviewState",
-    "supersededBy"
+    "supersededBy", "eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ];
 
   const SOURCE_TYPES = new Set([
@@ -109,6 +129,7 @@
   function validateRequiredFieldPresence(record, basePath, errors) {
     for (let index = 0; index < CANONICAL_FIELDS.length; index += 1) {
       const fieldName = CANONICAL_FIELDS[index];
+      if (["eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"].includes(fieldName)) continue;
       if (!Object.prototype.hasOwnProperty.call(record, fieldName)) {
         pushError(
           errors,
@@ -380,6 +401,20 @@
 
     if (observedAt !== null && confirmedAt !== null && confirmedAt < observedAt) {
       pushError(errors, "INVALID_LIFECYCLE", confirmedAtPath, `${confirmedAtPath} must not be earlier than ${observedAtPath}.`);
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "eventAt")) {
+      try { temporalExports.validateEventAt(record.eventAt); } catch (error) { pushError(errors, "INVALID_EVENT_TIME", composePath(basePath, "eventAt"), error.message); }
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAt") && record.recordedAt !== null
+        && validateRequiredTimestamp(errors, record.recordedAt, composePath(basePath, "recordedAt"), composePath(basePath, "recordedAt")) === null) {
+      // validateRequiredTimestamp records the precise validation error.
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAtLegacyUnknown")
+        && typeof record.recordedAtLegacyUnknown !== "boolean") {
+      pushError(errors, "INVALID_BOOLEAN", composePath(basePath, "recordedAtLegacyUnknown"), "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "ruleVersionRef") && record.ruleVersionRef !== null) {
+      try { temporalExports.validateRuleVersionRef(record.ruleVersionRef); } catch (error) { pushError(errors, "INVALID_RULE_VERSION", composePath(basePath, "ruleVersionRef"), error.message); }
     }
 
     const evidenceMeta = validateEvidenceIds(record.evidenceIds, evidenceIdsPath, record.sourceType, sourceTypeValid, errors);

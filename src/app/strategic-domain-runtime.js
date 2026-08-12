@@ -177,7 +177,8 @@
     const targetVerificationService = modules.createTargetVerificationService({
       initialVerifications: initialState.targetVerifications,
       validateTargetVerificationRecord: modules.validateTargetVerificationRecord,
-      validateTargetVerificationHistory: modules.validateTargetVerificationHistory
+      validateTargetVerificationHistory: modules.validateTargetVerificationHistory,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const confirmedSnapshotValidator = modules.createConfirmedServerSnapshotValidator({
       validateTerritoryOwnershipRecord: modules.validateTerritoryOwnershipRecord,

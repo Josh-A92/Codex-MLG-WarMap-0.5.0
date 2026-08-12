@@ -46,7 +46,8 @@ function options(overrides) {
   return Object.assign({
     initialVerifications: [],
     validateTargetVerificationRecord,
-    validateTargetVerificationHistory
+    validateTargetVerificationHistory,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   }, overrides || {});
 }
 
@@ -325,6 +326,41 @@ runTest("plain-object and target boundaries reject unsupported values", () => {
   expectServiceError(() => service.getCurrentVerification("server", "season", new Date()), "invalid_input");
   expectServiceError(() => service.getCurrentVerification("server", "season", { type: "normal_map_cell", row: 0, col: 1 }), "invalid_input");
   expectServiceError(() => service.getCurrentVerification("server", "season", { type: "other" }), "invalid_input");
+});
+
+runTest("temporal metadata assigns clocks, preserves legacy unknowns, and keeps observed ordering", () => {
+  const service = createService();
+  const exact = service.addConfirmedVerification(verification({
+    verificationId: "temporal-exact",
+    eventAt: { precision: "exact", at: "2026-06-30T23:00:00Z" },
+    ruleVersionRef: { seasonId: "season-1", packageVersion: "0.5.0", rulesVersion: "rules-v1" }
+  }));
+  assert.strictEqual(exact.recordedAt, "2026-08-12T12:00:00.000Z");
+  assert.strictEqual(exact.observedAt, "2026-07-01T00:00:00Z");
+  assert.throws(() => service.addConfirmedVerification(verification({
+    verificationId: "forged", recordedAt: "2026-07-01T00:01:00Z"
+  })), (error) => error.code === "caller_recorded_at");
+
+  const bounded = service.addConfirmedVerification(verification({
+    verificationId: "temporal-bounded",
+    observedAt: "2026-07-02T00:00:00Z",
+    confirmedAt: "2026-07-02T00:10:00Z",
+    eventAt: { precision: "bounded", earliestAt: "2026-06-30T22:00:00Z", latestAt: "2026-07-01T02:00:00Z" }
+  }));
+  const unknown = service.addConfirmedVerification(verification({
+    verificationId: "temporal-unknown",
+    observedAt: "2026-07-03T00:00:00Z",
+    confirmedAt: "2026-07-03T00:10:00Z",
+    eventAt: { precision: "unknown" }
+  }));
+  assert.strictEqual(bounded.eventAt.precision, "bounded");
+  assert.strictEqual(unknown.eventAt.precision, "unknown");
+  assert.strictEqual(service.getCurrentVerification("server-366", "season-1", { type: "normal_map_cell", row: 1, col: 1 }).verificationId, "temporal-unknown");
+
+  const legacy = createService({ initialVerifications: [verification({ verificationId: "legacy" })] }).getVerification("legacy");
+  assert.strictEqual(legacy.eventAt.precision, "unknown");
+  assert.strictEqual(legacy.recordedAt, null);
+  assert.strictEqual(legacy.recordedAtLegacyUnknown, true);
 });
 
 runTest("CommonJS browser-global and infrastructure boundaries remain isolated", () => {
