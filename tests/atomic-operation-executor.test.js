@@ -252,6 +252,7 @@ test("failed real union registration leaves no identity, relation, or native ass
     authorizationPolicyService,
     unionRegistryManagementService: registryManagement,
     serverIntelligenceManagementService: serverManagement,
+    relationService: relations,
     executeAtomically: executor.executeAtomically,
     createId() { return "union-rollback"; }
   });
