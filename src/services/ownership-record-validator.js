@@ -1,4 +1,28 @@
 (function initializeOwnershipRecordValidator(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : {
+      validateEventAt(value) {
+        if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error("eventAt must be an object.");
+        if (value.precision === "unknown") return value;
+        if (value.precision === "exact") validateRequiredTimestamp(value.at, "eventAt.at", []);
+        if (value.precision === "bounded") {
+          validateRequiredTimestamp(value.earliestAt, "eventAt.earliestAt", []);
+          validateRequiredTimestamp(value.latestAt, "eventAt.latestAt", []);
+          if (Date.parse(value.earliestAt) > Date.parse(value.latestAt)) throw new Error("eventAt bounds are reversed.");
+          return value;
+        }
+        if (!["exact", "bounded", "unknown"].includes(value.precision)) throw new Error("eventAt precision is invalid.");
+        return value;
+      },
+      validateRuleVersionRef(value) {
+        if (value === null || typeof value !== "object" || Array.isArray(value)
+            || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) {
+          throw new Error("ruleVersionRef is invalid.");
+        }
+        return value;
+      }
+    };
   const TERRITORY_FIELDS = [
     "ownershipRecordId",
     "serverId",
@@ -8,6 +32,11 @@
     "ownershipState",
     "reviewState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "recordedAtLegacyUnknown",
+    "ruleVersionRef",
     "sourceType",
     "evidenceIds",
     "actorId",
@@ -25,6 +54,11 @@
     "ownershipState",
     "reviewState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "recordedAtLegacyUnknown",
+    "ruleVersionRef",
     "sourceType",
     "evidenceIds",
     "actorId",
@@ -136,6 +170,43 @@
           composePath(basePath, fieldName),
           `${composePath(basePath, fieldName)} is required.`
         );
+      }
+    }
+  }
+
+  function validateTemporalMetadata(record, basePath, errors) {
+    const eventAtPath = composePath(basePath, "eventAt");
+    if (Object.prototype.hasOwnProperty.call(record, "eventAt")) {
+      try {
+        temporalExports.validateEventAt(record.eventAt, eventAtPath);
+      } catch (error) {
+        pushError(errors, error.code || "INVALID_EVENT_TIME", eventAtPath, error.message);
+      }
+      if (record.eventAt && record.eventAt.precision === "exact") {
+        if (record.effectiveAt !== record.eventAt.at) {
+          pushError(errors, "INVALID_COMPATIBILITY_TIME", composePath(basePath, "effectiveAt"), "effectiveAt must match exact eventAt.at.");
+        }
+      } else if (Object.prototype.hasOwnProperty.call(record, "effectiveAt")) {
+        pushError(errors, "INVALID_COMPATIBILITY_TIME", composePath(basePath, "effectiveAt"), "effectiveAt is only allowed for exact eventAt values.");
+      }
+    } else {
+      validateRequiredTimestamp(record.effectiveAt, composePath(basePath, "effectiveAt"), errors);
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAt") && record.recordedAt !== null) {
+      validateRequiredTimestamp(record.recordedAt, composePath(basePath, "recordedAt"), errors);
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "observedAt") && record.observedAt !== null) {
+      validateRequiredTimestamp(record.observedAt, composePath(basePath, "observedAt"), errors);
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAtLegacyUnknown")
+        && typeof record.recordedAtLegacyUnknown !== "boolean") {
+      pushError(errors, "INVALID_BOOLEAN", composePath(basePath, "recordedAtLegacyUnknown"), "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "ruleVersionRef") && record.ruleVersionRef !== null) {
+      try {
+        temporalExports.validateRuleVersionRef(record.ruleVersionRef);
+      } catch (error) {
+        pushError(errors, error.code || "INVALID_RULE_VERSION", composePath(basePath, "ruleVersionRef"), error.message);
       }
     }
   }
@@ -334,7 +405,9 @@
       };
     }
 
-    validateRequiredFields(record, descriptor.fields, basePath, errors);
+    validateRequiredFields(record, descriptor.fields.filter((field) => ![
+      "effectiveAt", "eventAt", "observedAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
+    ].includes(field)), basePath, errors);
     validateUnknownFields(record, descriptor.fields, basePath, errors);
 
     const idPath = composePath(basePath, descriptor.idField);
@@ -365,7 +438,10 @@
       targetKey = JSON.stringify(["logical_structure", record.structureId]);
     }
 
-    const effectiveAt = validateRequiredTimestamp(record.effectiveAt, effectiveAtPath, errors);
+    validateTemporalMetadata(record, basePath, errors);
+    const effectiveAt = record.eventAt && record.eventAt.precision === "exact"
+      ? parseUtcTimestamp(record.eventAt.at)
+      : record.eventAt ? null : validateNullableTimestamp(record.effectiveAt, effectiveAtPath, errors);
     const reviewedAt = validateNullableTimestamp(record.reviewedAt, reviewedAtPath, errors);
     if (effectiveAt !== null && reviewedAt !== null && reviewedAt < effectiveAt) {
       pushError(errors, "INVALID_LIFECYCLE", reviewedAtPath, `${reviewedAtPath} must not be earlier than ${effectiveAtPath}.`);

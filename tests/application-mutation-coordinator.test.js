@@ -37,7 +37,8 @@ function createRealOwnershipContext() {
     validateTerritoryOwnershipRecord,
     validateTerritoryOwnershipHistory,
     validateStructureOwnershipRecord,
-    validateStructureOwnershipHistory
+    validateStructureOwnershipHistory,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
   const coordinator = createApplicationMutationCoordinator({
     participants: [ownershipRecordService, serverStateService]

@@ -89,7 +89,8 @@ function serviceOptions(overrides) {
     validateTerritoryOwnershipRecord,
     validateTerritoryOwnershipHistory,
     validateStructureOwnershipRecord,
-    validateStructureOwnershipHistory
+    validateStructureOwnershipHistory,
+       clock: () => new Date("2026-08-12T12:00:00.000Z"),
   }, overrides || {});
 }
 
@@ -512,10 +513,45 @@ runTest("transaction snapshots restore territory and structure history atomicall
   }));
   service.restoreTransactionState(snapshot);
 
-  assert.deepStrictEqual(service.listTerritoryRecords(), [territoryRecord()]);
-  assert.deepStrictEqual(service.listStructureRecords(), [structureRecord()]);
+  assert.deepStrictEqual(service.listTerritoryRecords(), snapshot.territoryRecords);
+  assert.deepStrictEqual(service.listStructureRecords(), snapshot.structureRecords);
   snapshot.territoryRecords[0].ownerUnionId = "mutated";
   assert.strictEqual(service.getTerritoryRecord("territory-1").ownerUnionId, "union-1");
+});
+
+runTest("new ownership records receive recordedAt from the injected clock and preserve exact compatibility", () => {
+  const service = createService();
+  const created = service.addConfirmedManualTerritoryRecord(territoryManualInput({
+    ownershipRecordId: "clocked",
+    effectiveAt: "2026-08-12T10:00:00Z",
+    observedAt: "2026-08-12T11:00:00Z",
+    reviewedAt: "2026-08-12T12:10:00Z"
+  }));
+  assert.strictEqual(created.eventAt.precision, "exact");
+  assert.strictEqual(created.eventAt.at, created.effectiveAt);
+  assert.strictEqual(created.recordedAt, "2026-08-12T12:00:00.000Z");
+  assert.strictEqual(created.observedAt, "2026-08-12T11:00:00Z");
+  assert.strictEqual(created.recordedAtLegacyUnknown, false);
+  assert.throws(() => service.addConfirmedManualTerritoryRecord(territoryManualInput({
+    ownershipRecordId: "forged", recordedAt: "2026-08-12T11:00:00Z", reviewedAt: "2026-08-12T12:10:00Z"
+  })), (error) => error.code === "caller_recorded_at");
+});
+
+runTest("ownership records retain bounded and unknown event times without entering current projection", () => {
+  const service = createService();
+  const bounded = service.addConfirmedManualTerritoryRecord(territoryManualInput({
+    ownershipRecordId: "bounded", territoryRef: { type: "normal_map_cell", row: 4, col: 4 },
+    eventAt: { precision: "bounded", earliestAt: "2026-08-12T09:00:00Z", latestAt: "2026-08-12T11:00:00Z" },
+    reviewedAt: "2026-08-12T12:10:00Z"
+  }));
+  const unknown = service.addConfirmedManualTerritoryRecord(territoryManualInput({
+    ownershipRecordId: "unknown", territoryRef: { type: "normal_map_cell", row: 5, col: 5 },
+    eventAt: { precision: "unknown" }, reviewedAt: "2026-08-12T12:10:00Z"
+  }));
+  assert.strictEqual(bounded.eventAt.precision, "bounded");
+  assert.strictEqual(unknown.eventAt.precision, "unknown");
+  assert.strictEqual(service.getCurrentTerritoryRecord("server-366", "season-1", { type: "normal_map_cell", row: 4, col: 4 }), null);
+  assert.strictEqual(service.getCurrentTerritoryRecord("server-366", "season-1", { type: "normal_map_cell", row: 5, col: 5 }), null);
 });
 
 runTest("invalid transaction snapshot leaves both ownership collections unchanged", () => {

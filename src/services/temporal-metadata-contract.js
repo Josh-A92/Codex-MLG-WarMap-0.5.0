@@ -23,9 +23,11 @@
     if (Array.isArray(value)) return value.map(clone);
     if (!isRecord(value)) return value;
     return Object.keys(value).reduce((result, key) => {
-      result[key] = clone(value[key]);
+      Object.defineProperty(result, key, {
+        value: clone(value[key]), enumerable: true, configurable: true, writable: true
+      });
       return result;
-    }, {});
+    }, Object.getPrototypeOf(value) === null ? Object.create(null) : {});
   }
 
   function validateTimestamp(value, path) {

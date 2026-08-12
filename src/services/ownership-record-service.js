@@ -1,11 +1,16 @@
 (function initializeOwnershipRecordServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function"
+      ? require("./temporal-metadata-contract.js").createTemporalMetadataContract
+      : null);
   const FACTORY_FIELDS = new Set([
     "initialTerritoryRecords",
     "initialStructureRecords",
     "validateTerritoryOwnershipRecord",
     "validateTerritoryOwnershipHistory",
     "validateStructureOwnershipRecord",
-    "validateStructureOwnershipHistory"
+    "validateStructureOwnershipHistory",
+    "clock"
   ]);
 
   const TERRITORY_PROPOSAL_FIELDS = new Set([
@@ -16,6 +21,10 @@
     "ownerUnionId",
     "ownershipState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "ruleVersionRef",
     "sourceType",
     "evidenceIds",
     "actorId"
@@ -29,6 +38,10 @@
     "ownerUnionId",
     "ownershipState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "ruleVersionRef",
     "sourceType",
     "evidenceIds",
     "actorId"
@@ -42,6 +55,10 @@
     "ownerUnionId",
     "ownershipState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "ruleVersionRef",
     "evidenceIds",
     "actorId",
     "reviewerId",
@@ -56,6 +73,10 @@
     "ownerUnionId",
     "ownershipState",
     "effectiveAt",
+    "eventAt",
+    "observedAt",
+    "recordedAt",
+    "ruleVersionRef",
     "evidenceIds",
     "actorId",
     "reviewerId",
@@ -80,6 +101,7 @@
     "api_integration",
     "bot_integration"
   ]);
+  const OPTIONAL_TEMPORAL_FIELDS = new Set(["eventAt", "observedAt", "recordedAt", "ruleVersionRef"]);
 
   class OwnershipRecordServiceError extends Error {
     constructor(code, message, validationErrors) {
@@ -246,7 +268,9 @@
   function copyFields(source, fields) {
     const output = Object.getPrototypeOf(source) === null ? Object.create(null) : {};
     fields.forEach((field) => {
-      defineOwnDataProperty(output, field, deepClone(source[field]));
+      if (Object.prototype.hasOwnProperty.call(source, field)) {
+        defineOwnDataProperty(output, field, deepClone(source[field]));
+      }
     });
     return output;
   }
@@ -271,7 +295,8 @@
       for (let index = 0; index < records.length; index += 1) {
         const record = records[index];
         recordIndexById.set(record[config.idField], index);
-        if (record.reviewState === "confirmed" && record.supersededBy === null) {
+        const exactEventTime = !record.eventAt || record.eventAt.precision === "exact";
+        if (exactEventTime && record.reviewState === "confirmed" && record.supersededBy === null) {
           currentRecordByTarget.set(recordTargetKey(record), record[config.idField]);
         }
       }
@@ -323,6 +348,32 @@
       return record;
     }
 
+    function normalizeTemporal(record, mode) {
+      if (!temporalContractFactory) {
+        throwServiceError("invalid_factory", "Temporal metadata contract is unavailable.");
+      }
+      const preservedRecordedAt = mode === "existing" ? record.recordedAt : undefined;
+      const inputRecord = mode === "existing" && Object.prototype.hasOwnProperty.call(record, "recordedAt")
+        ? (() => { const copy = deepClone(record); delete copy.recordedAt; return copy; })()
+        : record;
+      const normalized = mode === "legacy"
+        ? config.temporalContract.normalizeLegacy(inputRecord)
+        : config.temporalContract.normalizeNew({
+          ...inputRecord,
+          eventAt: inputRecord.eventAt || {
+            precision: "exact",
+            at: inputRecord.effectiveAt
+          }
+        });
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      if (normalized.eventAt && normalized.eventAt.precision === "exact") {
+        normalized.effectiveAt = normalized.eventAt.at;
+      } else {
+        delete normalized.effectiveAt;
+      }
+      return normalized;
+    }
+
     function buildReviewedProposal(record, reviewState, review) {
       const next = deepClone(record);
       defineOwnDataProperty(next, "reviewState", reviewState);
@@ -335,7 +386,7 @@
     function normalizeInput(value, allowedFields, path) {
       const input = requireRecordObject(value, path);
       requireKnownFields(input, allowedFields, path);
-      requireRequiredFields(input, allowedFields, path);
+      requireRequiredFields(input, new Set(Array.from(allowedFields).filter((field) => !OPTIONAL_TEMPORAL_FIELDS.has(field))), path);
       return input;
     }
 
@@ -419,7 +470,7 @@
       if (input.sourceType === "manual_entry") {
         throwServiceError("invalid_input", "Ownership Record Service does not allow manual_entry proposals.");
       }
-      const record = buildProposal(input);
+      const record = normalizeTemporal(buildProposal(input), "new");
       validateRecord(config.validateRecord, record, `${config.label} record`);
       const id = record[config.idField];
       if (state.recordIndexById.has(id)) {
@@ -433,7 +484,7 @@
 
     function addConfirmedManual(value) {
       const input = normalizeInput(value, config.manualFields, "input");
-      const record = buildManualConfirmed(input);
+      const record = normalizeTemporal(buildManualConfirmed(input), "new");
       validateRecord(config.validateRecord, record, `${config.label} record`);
       const id = record[config.idField];
       if (state.recordIndexById.has(id)) {
@@ -460,7 +511,7 @@
       if (existing.reviewState !== "proposed") {
         throwServiceError("invalid_transition", "Ownership Record Service only allows confirming proposed records.");
       }
-      const record = buildReviewedProposal(existing, "confirmed", review);
+      const record = normalizeTemporal(buildReviewedProposal(existing, "confirmed", review), "existing");
       validateRecord(config.validateRecord, record, `${config.label} record`);
       const current = findCurrent(record);
       const next = cloneRecords();
@@ -483,7 +534,7 @@
       if (existing.reviewState !== "proposed") {
         throwServiceError("invalid_transition", "Ownership Record Service only allows rejecting proposed records.");
       }
-      const record = buildReviewedProposal(existing, "rejected", review);
+      const record = normalizeTemporal(buildReviewedProposal(existing, "rejected", review), "existing");
       validateRecord(config.validateRecord, record, `${config.label} record`);
       const next = cloneRecords();
       next[index] = deepClone(record);
@@ -505,8 +556,8 @@
       state.currentRecordByTarget = indexes.currentRecordByTarget;
     }
 
-    validateHistory(config.validateHistory, config.initialRecords, `${config.label} history`);
-    const initialRecords = deepClone(config.initialRecords);
+    const initialRecords = config.initialRecords.map((record) => normalizeTemporal(record, "legacy"));
+    validateHistory(config.validateHistory, initialRecords, `${config.label} history`);
     const initialIndexes = buildIndexes(initialRecords);
     state.records = initialRecords;
     state.recordIndexById = initialIndexes.recordIndexById;
@@ -530,6 +581,9 @@
     const input = requireRecordObject(options, "options");
     requireKnownFields(input, FACTORY_FIELDS, "options");
     requireRequiredFields(input, FACTORY_FIELDS, "options");
+    if (typeof input.clock !== "function") {
+      throwServiceError("invalid_input", "Ownership Record Service requires options.clock to be a function.");
+    }
 
     const initialTerritoryRecords = requireArray(input.initialTerritoryRecords, "options.initialTerritoryRecords");
     const initialStructureRecords = requireArray(input.initialStructureRecords, "options.initialStructureRecords");
@@ -539,6 +593,7 @@
       label: "territory ownership",
       idField: "ownershipRecordId",
       initialRecords: initialTerritoryRecords,
+      temporalContract: temporalContractFactory({ clock: input.clock }),
       validateRecord: createCallableValidator(input, input.validateTerritoryOwnershipRecord, "options.validateTerritoryOwnershipRecord"),
       validateHistory: createCallableValidator(input, input.validateTerritoryOwnershipHistory, "options.validateTerritoryOwnershipHistory"),
       proposalFields: TERRITORY_PROPOSAL_FIELDS,
@@ -551,6 +606,7 @@
       label: "structure ownership",
       idField: "structureOwnershipId",
       initialRecords: initialStructureRecords,
+      temporalContract: temporalContractFactory({ clock: input.clock }),
       validateRecord: createCallableValidator(input, input.validateStructureOwnershipRecord, "options.validateStructureOwnershipRecord"),
       validateHistory: createCallableValidator(input, input.validateStructureOwnershipHistory, "options.validateStructureOwnershipHistory"),
       proposalFields: STRUCTURE_PROPOSAL_FIELDS,

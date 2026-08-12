@@ -169,7 +169,8 @@
       validateTerritoryOwnershipRecord: modules.validateTerritoryOwnershipRecord,
       validateTerritoryOwnershipHistory: modules.validateTerritoryOwnershipHistory,
       validateStructureOwnershipRecord: modules.validateStructureOwnershipRecord,
-      validateStructureOwnershipHistory: modules.validateStructureOwnershipHistory
+      validateStructureOwnershipHistory: modules.validateStructureOwnershipHistory,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const targetVerificationService = modules.createTargetVerificationService({
       initialVerifications: initialState.targetVerifications,
