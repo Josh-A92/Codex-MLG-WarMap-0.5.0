@@ -350,8 +350,7 @@ runTest("preload source exposes only restricted bridge", async () => {
   const preloadPath = path.join(workspaceRoot, "preload.js");
   const source = await fs.promises.readFile(preloadPath, "utf8");
 
-  let exposedName = null;
-  let exposedApi = null;
+  const exposed = {};
   const invoked = [];
   const requiredModules = [];
 
@@ -363,8 +362,7 @@ runTest("preload source exposes only restricted bridge", async () => {
         return {
           contextBridge: {
             exposeInMainWorld(name, api) {
-              exposedName = name;
-              exposedApi = api;
+              exposed[name] = api;
             }
           },
           ipcRenderer: {
@@ -385,9 +383,11 @@ runTest("preload source exposes only restricted bridge", async () => {
 
   vm.runInNewContext(source, sandbox, { filename: "preload.js" });
 
-  assert.strictEqual(exposedName, "warMapPersistenceStorage");
+  const exposedApi = exposed.warMapPersistenceStorage;
+  const generationApi = exposed.warMapGenerationStorage;
   assert.ok(exposedApi && typeof exposedApi === "object");
   assert.deepStrictEqual(Object.keys(exposedApi).sort(), ["loadEnvelope", "saveEnvelope"]);
+  assert.deepStrictEqual(Object.keys(generationApi).sort(), ["commitGeneration", "loadCommittedGeneration"]);
   assert.strictEqual(typeof exposedApi.loadEnvelope, "function");
   assert.strictEqual(typeof exposedApi.saveEnvelope, "function");
 
@@ -395,6 +395,8 @@ runTest("preload source exposes only restricted bridge", async () => {
   const envelope = sampleEnvelope();
   await exposedApi.loadEnvelope(identity);
   await exposedApi.saveEnvelope(identity, envelope);
+  await generationApi.loadCommittedGeneration();
+  await generationApi.commitGeneration({ expectedGeneration: 0 });
 
   assert.deepStrictEqual(requiredModules, ["electron"]);
   assert.deepStrictEqual(invoked, [
@@ -405,6 +407,14 @@ runTest("preload source exposes only restricted bridge", async () => {
     {
       channel: "persistence:save-envelope",
       args: [identity, envelope]
+    },
+    {
+      channel: "generation:load-committed",
+      args: []
+    },
+    {
+      channel: "generation:commit",
+      args: [{ expectedGeneration: 0 }]
     }
   ]);
 
@@ -421,10 +431,12 @@ runTest("main source uses preload security settings fixed handlers and user-data
   assert.match(source, /path\.join\(app\.getPath\("userData"\),\s*"warmap-state"\)/);
 
   const handleCount = (source.match(/ipcMain\.handle\(/g) || []).length;
-  assert.strictEqual(handleCount, 2);
+  assert.strictEqual(handleCount, 4);
 
   assert.match(source, /PERSISTENCE_IPC_CHANNELS\.LOAD_ENVELOPE/);
   assert.match(source, /PERSISTENCE_IPC_CHANNELS\.SAVE_ENVELOPE/);
+  assert.match(source, /PERSISTENCE_IPC_CHANNELS\.LOAD_COMMITTED_GENERATION/);
+  assert.match(source, /PERSISTENCE_IPC_CHANNELS\.COMMIT_GENERATION/);
 });
 
 runTest("main uses shared channel constants while preload is self-contained", async () => {
@@ -440,6 +452,8 @@ runTest("main uses shared channel constants while preload is self-contained", as
   assert.doesNotMatch(preloadSource, /require\("\.\/src\/shared\/persistence-ipc-channels\.js"\)/);
   assert.match(preloadSource, /"persistence:load-envelope"/);
   assert.match(preloadSource, /"persistence:save-envelope"/);
+  assert.match(preloadSource, /"generation:load-committed"/);
+  assert.match(preloadSource, /"generation:commit"/);
 });
 
 runTest("renderer adapter source has no prohibited dependencies", async () => {

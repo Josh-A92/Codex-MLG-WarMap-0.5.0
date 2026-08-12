@@ -11,3 +11,12 @@ contextBridge.exposeInMainWorld("warMapPersistenceStorage", {
     return ipcRenderer.invoke(PERSISTENCE_SAVE_ENVELOPE_CHANNEL, identity, envelope);
   }
 });
+
+contextBridge.exposeInMainWorld("warMapGenerationStorage", {
+  loadCommittedGeneration() {
+    return ipcRenderer.invoke("generation:load-committed");
+  },
+  commitGeneration(payload) {
+    return ipcRenderer.invoke("generation:commit", payload);
+  }
+});
