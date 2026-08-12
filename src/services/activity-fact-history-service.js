@@ -267,11 +267,32 @@
       };
     }
 
+    function captureTransactionState() {
+      return {
+        confirmedPresenceFacts: presenceFacts.map(cloneRecord),
+        qualifyingFullMapConfirmations: confirmations.map(cloneRecord)
+      };
+    }
+
+    function restoreTransactionState(snapshot) {
+      const facts = requireRecord(snapshot, "snapshot");
+      requireFields(facts, FACT_SET_FIELDS, "snapshot");
+      const candidatePresence = requireArray(facts.confirmedPresenceFacts, "snapshot.confirmedPresenceFacts")
+        .map((fact, index) => normalizePresenceFact(fact, `snapshot.confirmedPresenceFacts[${index}]`));
+      const candidateConfirmations = requireArray(facts.qualifyingFullMapConfirmations, "snapshot.qualifyingFullMapConfirmations")
+        .map((fact, index) => normalizeConfirmation(fact, `snapshot.qualifyingFullMapConfirmations[${index}]`));
+      validateUnique(candidatePresence, candidateConfirmations);
+      presenceFacts = candidatePresence.map(cloneRecord);
+      confirmations = candidateConfirmations.map(cloneRecord);
+    }
+
     return {
       validateResolvedFacts,
       appendResolvedFacts,
       getFacts,
-      getAllFacts
+      getAllFacts,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

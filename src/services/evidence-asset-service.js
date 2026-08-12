@@ -169,8 +169,26 @@
       return applyProcessingResult(assetId, "failed", processedAt, failureReason);
     }
 
+    function captureTransactionState() {
+      return clone(assets);
+    }
+
+    function restoreTransactionState(snapshot) {
+      if (!Array.isArray(snapshot)) fail("invalid_input", "Evidence Asset Service requires snapshot to be an array.");
+      commit(snapshot.map(clone));
+    }
+
     commit(input.initialAssets);
-    return { listAssets, getAsset, hasAsset, addUploadedAsset, markProcessed, markFailed };
+    return {
+      listAssets,
+      getAsset,
+      hasAsset,
+      addUploadedAsset,
+      markProcessed,
+      markFailed,
+      captureTransactionState,
+      restoreTransactionState
+    };
   }
 
   const exportsObject = { createEvidenceAssetService, EvidenceAssetServiceError };

@@ -386,6 +386,16 @@
       return deepClone(candidateRecord);
     }
 
+    function captureTransactionState() {
+      return deepClone(state.statuses);
+    }
+
+    function restoreTransactionState(snapshot) {
+      const candidate = requireArray(snapshot, "snapshot").map(deepClone);
+      validateHistory(validateActiveUnionStatusHistory, candidate);
+      commit(candidate);
+    }
+
     const initialSnapshot = deepClone(initialStatuses);
     validateHistory(validateActiveUnionStatusHistory, initialSnapshot);
     state.statuses = initialSnapshot;
@@ -396,7 +406,9 @@
       getStatus,
       hasStatus,
       getCurrentStatus,
-      appendDerivedStatus
+      appendDerivedStatus,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

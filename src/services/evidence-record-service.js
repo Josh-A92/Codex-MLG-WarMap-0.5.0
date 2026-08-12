@@ -152,6 +152,15 @@
       return clone(candidate);
     }
 
+    function captureTransactionState() {
+      return clone(records);
+    }
+
+    function restoreTransactionState(snapshot) {
+      if (!Array.isArray(snapshot)) fail("invalid_input", "Evidence Record Service requires snapshot to be an array.");
+      commit(snapshot.map(clone));
+    }
+
     function reviewProposal(evidenceId, reviewedRecord) {
       const id = requireString(evidenceId, "evidenceId");
       const index = indexById.get(id);
@@ -209,7 +218,9 @@
       hasEvidenceRecord,
       addEvidenceRecord,
       reviewProposal,
-      correctConfirmed
+      correctConfirmed,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

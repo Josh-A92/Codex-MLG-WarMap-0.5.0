@@ -322,6 +322,19 @@
       };
     }
 
+    function captureTransactionState() {
+      return deepClone(state.snapshots);
+    }
+
+    function restoreTransactionState(snapshot) {
+      if (!Array.isArray(snapshot)) {
+        throwServiceError("invalid_input", "Confirmed Server Snapshot Service requires snapshot to be an array.");
+      }
+      const candidate = snapshot.map(deepClone);
+      runHistoryValidation(candidate);
+      commit(candidate);
+    }
+
     runHistoryValidation(input.initialSnapshots);
     const initialSnapshots = deepClone(input.initialSnapshots);
     const initialIndexes = buildIndexes(initialSnapshots);
@@ -335,7 +348,9 @@
       hasSnapshot,
       getCurrentSnapshot,
       evaluateSnapshot,
-      addConfirmedSnapshot
+      addConfirmedSnapshot,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 

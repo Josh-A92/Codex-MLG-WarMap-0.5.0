@@ -145,6 +145,15 @@
       return clone(candidate);
     }
 
+    function captureTransactionState() {
+      return clone(observations);
+    }
+
+    function restoreTransactionState(snapshot) {
+      if (!Array.isArray(snapshot)) fail("invalid_input", "Server Observation Service requires snapshot to be an array.");
+      commit(snapshot.map(clone));
+    }
+
     function reviewProposal(observationId, reviewedObservation) {
       const id = requireString(observationId, "observationId");
       const index = indexById.get(id);
@@ -209,7 +218,9 @@
       hasObservation,
       addObservation,
       reviewProposal,
-      correctConfirmed
+      correctConfirmed,
+      captureTransactionState,
+      restoreTransactionState
     };
   }
 
