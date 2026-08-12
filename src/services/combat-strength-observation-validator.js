@@ -1,9 +1,22 @@
 (function initializeCombatStrengthObservationValidator(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : {
+      validateEventAt(value) {
+        if (value === null || typeof value !== "object" || Array.isArray(value)
+            || !["exact", "bounded", "unknown"].includes(value.precision)) throw new Error("eventAt is invalid.");
+        return value;
+      },
+      validateRuleVersionRef(value) {
+        if (value === null || typeof value !== "object" || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) throw new Error("ruleVersionRef is invalid.");
+        return value;
+      }
+    };
   const FIELDS = [
     "observationId", "unionId", "serverId", "seasonId", "value", "unit",
     "displayFormat", "observedAt", "sourceType", "evidenceId", "extractionMethod",
     "rawExtractedValue", "normalizedValue", "confidence", "reviewState", "actorId",
-    "reviewerId", "reviewedAt", "supersededBy"
+    "reviewerId", "reviewedAt", "supersededBy", "eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ];
   const SOURCE_TYPES = new Set([
     "manual_entry", "screenshot_extraction", "imported_data", "api_integration",
@@ -83,7 +96,7 @@
       return { valid: false, record: null, observedAt: null, reviewedAt: null };
     }
     const prefix = basePath ? `${basePath}.` : "";
-    FIELDS.forEach((field) => {
+    FIELDS.filter((field) => !["eventAt", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"].includes(field)).forEach((field) => {
       if (!Object.prototype.hasOwnProperty.call(record, field)) {
         add(errors, "MISSING_REQUIRED_FIELD", `${prefix}${field}`, `${prefix}${field} is required.`);
       }
@@ -121,6 +134,20 @@
       : null;
     if (observedAt !== null && reviewedAt !== null && reviewedAt < observedAt) {
       add(errors, "INVALID_TIMESTAMP_ORDER", `${prefix}reviewedAt`, "reviewedAt cannot precede observedAt.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "eventAt")) {
+      try { temporalExports.validateEventAt(record.eventAt); } catch (error) { add(errors, "INVALID_EVENT_TIME", `${prefix}eventAt`, error.message); }
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAt") && record.recordedAt !== null
+        && parseTimestamp(record.recordedAt) === null) {
+      add(errors, "INVALID_TIMESTAMP", `${prefix}recordedAt`, "recordedAt is invalid.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "recordedAtLegacyUnknown")
+        && typeof record.recordedAtLegacyUnknown !== "boolean") {
+      add(errors, "INVALID_BOOLEAN", `${prefix}recordedAtLegacyUnknown`, "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, "ruleVersionRef") && record.ruleVersionRef !== null) {
+      try { temporalExports.validateRuleVersionRef(record.ruleVersionRef); } catch (error) { add(errors, "INVALID_RULE_VERSION", `${prefix}ruleVersionRef`, error.message); }
     }
 
     ["evidenceId", "extractionMethod", "reviewerId", "supersededBy"].forEach((field) => {

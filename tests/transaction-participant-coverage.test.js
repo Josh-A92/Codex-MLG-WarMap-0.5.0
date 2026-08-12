@@ -79,7 +79,8 @@ function createServices() {
       initialStatuses: [], validateActiveUnionStatus, validateActiveUnionStatusHistory
     }),
     combatStrength: createCombatStrengthObservationService({
-      initialObservations: [], validateCombatStrengthObservation, validateCombatStrengthObservationHistory
+      initialObservations: [], validateCombatStrengthObservation, validateCombatStrengthObservationHistory,
+      clock: () => new Date("2026-08-12T12:00:00.000Z")
     }),
     serverObservations: createServerObservationService({
       initialObservations: [], validateServerObservation, validateServerObservationHistory,

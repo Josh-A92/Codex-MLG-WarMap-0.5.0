@@ -156,7 +156,8 @@
     const combatStrengthObservationService = modules.createCombatStrengthObservationService({
       initialObservations: initialState.combatStrengthObservations,
       validateCombatStrengthObservation: modules.validateCombatStrengthObservation,
-      validateCombatStrengthObservationHistory: modules.validateCombatStrengthObservationHistory
+      validateCombatStrengthObservationHistory: modules.validateCombatStrengthObservationHistory,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const serverObservationService = modules.createServerObservationService({
       initialObservations: initialState.serverObservations,

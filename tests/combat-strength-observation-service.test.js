@@ -39,7 +39,8 @@ function service(initialObservations = []) {
   return createCombatStrengthObservationService({
     initialObservations,
     validateCombatStrengthObservation,
-    validateCombatStrengthObservationHistory
+    validateCombatStrengthObservationHistory,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
 }
 
@@ -119,6 +120,33 @@ const independent = service([
 assert.strictEqual(independent.getLatestConfirmed("season-1", "server-367", "union-1").value, 500);
 assert.strictEqual(independent.getLatestConfirmed("season-1", "server-366", "union-1").value, 100);
 
+const temporal = service();
+const exactTemporal = temporal.addObservation(observation({
+  observationId: "temporal-exact",
+  eventAt: { precision: "exact", at: "2026-07-25T08:00:00Z" },
+  ruleVersionRef: { seasonId: "season-1", packageVersion: "0.5.0", rulesVersion: "rules-v1" }
+}));
+assert.strictEqual(exactTemporal.observedAt, "2026-07-25T09:15:00Z");
+assert.strictEqual(exactTemporal.recordedAt, "2026-08-12T12:00:00.000Z");
+assert.throws(() => temporal.addObservation(observation({
+  observationId: "forged", recordedAt: "2026-07-25T09:00:00Z"
+})), (error) => error.code === "caller_recorded_at");
+const boundedTemporal = temporal.addObservation(observation({
+  observationId: "temporal-bounded",
+  observedAt: "2026-07-25T10:15:00Z",
+  reviewedAt: "2026-07-25T10:16:00Z",
+  eventAt: { precision: "bounded", earliestAt: "2026-07-25T08:00:00Z", latestAt: "2026-07-25T10:00:00Z" }
+}));
+const unknownTemporal = temporal.addObservation(observation({
+  observationId: "temporal-unknown", observedAt: "2026-07-25T11:15:00Z", reviewedAt: "2026-07-25T11:16:00Z", eventAt: { precision: "unknown" }
+}));
+assert.strictEqual(boundedTemporal.eventAt.precision, "bounded");
+assert.strictEqual(unknownTemporal.eventAt.precision, "unknown");
+const legacyTemporal = service([observation({ observationId: "legacy" })]).getObservation("legacy");
+assert.strictEqual(legacyTemporal.eventAt.precision, "unknown");
+assert.strictEqual(legacyTemporal.recordedAt, null);
+assert.strictEqual(legacyTemporal.recordedAtLegacyUnknown, true);
+
 class Validators {
   validateRecord(value) {
     assert.strictEqual(this instanceof Validators, true);
@@ -134,6 +162,7 @@ assert.doesNotThrow(() => createCombatStrengthObservationService({
   initialObservations: [],
   validateCombatStrengthObservation: validators.validateRecord.bind(validators),
   validateCombatStrengthObservationHistory: validators.validateHistory.bind(validators)
+  ,clock: () => new Date("2026-08-12T12:00:00.000Z")
 }));
 
 const source = fs.readFileSync(
