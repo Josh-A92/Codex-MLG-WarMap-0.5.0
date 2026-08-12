@@ -1,4 +1,12 @@
 (function initializeConfirmedServerSnapshotValidatorFactory(globalScope) {
+  const temporalExports = globalScope.validateEventAt
+    ? globalScope
+    : {
+      validateRuleVersionRef(value) {
+        if (value === null || typeof value !== "object" || ["seasonId", "packageVersion", "rulesVersion"].some((field) => typeof value[field] !== "string" || value[field].trim() === "")) throw new Error("ruleVersionRef is invalid.");
+        return value;
+      }
+    };
   const SNAPSHOT_FIELDS = [
     "snapshotId",
     "serverId",
@@ -12,7 +20,7 @@
     "creatorId",
     "reviewerId",
     "completenessRecordIds",
-    "previousConfirmedSnapshotId"
+    "previousConfirmedSnapshotId", "recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"
   ];
 
   const FACTORY_DEPENDENCY_FIELDS = [
@@ -226,7 +234,7 @@
       };
     }
 
-    validateRequiredFieldPresence(snapshot, SNAPSHOT_FIELDS, basePath, errors);
+    validateRequiredFieldPresence(snapshot, SNAPSHOT_FIELDS.filter((field) => !["recordedAt", "recordedAtLegacyUnknown", "ruleVersionRef"].includes(field)), basePath, errors);
     validateUnknownFields(snapshot, new Set(SNAPSHOT_FIELDS), basePath, errors);
 
     const snapshotIdPath = composePath(basePath, "snapshotId");
@@ -250,6 +258,15 @@
     validateRequiredId(errors, snapshot.reviewerId, reviewerIdPath, reviewerIdPath);
 
     const createdAt = validateRequiredTimestamp(errors, snapshot.createdAt, createdAtPath, createdAtPath);
+    if (Object.prototype.hasOwnProperty.call(snapshot, "recordedAt") && snapshot.recordedAt !== null) {
+      validateRequiredTimestamp(errors, snapshot.recordedAt, composePath(basePath, "recordedAt"), composePath(basePath, "recordedAt"));
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "recordedAtLegacyUnknown") && typeof snapshot.recordedAtLegacyUnknown !== "boolean") {
+      pushError(errors, "INVALID_BOOLEAN", composePath(basePath, "recordedAtLegacyUnknown"), "recordedAtLegacyUnknown must be boolean.");
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "ruleVersionRef") && snapshot.ruleVersionRef !== null) {
+      try { temporalExports.validateRuleVersionRef(snapshot.ruleVersionRef); } catch (error) { pushError(errors, "INVALID_RULE_VERSION", composePath(basePath, "ruleVersionRef"), error.message); }
+    }
 
     const ownershipRecordIds = validateIdArray(errors, snapshot.ownershipRecordIds, ownershipRecordIdsPath, ownershipRecordIdsPath);
     const structureOwnershipRecordIds = validateIdArray(errors, snapshot.structureOwnershipRecordIds, structureOwnershipRecordIdsPath, structureOwnershipRecordIdsPath);

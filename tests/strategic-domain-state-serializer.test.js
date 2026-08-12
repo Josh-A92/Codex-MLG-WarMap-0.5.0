@@ -182,6 +182,10 @@ state.targetVerifications = [
   { seasonId: "season-1", verificationId: "verification-bounded", serverId: "server-366", observedAt: "2026-07-30T11:00:00.000Z", confirmedAt: "2026-07-30T11:05:00.000Z", eventAt: { precision: "bounded", earliestAt: "2026-07-30T08:00:00.000Z", latestAt: "2026-07-30T09:30:00.000Z" }, recordedAt: "2026-07-30T11:06:00.000Z" },
   { seasonId: "season-1", verificationId: "verification-unknown", serverId: "server-366", observedAt: "2026-07-30T12:00:00.000Z", confirmedAt: "2026-07-30T12:05:00.000Z", eventAt: { precision: "unknown" }, recordedAt: null, recordedAtLegacyUnknown: true }
 ];
+state.confirmedSnapshots = [
+  { snapshotId: "snapshot-exact", seasonId: "season-1", serverId: "server-366", createdAt: "2026-07-30T10:00:00.000Z", recordedAt: "2026-07-30T10:01:00.000Z", ownershipRecordIds: [], structureOwnershipRecordIds: [], verificationRecordIds: [], unionStatusRecordIds: [], evidenceIds: [], creatorId: "creator", reviewerId: "reviewer", completenessRecordIds: [], previousConfirmedSnapshotId: null },
+  { snapshotId: "snapshot-unknown", seasonId: "season-1", serverId: "server-366", createdAt: "2026-07-30T11:00:00.000Z", recordedAt: null, recordedAtLegacyUnknown: true, ownershipRecordIds: [], structureOwnershipRecordIds: [], verificationRecordIds: [], unionStatusRecordIds: [], evidenceIds: [], creatorId: "creator", reviewerId: "reviewer", completenessRecordIds: [], previousConfirmedSnapshotId: "snapshot-exact" }
+];
 const serialized = serializeStrategicDomainRuntime(
   runtime,
   "season-1",
@@ -211,6 +215,7 @@ assert.deepStrictEqual(deserialized.state.territoryOwnershipRecords, state.terri
 assert.deepStrictEqual(deserialized.state.serverObservations, state.serverObservations);
 assert.deepStrictEqual(deserialized.state.combatStrengthObservations, state.combatStrengthObservations);
 assert.deepStrictEqual(deserialized.state.targetVerifications, state.targetVerifications);
+assert.deepStrictEqual(deserialized.state.confirmedSnapshots, state.confirmedSnapshots);
 assert.notStrictEqual(deserialized, serialized);
 assert.notStrictEqual(deserialized.state, serialized.state);
 deserialized.state.activeStatuses[0].recordId = "deserialized-change";

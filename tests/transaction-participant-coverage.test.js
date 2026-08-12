@@ -92,6 +92,7 @@ function createServices() {
       validateConfirmedServerSnapshot: snapshotValidator.validateConfirmedServerSnapshot,
       validateConfirmedServerSnapshotHistory: snapshotValidator.validateConfirmedServerSnapshotHistory,
       evaluateConfirmedServerSnapshotReferences: () => ({ valid: true, errors: [], projection: {} })
+      ,clock: () => new Date("2026-08-12T12:00:00.000Z")
     }),
     activityFacts: createActivityFactHistoryService({
       initialConfirmedPresenceFacts: [],

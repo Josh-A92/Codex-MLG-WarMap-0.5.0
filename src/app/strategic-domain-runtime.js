@@ -193,7 +193,8 @@
       validateConfirmedServerSnapshot: confirmedSnapshotValidator.validateConfirmedServerSnapshot,
       validateConfirmedServerSnapshotHistory: confirmedSnapshotValidator.validateConfirmedServerSnapshotHistory,
       evaluateConfirmedServerSnapshotReferences:
-        confirmedSnapshotValidator.evaluateConfirmedServerSnapshotReferences
+        confirmedSnapshotValidator.evaluateConfirmedServerSnapshotReferences,
+      clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
     const confirmedSnapshotCoordinator = modules.createConfirmedServerSnapshotCoordinator({
       ownershipRecordService,

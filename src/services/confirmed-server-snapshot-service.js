@@ -1,9 +1,14 @@
 (function initializeConfirmedServerSnapshotServiceFactory(globalScope) {
+  const temporalContractFactory = globalScope.createTemporalMetadataContract
+    || (typeof require === "function"
+      ? require("./temporal-metadata-contract.js").createTemporalMetadataContract
+      : null);
   const FACTORY_FIELDS = new Set([
     "initialSnapshots",
     "validateConfirmedServerSnapshot",
     "validateConfirmedServerSnapshotHistory",
-    "evaluateConfirmedServerSnapshotReferences"
+    "evaluateConfirmedServerSnapshotReferences",
+    "clock"
   ]);
 
   const FILTER_FIELDS = new Set([
@@ -165,6 +170,7 @@
     const input = requireRecordObject(options, "options");
     requireKnownFields(input, FACTORY_FIELDS, "options");
     requireRequiredFields(input, FACTORY_FIELDS, "options");
+    if (typeof input.clock !== "function") throwServiceError("invalid_input", "Confirmed Server Snapshot Service requires options.clock.");
 
     if (!Array.isArray(input.initialSnapshots)) {
       throwServiceError("invalid_input", "Confirmed Server Snapshot Service requires options.initialSnapshots to be an array.");
@@ -191,6 +197,20 @@
       snapshotIndexById: new Map(),
       currentSnapshotByGroup: new Map()
     };
+    const temporalContract = temporalContractFactory({ clock: input.clock });
+
+    function normalizeTemporal(snapshot, mode) {
+      const preservedRecordedAt = mode === "existing" ? snapshot.recordedAt : undefined;
+      const inputSnapshot = mode === "existing" && Object.prototype.hasOwnProperty.call(snapshot, "recordedAt")
+        ? (() => { const copy = deepClone(snapshot); delete copy.recordedAt; return copy; })()
+        : snapshot;
+      const normalized = mode === "legacy"
+        ? temporalContract.normalizeLegacy({ ...inputSnapshot, eventAt: inputSnapshot.eventAt || { precision: "unknown" } })
+        : temporalContract.normalizeNew({ ...inputSnapshot, eventAt: inputSnapshot.eventAt || { precision: "unknown" } });
+      delete normalized.eventAt;
+      if (mode === "existing") normalized.recordedAt = preservedRecordedAt;
+      return normalized;
+    }
 
     function runSnapshotValidation(snapshot) {
       let result;
@@ -303,7 +323,7 @@
         );
       }
 
-      const snapshot = requireRecordObject(normalizedInput.snapshot, "evaluationInput.snapshot");
+      const snapshot = normalizeTemporal(requireRecordObject(normalizedInput.snapshot, "evaluationInput.snapshot"), "new");
       runSnapshotValidation(snapshot);
       if (state.snapshotIndexById.has(snapshot.snapshotId)) {
         throwServiceError(
@@ -335,8 +355,8 @@
       commit(candidate);
     }
 
-    runHistoryValidation(input.initialSnapshots);
-    const initialSnapshots = deepClone(input.initialSnapshots);
+    const initialSnapshots = input.initialSnapshots.map((snapshot) => normalizeTemporal(snapshot, "legacy"));
+    runHistoryValidation(initialSnapshots);
     const initialIndexes = buildIndexes(initialSnapshots);
     state.snapshots = initialSnapshots;
     state.snapshotIndexById = initialIndexes.snapshotIndexById;

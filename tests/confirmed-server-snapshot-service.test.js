@@ -107,7 +107,8 @@ function options(overrides) {
     initialSnapshots: [],
     validateConfirmedServerSnapshot: validator.validateConfirmedServerSnapshot,
     validateConfirmedServerSnapshotHistory: validator.validateConfirmedServerSnapshotHistory,
-    evaluateConfirmedServerSnapshotReferences: validator.evaluateConfirmedServerSnapshotReferences
+    evaluateConfirmedServerSnapshotReferences: validator.evaluateConfirmedServerSnapshotReferences,
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   }, overrides || {});
 }
 
@@ -147,7 +148,8 @@ runTest("factory is strict accepts null-prototype options and preserves dependen
     evaluateConfirmedServerSnapshotReferences(value) {
       assert.strictEqual(this, factoryOptions);
       return validator.evaluateConfirmedServerSnapshotReferences(value);
-    }
+    },
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
 
   const service = createConfirmedServerSnapshotService(factoryOptions);
@@ -215,7 +217,8 @@ runTest("safe copies isolate initialization input output and __proto__ keys", ()
     validateConfirmedServerSnapshotHistory: alwaysValid,
     evaluateConfirmedServerSnapshotReferences() {
       return { valid: true, errors: [], warnings: [], projection: {} };
-    }
+    },
+    clock: () => new Date("2026-08-12T12:00:00.000Z")
   });
   const protoOutput = protoService.getSnapshot("proto");
   assert.strictEqual(Object.getPrototypeOf(protoOutput), Object.prototype);
@@ -260,6 +263,30 @@ runTest("partial but reference-valid snapshot is accepted as non-qualifying", ()
   assert.strictEqual(result.projection.qualifiesAsFullMapConfirmation, false);
   assert.strictEqual(result.projection.mapDataConfirmedThrough, null);
   assert.strictEqual(service.listSnapshots().length, 1);
+});
+
+runTest("snapshot recording metadata uses the clock and preserves createdAt ordering", () => {
+  const service = createService();
+  const result = service.addConfirmedSnapshot(evaluationInput({
+    snapshot: snapshot()
+  }));
+  assert.strictEqual(result.snapshot.createdAt, "2026-07-29T01:00:00Z");
+  assert.strictEqual(result.snapshot.recordedAt, "2026-08-12T12:00:00.000Z");
+  assert.throws(() => service.addConfirmedSnapshot(evaluationInput({
+    snapshot: snapshot({ snapshotId: "forged", recordedAt: "2026-07-29T00:31:00Z" })
+  })), (error) => error.code === "caller_recorded_at");
+  const later = service.addConfirmedSnapshot(evaluationInput({
+    snapshot: snapshot({ snapshotId: "later", createdAt: "2026-07-30T00:30:00Z", previousConfirmedSnapshotId: "snapshot-1" })
+  }));
+  assert.strictEqual(service.getCurrentSnapshot("server-1", "season-1").snapshotId, "later");
+  assert.strictEqual(later.snapshot.createdAt, "2026-07-30T00:30:00Z");
+});
+
+runTest("legacy snapshots preserve unknown historical recording metadata", () => {
+  const legacy = createService({ initialSnapshots: [snapshot()] }).getSnapshot("snapshot-1");
+  assert.strictEqual(legacy.recordedAt, null);
+  assert.strictEqual(legacy.recordedAtLegacyUnknown, true);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(legacy, "eventAt"), false);
 });
 
 runTest("a later snapshot must extend the current immutable chain", () => {
