@@ -42,6 +42,14 @@ function createValidScope(options) {
       return undefined;
     }
   };
+  const generationBridge = values.warMapGenerationStorage || {
+    async loadCommittedGeneration() {
+      return { ok: true, result: { status: "missing" } };
+    },
+    async commitGeneration() {
+      return { ok: true, result: { generation: 1 } };
+    }
+  };
 
   const createElectronFileStorageAdapter = dependencyOverrides.createElectronFileStorageAdapter || ((bridge) => {
     callLog.push("createElectronFileStorageAdapter");
@@ -297,7 +305,13 @@ function createValidScope(options) {
     createPersistenceService,
     createElectronFileStorageAdapter,
     createServerStatePersistenceController,
+    createApplicationMutationCoordinator: dependencyOverrides.createApplicationMutationCoordinator || (() => ({})),
+    createApplicationPersistenceCoordinator: dependencyOverrides.createApplicationPersistenceCoordinator || (() => ({})),
+    createWarMapApplicationPersistenceCoordinator: dependencyOverrides.createWarMapApplicationPersistenceCoordinator || (() => ({})),
+    createApplicationPersistenceFacade: dependencyOverrides.createApplicationPersistenceFacade || (() => ({})),
+    createLegacyStateClassifier: dependencyOverrides.createLegacyStateClassifier || (() => ({ classify: () => ({ status: "first_run" }) })),
     warMapPersistenceStorage: persistenceBridge,
+    warMapGenerationStorage: generationBridge,
     initializeMapRenderer: dependencyOverrides.initializeMapRenderer || ((context) => {
       callLog.push("initializeMapRenderer");
       rendererCalls.push(context);
@@ -397,7 +411,7 @@ runTest("bootstrap retains the union registry factory inside persistence composi
   await bootstrap.bootstrapApplication();
 
   assert.strictEqual(rendererCalls.length, 1);
-  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
+  assert.strictEqual(typeof rendererCalls[0].createWarMapApplicationPersistenceCoordinator, "function");
   assert.strictEqual(
     Object.prototype.hasOwnProperty.call(rendererCalls[0], "unionRegistryServiceFactory"),
     false
@@ -415,6 +429,53 @@ runTest("bootstrap exposes first-run season context and administration service",
   });
   assert.strictEqual(typeof rendererCalls[0].seasonAdministrationService.initialize, "function");
   assert.ok(callLog.indexOf("initializeSeasonAdministration") < callLog.indexOf("resolvePackage"));
+});
+
+runTest("generation startup is read before legacy migration reads", async () => {
+  const calls = [];
+  const { scope, rendererCalls } = createValidScope({
+    warMapGenerationStorage: {
+      async loadCommittedGeneration() {
+        calls.push("generation");
+        return { ok: true, result: { status: "missing" } };
+      },
+      async commitGeneration() { return { ok: true, result: { generation: 1 } }; }
+    },
+    warMapPersistenceStorage: {
+      async loadEnvelope(identity) {
+        calls.push(`legacy:${identity.scope || "server"}`);
+        return null;
+      },
+      async saveEnvelope() { throw new Error("legacy writes are forbidden"); }
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+  assert.strictEqual(calls[0], "generation");
+  assert.ok(calls.includes("legacy:season_activation"));
+  assert.strictEqual(rendererCalls.length, 1);
+});
+
+runTest("committed generation startup does not read legacy envelopes", async () => {
+  const calls = [];
+  const { scope, rendererCalls } = createValidScope({
+    warMapGenerationStorage: {
+      async loadCommittedGeneration() {
+        calls.push("generation");
+        return { ok: true, result: { status: "committed", source: "current", manifest: { generation: 1 }, documents: [] } };
+      },
+      async commitGeneration() { return { ok: true, result: { generation: 2 } }; }
+    },
+    warMapPersistenceStorage: {
+      async loadEnvelope() {
+        calls.push("legacy");
+        return null;
+      },
+      async saveEnvelope() { throw new Error("legacy writes are forbidden"); }
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+  assert.deepStrictEqual(calls, ["generation"]);
+  assert.strictEqual(rendererCalls.length, 1);
 });
 
 runTest("bootstrap registers both prepared packages for season administration", async () => {
@@ -538,10 +599,7 @@ runTest("bootstrap builds the grouped strategic domain module registry for persi
   await bootstrap.bootstrapApplication();
   assert.strictEqual(rendererCalls.length, 1);
   assert.ok(callLog.includes("createStrategicDomainModuleRegistry"));
-  assert.strictEqual(
-    Object.prototype.hasOwnProperty.call(rendererCalls[0], "strategicDomainModules"),
-    false
-  );
+  assert.strictEqual(typeof rendererCalls[0].strategicDomainModules, "object");
 });
 
 runTest("strategic and evidence factories remain behind persistence composition", async () => {
@@ -557,7 +615,7 @@ runTest("strategic and evidence factories remain behind persistence composition"
     Object.prototype.hasOwnProperty.call(rendererCalls[0], "evidenceDomainRuntimeFactory"),
     false
   );
-  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
+  assert.strictEqual(typeof rendererCalls[0].createStrategicDomainRuntime, "function");
 });
 
 runTest("renderer receives data-management runtime and persistence composition", async () => {
@@ -568,12 +626,11 @@ runTest("renderer receives data-management runtime and persistence composition",
   const context = rendererCalls[0];
   assert.strictEqual(context.dataManagementModules.sourceScope, scope);
   assert.strictEqual(context.dataManagementRuntimeFactory, scope.createDataManagementRuntime);
-  assert.strictEqual(typeof context.dataManagementPersistenceController.initialize, "function");
+  assert.strictEqual(typeof context.createApplicationPersistenceFacade, "function");
   assert.ok(callLog.includes("createEvidenceDomainModuleRegistry"));
   assert.ok(callLog.includes("createDataManagementModuleRegistry"));
   assert.ok(callLog.includes("createEvidenceDomainStateSerializer"));
-  assert.ok(callLog.includes("createDataManagementStatePersistenceService"));
-  assert.ok(callLog.includes("createDataManagementPersistenceController"));
+  assert.strictEqual(typeof context.generationStore, "object");
 });
 
 runTest("bootstrap fails clearly when evidence or data-management composition is missing", async () => {
@@ -587,8 +644,12 @@ runTest("bootstrap fails clearly when evidence or data-management composition is
     "serializeStrategicDomainRuntime",
     "deserializeStrategicDomainEnvelope",
     "createEvidenceDomainStateSerializer",
-    "createDataManagementStatePersistenceService",
-    "createDataManagementPersistenceController"
+    "createApplicationMutationCoordinator",
+    "createApplicationPersistenceCoordinator",
+    "createWarMapApplicationPersistenceCoordinator",
+    "createApplicationPersistenceFacade",
+    "createLegacyStateClassifier",
+    "warMapGenerationStorage"
   ]) {
     const { scope, rendererCalls } = createValidScope();
     delete scope[field];
@@ -662,7 +723,7 @@ runTest("renderer context receives exact server state service factory", async ()
   assert.strictEqual(rendererCalls[0].serverStateServiceFactory, scope.createServerStateService);
 });
 
-runTest("bootstrap composes persistence adapter service and controller in order", async () => {
+runTest("bootstrap composes generation persistence and keeps legacy bridge migration-only", async () => {
   const bridge = {
     async loadEnvelope() {
       return null;
@@ -723,18 +784,12 @@ runTest("bootstrap composes persistence adapter service and controller in order"
   const bootstrap = createApplicationBootstrap(scope);
   await bootstrap.bootstrapApplication();
 
-  assert.strictEqual(observed.adapterBridge, bridge);
-  assert.strictEqual(observed.persistenceArgs.storageAdapter.loadEnvelope instanceof Function, true);
-  assert.strictEqual(observed.persistenceArgs.storageAdapter.saveEnvelope instanceof Function, true);
-  assert.strictEqual(observed.persistenceArgs.serializeServerState, scope.serializeServerState);
-  assert.strictEqual(observed.persistenceArgs.deserializePersistenceEnvelope, scope.deserializePersistenceEnvelope);
-  assert.ok(observed.clockValue instanceof Date);
-  assert.strictEqual(Number.isNaN(observed.clockValue.getTime()), false);
-  assert.ok(observed.controllerArg);
+  assert.strictEqual(observed.adapterBridge, null);
+  assert.strictEqual(observed.persistenceArgs, null);
   assert.strictEqual(rendererCalls.length, 1);
-  assert.strictEqual(rendererCalls[0].serverStatePersistenceController, observed.controllerInstance);
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "warMapPersistenceStorage"), false);
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "storageAdapter"), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "serverStatePersistenceController"), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(rendererCalls[0], "dataManagementPersistenceController"), false);
+  assert.strictEqual(typeof rendererCalls[0].warMapGenerationStorage, "undefined");
 });
 
 runTest("legacy SEASON_1_DEFINITION is not used", async () => {
@@ -814,9 +869,7 @@ runTest("missing persistence dependencies and bridge prevent renderer initializa
   const requiredFields = [
     "serializeServerState",
     "deserializePersistenceEnvelope",
-    "createPersistenceService",
-    "createElectronFileStorageAdapter",
-    "createServerStatePersistenceController",
+    "warMapGenerationStorage",
     "warMapPersistenceStorage"
   ];
 
@@ -972,14 +1025,9 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/union-registry-state-serializer.js"',
     'src="src/services/strategic-domain-state-serializer.js"',
     'src="src/services/evidence-domain-state-serializer.js"',
-    'src="src/services/data-management-state-persistence-service.js"',
-    'src="src/app/data-management-persistence-controller.js"',
     'src="src/services/ownership-service.js"',
     'src="src/services/server-state-service.js"',
     'src="src/services/persistence-state-serializer.js"',
-    'src="src/services/persistence-service.js"',
-    'src="src/services/electron-file-storage-adapter.js"',
-    'src="src/app/server-state-persistence-controller.js"',
     'src="src/services/summary-service.js"',
     'src="src/map-renderer.js"',
     'src="src/app/application-bootstrap.js"'

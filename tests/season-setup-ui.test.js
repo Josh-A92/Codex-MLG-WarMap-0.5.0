@@ -96,13 +96,13 @@ test("startup initialization failures are surfaced visibly with the error name a
 
 test("active season management explicitly clears live maps while preserving history", () => {
   assert.match(renderer, /data-season-setup-action", "complete-season"/);
-  assert.match(renderer, /seasonAdministrationService\.completeActiveSeason\(localActor\)/);
+  assert.match(renderer, /seasonAdministrationService\.completeActiveSeason\(localActor, \{ persist: false \}\)/);
   assert.match(renderer, /clears live map ownership while preserving union, evidence, and audit history/);
   assert.match(renderer, /clears live map ownership while preserving union, evidence, and audit history/);
   assert.match(renderer, /seasonSetupState\.isCompleting/);
   assert.match(renderer, /serverStateService\.replaceTerritoryOwnership\(\{\}\)/);
   assert.match(renderer, /serverStateService\.restoreTransactionState\(ownershipSnapshot\)/);
-  assert.match(renderer, /serverStatePersistenceController\.flush\(\)/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute/);
 });
 
 test("active Season Management can update participating servers", () => {
@@ -119,9 +119,8 @@ test("Season Management registers user-entered server numbers and persists them"
   assert.match(renderer, /\^\[1-9\]\\d\*\$/);
   assert.match(renderer, /serverStateService\.hasServer\(serverId\)/);
   assert.match(renderer, /serverStateService\.registerServer\(\{ id: serverId, label: `Server \$\{serverNumber\}` \}\)/);
-  assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\);[\s\S]*seasonSetupState\.selectedServerIds\.add\(serverId\);[\s\S]*renderSeasonSetup\(\);[\s\S]*serverStatePersistenceController\.requestSave\(\)/);
-  assert.match(renderer, /serverStatePersistenceController\.requestSave\(\)/);
-  assert.match(renderer, /serverStatePersistenceController\.flush\(\)/);
+  assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\);[\s\S]*seasonSetupState\.selectedServerIds\.add\(serverId\);[\s\S]*renderSeasonSetup\(\);[\s\S]*applicationPersistenceFacade\.execute/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute/);
   assert.match(renderer, /appState\.allServers = serverStateService\.listServers\(\)/);
   assert.match(renderer, /actionTarget\.closest\("\.season-setup-server-registration"\)/);
   assert.match(renderer, /Server \$\{serverNumber\} was added, but could not be saved/);
@@ -187,7 +186,7 @@ test("startup materializes selected active-season servers before filtering works
   assert.match(renderer, /activeSeason\.serverIds\.forEach/);
   assert.match(renderer, /serverStateService\.registerServer\(\{ id: serverId, label: `Server \$\{serverNumber\}` \}\)/);
   assert.match(renderer, /await ensureActiveSeasonServers\(seasonContext\.activated \? seasonContext : null\);[\s\S]*appState\.allServers = serverStateService\.listServers\(\);/);
-  assert.match(renderer, /registeredServer[\s\S]*serverStatePersistenceController\.requestSave\(\)[\s\S]*serverStatePersistenceController\.flush\(\)/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute/);
 });
 
 test("runtime shell replaces Season 1 fallback labels from the loaded package", () => {

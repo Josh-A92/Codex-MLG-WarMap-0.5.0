@@ -536,13 +536,13 @@ runTest("renderer no longer directly initializes or mutates server ownership", (
   assert.ok(!tileOwnerAssignmentPattern.test(rendererSource));
 });
 
-runTest("renderer requires persistence controller initialize and requestSave", () => {
+runTest("renderer requires generation persistence facade", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  assert.ok(/serverStatePersistenceController/.test(rendererSource));
-  assert.ok(/serverStatePersistenceController\.initialize/.test(rendererSource));
-  assert.ok(/serverStatePersistenceController\.requestSave/.test(rendererSource));
+  assert.ok(/applicationPersistenceFacade/.test(rendererSource));
+  assert.ok(/applicationPersistenceFacade\.load/.test(rendererSource));
+  assert.ok(/applicationPersistenceFacade\.execute/.test(rendererSource));
 });
 
 runTest("renderer restores ownership before workspace and map initialization flow", () => {
@@ -552,7 +552,7 @@ runTest("renderer restores ownership before workspace and map initialization flo
   const configureRendererStart = rendererSource.indexOf("function configureRenderer(", initializeMapStart);
   const initializeMapSource = rendererSource.slice(initializeMapStart, configureRendererStart);
 
-  const initializeIndex = initializeMapSource.indexOf("await serverStatePersistenceController.initialize(serverStateService);");
+  const initializeIndex = initializeMapSource.indexOf("await initializeApplicationPersistence();");
   const initializeSummaryServiceIndex = initializeMapSource.indexOf("initializeSummaryService();");
   const listServersIndex = initializeMapSource.indexOf("appState.allServers = serverStateService.listServers();");
   const activeSeasonIndex = initializeMapSource.indexOf("seasonAdministrationService.getActiveSeason();");
@@ -599,10 +599,9 @@ runTest("renderer restores one coherent data management state before composing m
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  assert.ok(/dataManagementPersistenceController\.initialize\(\{[\s\S]*seasonId: seasonIdentity\.seasonId,[\s\S]*bundledIdentities/.test(rendererSource));
-  assert.ok(/appState\.unionRegistryService = restored\.unionRegistryService/.test(rendererSource));
-  assert.ok(/strategicDomainRuntime = restored\.strategicDomainRuntime/.test(rendererSource));
-  assert.ok(/evidenceDomainRuntime = restored\.evidenceDomainRuntime/.test(rendererSource));
+  assert.ok(/appState\.unionRegistryService = createUnionRegistryServiceFactory\(bundledIdentities\)/.test(rendererSource));
+  assert.ok(/strategicDomainRuntime = createStrategicDomainRuntimeFactory/.test(rendererSource));
+  assert.ok(/evidenceDomainRuntime = createEvidenceDomainRuntimeFactory/.test(rendererSource));
   assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*serverStateService,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
   assert.ok(/appState\.dataManagementRuntime = dataManagementRuntime/.test(rendererSource));
 
@@ -614,7 +613,7 @@ runTest("renderer restores one coherent data management state before composing m
   assert.ok(managementIndex > serverStateIndex);
 });
 
-runTest("renderer routes ownership through the canonical coordinator and saves both state domains", () => {
+runTest("renderer routes ownership through the single generation coordinator", () => {
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
@@ -622,15 +621,14 @@ runTest("renderer routes ownership through the canonical coordinator and saves b
   assert.ok(changeHandlerMatch);
 
   const changeHandlerSource = changeHandlerMatch[0];
-  const requestSaveMatches = changeHandlerSource.match(/requestSave\(/g) || [];
+  const executeMatches = changeHandlerSource.match(/applicationPersistenceFacade\.execute\(/g) || [];
   const refreshCardsMatches = changeHandlerSource.match(/refreshCommandCentreCards\(/g) || [];
 
-  assert.strictEqual(requestSaveMatches.length, 2);
+  assert.strictEqual(executeMatches.length, 1);
   assert.strictEqual(refreshCardsMatches.length, 2);
   assert.ok(/mapOwnershipCoordinator\.setStructureOwnership\(localActor/.test(changeHandlerSource));
   assert.ok(/mapOwnershipCoordinator\.setTerritoryOwnership\(localActor/.test(changeHandlerSource));
-  assert.ok(/serverStatePersistenceController\.requestSave\(\)/.test(changeHandlerSource));
-  assert.ok(/dataManagementPersistenceController\.requestSave\(\)/.test(changeHandlerSource));
+  assert.ok(/applicationPersistenceFacade\.execute\(/.test(changeHandlerSource));
   assert.strictEqual(/ownershipService\.setTileOwner/.test(changeHandlerSource), false);
 
   const tileSetterMatch = rendererSource.match(/function setServerTileOwner\(tile, ownerId\) \{[\s\S]*?\n\}/);

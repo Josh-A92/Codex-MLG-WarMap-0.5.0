@@ -71,7 +71,23 @@
         return { status: legacy.status, reason: legacy.reason };
       }
       expectedGeneration = 0;
-      const state = legacy.status === "first_run" ? null : await deserializeDocuments(inputValue.legacyDocuments);
+      let legacyDocuments = inputValue.legacyDocuments;
+      if (legacy.status === "rebuildable_projection" && legacy.projection && Array.isArray(legacyDocuments)) {
+        legacyDocuments = legacyDocuments.map((document) => {
+          if (document.documentId !== "projection") return document;
+          return {
+            ...document,
+            value: {
+              ...document.value,
+              servers: document.value.servers.map((server) => ({
+                ...server,
+                ownership: legacy.projection[server.id] || {}
+              }))
+            }
+          };
+        });
+      }
+      const state = legacy.status === "first_run" ? null : await deserializeDocuments(legacyDocuments);
       if (state !== null) await mutation(() => applyState(state), async () => {});
       return { status: legacy.status, generation: 0, state };
     }

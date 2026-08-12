@@ -3,7 +3,7 @@
     const input = options || {};
     const required = [
       "generationStore", "mutationCoordinator", "legacyStateClassifier", "unionRegistryService",
-      "strategicDomainRuntime", "evidenceDomainRuntime", "serverStateService",
+      "strategicDomainRuntime", "evidenceDomainRuntime", "serverStateService", "seasonAdministrationService",
       "serializeUnionRegistry", "deserializeUnionRegistryEnvelope",
       "serializeStrategicDomainRuntime", "deserializeStrategicDomainEnvelope",
       "serializeEvidenceRuntime", "deserializeEvidenceEnvelope",
@@ -20,6 +20,7 @@
         { documentId: `strategic-${input.seasonId}`, scope: input.seasonId, type: "strategic-domain", value: input.serializeStrategicDomainRuntime(input.strategicDomainRuntime, input.seasonId, savedAt) },
         { documentId: `evidence-${input.seasonId}`, scope: input.seasonId, type: "evidence-domain", value: input.serializeEvidenceRuntime(input.evidenceDomainRuntime, savedAt) },
         { documentId: `projection-${input.seasonId}-${input.baseMapId}`, scope: `${input.seasonId}/${input.baseMapId}`, type: "server-state", value: input.serializeServerState(input.serverStateService, savedAt) }
+        , { documentId: "season-administration", scope: "global", type: "season-administration", value: input.seasonAdministrationService.captureTransactionState() }
       ];
     }
 
@@ -30,6 +31,7 @@
         strategicDomain: input.deserializeStrategicDomainEnvelope(values[`strategic-${input.seasonId}`]),
         evidenceDomain: input.deserializeEvidenceEnvelope(values[`evidence-${input.seasonId}`]),
         serverState: input.deserializeServerState(values[`projection-${input.seasonId}-${input.baseMapId}`])
+        , seasonAdministration: values["season-administration"] || { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
       };
     }
 
@@ -52,7 +54,13 @@
       });
       input.evidenceDomainRuntime.evidenceAssetService.restoreTransactionState(state.evidenceDomain.assets);
       input.evidenceDomainRuntime.evidenceRecordService.restoreTransactionState(state.evidenceDomain.evidenceRecords);
+      state.serverState.servers.forEach((server) => {
+        if (!input.serverStateService.hasServer(server.id)) {
+          input.serverStateService.registerServer({ id: server.id, label: server.label || server.id });
+        }
+      });
       input.serverStateService.replaceTerritoryOwnership(Object.fromEntries(state.serverState.servers.map((server) => [server.id, server.ownership])));
+      input.seasonAdministrationService.restoreTransactionState(state.seasonAdministration);
     }
 
     return input.createApplicationPersistenceCoordinator({

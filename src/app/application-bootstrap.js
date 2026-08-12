@@ -17,6 +17,13 @@
     return value;
   }
 
+  function requireGenerationBridge(value, fieldPath) {
+    if (!value || typeof value !== "object") throw new Error(`Application Bootstrap requires ${fieldPath}.`);
+    requireFunction(value.loadCommittedGeneration, `${fieldPath}.loadCommittedGeneration`);
+    requireFunction(value.commitGeneration, `${fieldPath}.commitGeneration`);
+    return value;
+  }
+
   function createPackageValidationError(message) {
     if (globalScope && typeof globalScope.SeasonPackageLoadError === "function") {
       return new globalScope.SeasonPackageLoadError("PACKAGE_VALIDATION_FAILED", message, null);
@@ -228,14 +235,6 @@
         safeScope.createEvidenceDomainStateSerializer,
         "createEvidenceDomainStateSerializer"
       );
-      const createDataManagementStatePersistenceService = requireFunction(
-        safeScope.createDataManagementStatePersistenceService,
-        "createDataManagementStatePersistenceService"
-      );
-      const createDataManagementPersistenceController = requireFunction(
-        safeScope.createDataManagementPersistenceController,
-        "createDataManagementPersistenceController"
-      );
       const createOwnershipService = requireFunction(safeScope.createOwnershipService, "createOwnershipService");
       const createSummaryService = requireFunction(safeScope.createSummaryService, "createSummaryService");
       const createServerStateService = requireFunction(safeScope.createServerStateService, "createServerStateService");
@@ -244,18 +243,33 @@
         safeScope.deserializePersistenceEnvelope,
         "deserializePersistenceEnvelope"
       );
-      const createPersistenceService = requireFunction(safeScope.createPersistenceService, "createPersistenceService");
-      const createElectronFileStorageAdapter = requireFunction(
-        safeScope.createElectronFileStorageAdapter,
-        "createElectronFileStorageAdapter"
+      const createApplicationMutationCoordinator = requireFunction(
+        safeScope.createApplicationMutationCoordinator,
+        "createApplicationMutationCoordinator"
       );
-      const createServerStatePersistenceController = requireFunction(
-        safeScope.createServerStatePersistenceController,
-        "createServerStatePersistenceController"
+      const createWarMapApplicationPersistenceCoordinator = requireFunction(
+        safeScope.createWarMapApplicationPersistenceCoordinator,
+        "createWarMapApplicationPersistenceCoordinator"
+      );
+      const createApplicationPersistenceCoordinator = requireFunction(
+        safeScope.createApplicationPersistenceCoordinator,
+        "createApplicationPersistenceCoordinator"
+      );
+      const createApplicationPersistenceFacade = requireFunction(
+        safeScope.createApplicationPersistenceFacade,
+        "createApplicationPersistenceFacade"
+      );
+      const createLegacyStateClassifier = requireFunction(
+        safeScope.createLegacyStateClassifier,
+        "createLegacyStateClassifier"
       );
       const warMapPersistenceStorage = requireBridge(
         safeScope.warMapPersistenceStorage,
         "warMapPersistenceStorage"
+      );
+      const warMapGenerationStorage = requireGenerationBridge(
+        safeScope.warMapGenerationStorage,
+        "warMapGenerationStorage"
       );
 
       const [bundledSeasonPackage, bundledSeasonTwoPackage] = resolveBundledSeasonPackages(safeScope);
@@ -270,12 +284,54 @@
         validateStrategicNodeNetworkMap
       });
       const strategicNodeNetworkSvgRenderer = createStrategicNodeNetworkSvgRenderer();
-      const storageAdapter = createElectronFileStorageAdapter(warMapPersistenceStorage);
+      const generationStore = {
+        async loadCommittedGeneration() {
+          const response = await warMapGenerationStorage.loadCommittedGeneration();
+          if (!response || response.ok !== true) {
+            const error = new Error(response && response.error ? response.error.message : "Generation load failed.");
+            error.code = response && response.error ? response.error.code : "generation_load_failed";
+            throw error;
+          }
+          return response.result;
+        },
+        async commit(payload) {
+          const response = await warMapGenerationStorage.commitGeneration(payload);
+          if (!response || response.ok !== true) {
+            const error = new Error(response && response.error ? response.error.message : "Generation commit failed.");
+            error.code = response && response.error ? response.error.code : "generation_commit_failed";
+            throw error;
+          }
+          return response.result;
+        }
+      };
+      const generationStartup = await generationStore.loadCommittedGeneration();
+      const legacyActivation = generationStartup.status === "missing"
+        ? await warMapPersistenceStorage.loadEnvelope({ scope: "season_activation" })
+        : null;
+      const generationAdministration = generationStartup.status === "committed"
+        ? generationStartup.documents.find((document) => document.documentId === "season-administration")
+        : null;
+      const persistedAdministration = generationAdministration && generationAdministration.value
+        ? generationAdministration.value
+        : legacyActivation;
+      const initialActiveSeason = persistedAdministration && persistedAdministration.activeSeason
+        ? persistedAdministration.activeSeason
+        : persistedAdministration && persistedAdministration.schemaVersion === 1
+          ? persistedAdministration
+          : null;
+      let activePersistenceFacade = null;
+      const persistenceBoundary = {
+        execute(...args) {
+          if (!activePersistenceFacade) throw new Error("Persistence coordinator is not initialized.");
+          return activePersistenceFacade.execute(...args);
+        }
+      };
       const seasonAdministrationService = createSeasonAdministrationService({
         preparedPackages,
         validateSeasonPackage,
         authorizationPolicyService: createAuthorizationPolicyService(),
-        storageAdapter,
+        persistenceCoordinator: persistenceBoundary,
+        initialState: persistedAdministration || { schemaVersion: 2, activeSeason: null, completedSeasons: [] },
         clock: () => new Date()
       });
       const activeSeasonActivation = await seasonAdministrationService.initialize();
@@ -313,39 +369,57 @@
       const evidenceDomainModules = createEvidenceDomainModuleRegistry(safeScope);
       const dataManagementModules = createDataManagementModuleRegistry(safeScope);
 
-      const persistenceService = createPersistenceService({
-        storageAdapter,
-        serializeServerState,
-        deserializePersistenceEnvelope,
-        clock: () => new Date()
-      });
-
-      const serverStatePersistenceController = createServerStatePersistenceController({
-        persistenceService
-      });
       const evidenceStateSerializer = createEvidenceDomainStateSerializer({
         validateEvidenceAssetHistory: evidenceDomainModules.validateEvidenceAssetHistory,
         validateEvidenceRecordHistory: evidenceDomainModules.validateEvidenceRecordHistory
       });
-      const dataManagementStatePersistenceService =
-        createDataManagementStatePersistenceService({
-          storageAdapter,
-          serializeUnionRegistry,
-          deserializeUnionRegistryEnvelope,
-          serializeStrategicDomainRuntime,
-          deserializeStrategicDomainEnvelope,
-          evidenceStateSerializer,
-          createUnionRegistryService,
-          createStrategicDomainRuntime,
-          createEvidenceDomainRuntime,
-          strategicDomainModules,
-          evidenceDomainModules,
-          clock: () => new Date()
+      const legacyEvidenceSerializer = createEvidenceDomainStateSerializer({
+        validateEvidenceAssetHistory: evidenceDomainModules.validateEvidenceAssetHistory,
+        validateEvidenceRecordHistory: evidenceDomainModules.validateEvidenceRecordHistory
+      });
+      const deserializeDataManagementEnvelope = (envelope) => ({
+        seasonId: envelope.seasonId,
+        unionRegistry: deserializeUnionRegistryEnvelope(envelope.unionRegistry),
+        strategicDomain: deserializeStrategicDomainEnvelope(envelope.strategicDomain),
+        evidenceDomain: legacyEvidenceSerializer.deserializeEnvelope(envelope.evidenceDomain)
+      });
+      const legacyStateClassifier = createLegacyStateClassifier({
+        deserializeDataManagementEnvelope,
+        deserializeServerStateEnvelope: deserializePersistenceEnvelope
+      });
+      let dataManagementEnvelope = null;
+      let serverStateEnvelope = null;
+      let legacyInput = { seasonId: requestedSeasonId, baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId };
+      if (generationStartup.status === "missing") {
+        dataManagementEnvelope = await warMapPersistenceStorage.loadEnvelope({ scope: "data_management", seasonId: requestedSeasonId });
+        serverStateEnvelope = await warMapPersistenceStorage.loadEnvelope({
+          seasonId: requestedSeasonId,
+          baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId
         });
-      const dataManagementPersistenceController =
-        createDataManagementPersistenceController({
-          persistenceService: dataManagementStatePersistenceService
+        const classification = legacyStateClassifier.classify({
+          seasonId: requestedSeasonId,
+          baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId,
+          dataManagementEnvelope,
+          serverStateEnvelope,
+          unionRegistryEnvelopes: dataManagementEnvelope ? [dataManagementEnvelope.unionRegistry] : []
         });
+        legacyInput = {
+          seasonId: requestedSeasonId,
+          baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId,
+          classification,
+          dataManagementEnvelope,
+          serverStateEnvelope,
+          legacyDocuments: dataManagementEnvelope && serverStateEnvelope
+            ? [
+              { documentId: "union-registry-global", scope: "global", type: "union-registry", value: dataManagementEnvelope.unionRegistry },
+              { documentId: `strategic-${requestedSeasonId}`, scope: requestedSeasonId, type: "strategic-domain", value: dataManagementEnvelope.strategicDomain },
+              { documentId: `evidence-${requestedSeasonId}`, scope: requestedSeasonId, type: "evidence-domain", value: dataManagementEnvelope.evidenceDomain },
+              { documentId: `projection-${requestedSeasonId}-${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`, scope: `${requestedSeasonId}/${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`, type: "server-state", value: serverStateEnvelope },
+              { documentId: "season-administration", scope: "global", type: "season-administration", value: persistedAdministration || { schemaVersion: 2, activeSeason: null, completedSeasons: [] } }
+            ]
+            : []
+        };
+      }
 
       return {
         gameRulesEngine: createGameRulesEngine(loadedSeasonPackage.rulesDefinition),
@@ -366,8 +440,29 @@
         ownershipServiceFactory: createOwnershipService,
         summaryServiceFactory: createSummaryService,
         serverStateServiceFactory: createServerStateService,
-        serverStatePersistenceController,
-        dataManagementPersistenceController
+        generationStore
+        ,generationStartup
+        ,legacyInput
+        ,persistenceBoundary
+        ,setApplicationPersistenceFacade: (facade) => { activePersistenceFacade = facade; }
+        ,persistenceStartup: { generationStore, legacyInput, persistenceBoundary }
+        ,createApplicationMutationCoordinator
+        ,createWarMapApplicationPersistenceCoordinator
+        ,createApplicationPersistenceCoordinator
+        ,createApplicationPersistenceFacade
+        ,strategicDomainModules
+        ,evidenceDomainModules
+        ,createUnionRegistryService
+        ,createStrategicDomainRuntime
+        ,createEvidenceDomainRuntime
+        ,serializeUnionRegistry
+        ,deserializeUnionRegistryEnvelope
+        ,serializeStrategicDomainRuntime
+        ,deserializeStrategicDomainEnvelope
+        ,evidenceStateSerializer
+        ,serializeServerState
+        ,deserializeServerState: deserializePersistenceEnvelope
+        ,legacyStateClassifier
       };
     }
 

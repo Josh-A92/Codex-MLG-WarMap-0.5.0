@@ -43,7 +43,7 @@ test("registration uses the atomic coordinator and edits use management services
   assert.match(renderer, /management\.updateUnionIdentity\(localActor/);
   assert.match(renderer, /archiveUnionIdentity\(localActor/);
   assert.match(renderer, /restoreUnionIdentity\(localActor/);
-  assert.match(renderer, /dataManagementPersistenceController\.requestSave\(\)/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute\(mutation\)/);
 });
 
 test("confirmed native servers are immutable while unconfirmed unions can assign one", () => {
@@ -58,8 +58,8 @@ test("successful registry mutations unlock before persistence completes", () => 
   const mutationStart = renderer.indexOf("async function runDataManagementMutation");
   const mutationEnd = renderer.indexOf("async function handleDataManagementSubmit");
   const mutationSource = renderer.slice(mutationStart, mutationEnd);
-  assert.doesNotMatch(mutationSource, /await dataManagementPersistenceController\.requestSave\(\)/);
-  assert.match(mutationSource, /Promise\.resolve\(\)[\s\S]*dataManagementPersistenceController\.requestSave\(\)/);
+  assert.match(mutationSource, /await applicationPersistenceFacade\.execute\(mutation\)/);
+  assert.doesNotMatch(mutationSource, /dataManagementPersistenceController\.requestSave\(\)/);
 });
 
 test("map ownership failures are shown in the selected target panel", () => {

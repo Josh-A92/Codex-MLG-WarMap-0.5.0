@@ -40,6 +40,10 @@ function baseOptions(overrides = {}) {
     mutationCoordinator: createApplicationMutationCoordinator({ participants: [participant(1)] }),
     legacyStateClassifier: { classify: () => ({ status: "first_run" }) },
     unionRegistryService: {}, strategicDomainRuntime: {}, evidenceDomainRuntime: {}, serverStateService: {},
+    seasonAdministrationService: {
+      captureTransactionState: () => ({ schemaVersion: 2, activeSeason: null, completedSeasons: [] }),
+      restoreTransactionState: () => {}
+    },
     serializeUnionRegistry: (_value, savedAt) => { timestamps.push(savedAt); return {}; },
     deserializeUnionRegistryEnvelope: (value) => value,
     serializeStrategicDomainRuntime: (_value, _season, savedAt) => { timestamps.push(savedAt); return {}; },

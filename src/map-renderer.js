@@ -13,8 +13,20 @@ let trustedLocalActorFactory = null;
 let ownershipServiceFactory = null;
 let summaryServiceFactory = null;
 let serverStateServiceFactory = null;
-let serverStatePersistenceController = null;
-let dataManagementPersistenceController = null;
+let applicationPersistenceFacade = null;
+let applicationPersistenceCompositionFactory = null;
+let persistenceStartup = null;
+let persistenceBoundary = null;
+let createUnionRegistryServiceFactory = null;
+let createStrategicDomainRuntimeFactory = null;
+let createEvidenceDomainRuntimeFactory = null;
+let strategicDomainModules = null;
+let evidenceDomainModules = null;
+let applicationMutationCoordinatorFactory = null;
+let applicationPersistenceCoordinatorFactory = null;
+let applicationPersistenceFacadeFactory = null;
+let legacyStateClassifier = null;
+let bootstrapPersistence = null;
 let seasonAdministrationService = null;
 let seasonContext = null;
 let strategicNodeNetworkProjectionService = null;
@@ -365,21 +377,13 @@ async function ensureActiveSeasonServers(activeSeason) {
     return;
   }
 
-  let registeredServer = false;
-  activeSeason.serverIds.forEach((serverId) => {
-    if (serverStateService.hasServer(serverId)) {
-      return;
-    }
-
-    const serverNumber = serverId.startsWith("server-") ? serverId.slice("server-".length) : serverId;
-    serverStateService.registerServer({ id: serverId, label: `Server ${serverNumber}` });
-    registeredServer = true;
+  await applicationPersistenceFacade.execute(() => {
+    activeSeason.serverIds.forEach((serverId) => {
+      if (serverStateService.hasServer(serverId)) return;
+      const serverNumber = serverId.startsWith("server-") ? serverId.slice("server-".length) : serverId;
+      serverStateService.registerServer({ id: serverId, label: `Server ${serverNumber}` });
+    });
   });
-
-  if (registeredServer) {
-    await serverStatePersistenceController.requestSave();
-    await serverStatePersistenceController.flush();
-  }
 }
 
 function refreshCommandCentreCards() {
@@ -1045,8 +1049,7 @@ async function handleSeasonSetupClick(event) {
       renderSeasonSetup();
 
       if (registered) {
-        await serverStatePersistenceController.requestSave();
-        await serverStatePersistenceController.flush();
+        await applicationPersistenceFacade.execute(() => undefined);
       }
     } catch (error) {
       appState.allServers = serverStateService.listServers();
@@ -1123,11 +1126,11 @@ async function handleSeasonSetupClick(event) {
     const ownershipSnapshot = serverStateService.captureTransactionState();
     let ownershipWasCleared = false;
     try {
-      serverStateService.replaceTerritoryOwnership({});
-      ownershipWasCleared = true;
-      await serverStatePersistenceController.requestSave();
-      await serverStatePersistenceController.flush();
-      await seasonAdministrationService.completeActiveSeason(localActor);
+      await applicationPersistenceFacade.execute(async () => {
+        serverStateService.replaceTerritoryOwnership({});
+        ownershipWasCleared = true;
+        await seasonAdministrationService.completeActiveSeason(localActor, { persist: false });
+      });
       seasonContext = {
         seasonId: activeSeason.seasonId,
         activated: false,
@@ -1142,12 +1145,6 @@ async function handleSeasonSetupClick(event) {
     } catch (error) {
       if (ownershipWasCleared) {
         serverStateService.restoreTransactionState(ownershipSnapshot);
-        try {
-          await serverStatePersistenceController.requestSave();
-          await serverStatePersistenceController.flush();
-        } catch (rollbackError) {
-          console.error("Unable to restore map ownership after season completion failed.", rollbackError);
-        }
       }
       seasonSetupState.errorMessage = error && error.message
         ? error.message
@@ -1612,20 +1609,12 @@ async function runDataManagementMutation(mutation) {
   renderDataManagement();
 
   try {
-    await mutation();
+    await applicationPersistenceFacade.execute(mutation);
     refreshUnionRegistryWorkspace();
     dataManagementState.mode = "list";
     dataManagementState.editingUnionId = null;
     refreshOwnershipView();
     refreshCommandCentreCards();
-    Promise.resolve()
-      .then(() => dataManagementPersistenceController.requestSave())
-      .catch((error) => {
-        dataManagementState.errorMessage = error && error.message
-          ? `The change was applied but could not be saved: ${error.message}`
-          : "The change was applied but could not be saved.";
-        renderDataManagement();
-      });
   } catch (error) {
     dataManagementState.errorMessage = error && error.message
       ? error.message
@@ -2833,37 +2822,28 @@ async function handleSelectionPanelChange(event) {
   ownerSelect.disabled = true;
 
   try {
-    if (isStructure) {
-      await mapOwnershipCoordinator.setStructureOwnership(localActor, {
-        seasonId: seasonIdentity.seasonId,
-        serverId: appState.activeServer,
-        structureId: selectedItem.id,
-        footprint: getStructureFootprint(selectedItem),
-        ownerUnionId: ownerId
-      });
-    } else {
-      await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
-        seasonId: seasonIdentity.seasonId,
-        serverId: appState.activeServer,
-        row: Number(selectedItem.row),
-        col: Number(selectedItem.col),
-        ownerUnionId: ownerId
-      });
-    }
+    await applicationPersistenceFacade.execute(async () => {
+      if (isStructure) {
+        await mapOwnershipCoordinator.setStructureOwnership(localActor, {
+          seasonId: seasonIdentity.seasonId,
+          serverId: appState.activeServer,
+          structureId: selectedItem.id,
+          footprint: getStructureFootprint(selectedItem),
+          ownerUnionId: ownerId
+        });
+      } else {
+        await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
+          seasonId: seasonIdentity.seasonId,
+          serverId: appState.activeServer,
+          row: Number(selectedItem.row),
+          col: Number(selectedItem.col),
+          ownerUnionId: ownerId
+        });
+      }
+    });
 
     refreshOwnershipView();
     refreshCommandCentreCards();
-    Promise.all([
-      serverStatePersistenceController.requestSave(),
-      dataManagementPersistenceController.requestSave()
-    ]).catch((error) => {
-      if (selectionState.selectedItem === selectedItem) {
-        selectionState.errorMessage = error && error.message
-          ? `Ownership changed but could not be saved: ${error.message}`
-          : "Ownership changed but could not be saved.";
-        renderSelectionPanel(selectedItem);
-      }
-    });
   } catch (error) {
     refreshOwnershipView();
     refreshCommandCentreCards();
@@ -3566,17 +3546,74 @@ function initializeDataManagementRuntime() {
   appState.dataManagementRuntime = dataManagementRuntime;
 }
 
+function createEmptyStrategicState() {
+  return {
+    relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [],
+    serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [],
+    targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: []
+  };
+}
+
 async function initializePersistedDataManagementDomains(bundledIdentities) {
-  const restored = await dataManagementPersistenceController.initialize({
-    seasonId: seasonIdentity.seasonId,
-    bundledIdentities
+  appState.unionRegistryService = createUnionRegistryServiceFactory(bundledIdentities);
+  appState.unionRegistry = appState.unionRegistryService.listUnionIdentities();
+  strategicDomainRuntime = createStrategicDomainRuntimeFactory({
+    modules: strategicDomainModules,
+    unionRegistryService: appState.unionRegistryService,
+    initialState: createEmptyStrategicState()
   });
-  appState.unionRegistryService = restored.unionRegistryService;
-  appState.unionRegistry = restored.unionRegistryService.listUnionIdentities();
-  strategicDomainRuntime = restored.strategicDomainRuntime;
-  evidenceDomainRuntime = restored.evidenceDomainRuntime;
+  evidenceDomainRuntime = createEvidenceDomainRuntimeFactory({
+    modules: evidenceDomainModules,
+    initialState: { assets: [], evidenceRecords: [] }
+  });
   appState.strategicDomainRuntime = strategicDomainRuntime;
   appState.evidenceDomainRuntime = evidenceDomainRuntime;
+}
+
+function initializeApplicationPersistence() {
+  const participants = [
+    appState.unionRegistryService,
+    strategicDomainRuntime.relationService,
+    strategicDomainRuntime.nativeAssignmentService,
+    strategicDomainRuntime.activeStatusService,
+    strategicDomainRuntime.combatStrengthObservationService,
+    strategicDomainRuntime.serverObservationService,
+    strategicDomainRuntime.ownershipRecordService,
+    strategicDomainRuntime.targetVerificationService,
+    strategicDomainRuntime.confirmedSnapshotService,
+    strategicDomainRuntime.activityFactHistoryService,
+    evidenceDomainRuntime.evidenceAssetService,
+    evidenceDomainRuntime.evidenceRecordService,
+    serverStateService,
+    seasonAdministrationService
+  ];
+  const mutationCoordinator = applicationMutationCoordinatorFactory({ participants });
+  const coordinator = applicationPersistenceCoordinatorFactory({
+    generationStore: persistenceStartup.generationStore,
+    mutationCoordinator,
+    legacyStateClassifier,
+    unionRegistryService: appState.unionRegistryService,
+    strategicDomainRuntime,
+    evidenceDomainRuntime,
+    serverStateService,
+    seasonAdministrationService,
+    serializeUnionRegistry: bootstrapPersistence.serializeUnionRegistry,
+    deserializeUnionRegistryEnvelope: bootstrapPersistence.deserializeUnionRegistryEnvelope,
+    serializeStrategicDomainRuntime: bootstrapPersistence.serializeStrategicDomainRuntime,
+    deserializeStrategicDomainEnvelope: bootstrapPersistence.deserializeStrategicDomainEnvelope,
+    serializeEvidenceRuntime: bootstrapPersistence.evidenceStateSerializer.serializeRuntime.bind(bootstrapPersistence.evidenceStateSerializer),
+    deserializeEvidenceEnvelope: bootstrapPersistence.evidenceStateSerializer.deserializeEnvelope.bind(bootstrapPersistence.evidenceStateSerializer),
+    serializeServerState: bootstrapPersistence.serializeServerState,
+    deserializeServerState: bootstrapPersistence.deserializeServerState,
+    seasonId: seasonIdentity.seasonId,
+    baseMapId: serverStateService.getBaseMapId(),
+    createTransactionId: createRuntimeId.bind(null, "transaction"),
+    clock: () => new Date(),
+    createApplicationPersistenceCoordinator: applicationPersistenceCompositionFactory
+  });
+  applicationPersistenceFacade = applicationPersistenceFacadeFactory({ coordinator });
+  bootstrapPersistence.setApplicationPersistenceFacade(applicationPersistenceFacade);
+  return applicationPersistenceFacade.load(persistenceStartup.legacyInput);
 }
 
 function initializeMap() {
@@ -3584,7 +3621,12 @@ function initializeMap() {
     .then(async ([mapData, bundledIdentities, seasonServerState]) => {
       await initializePersistedDataManagementDomains(bundledIdentities);
       initializeServerStateService(seasonServerState);
-      await serverStatePersistenceController.initialize(serverStateService);
+      const persistenceResult = await initializeApplicationPersistence();
+      if (persistenceResult.status === "recovery_required" || persistenceResult.status === "corrupt") {
+        const error = new Error(`Persistence recovery is required (${persistenceResult.reason}).`);
+        error.code = "recovery_required";
+        throw error;
+      }
       await ensureActiveSeasonServers(seasonContext.activated ? seasonContext : null);
       initializeDataManagementRuntime();
       appState.allServers = serverStateService.listServers();
@@ -3654,20 +3696,6 @@ function configureRenderer(bootstrapContext) {
     throw new Error("Renderer requires a server state service factory.");
   }
 
-  if (!bootstrapContext.serverStatePersistenceController
-      || typeof bootstrapContext.serverStatePersistenceController !== "object"
-      || typeof bootstrapContext.serverStatePersistenceController.initialize !== "function"
-      || typeof bootstrapContext.serverStatePersistenceController.requestSave !== "function"
-      || typeof bootstrapContext.serverStatePersistenceController.flush !== "function") {
-    throw new Error("Renderer requires a server state persistence controller.");
-  }
-
-  if (!bootstrapContext.dataManagementPersistenceController
-      || typeof bootstrapContext.dataManagementPersistenceController !== "object"
-      || typeof bootstrapContext.dataManagementPersistenceController.initialize !== "function"
-      || typeof bootstrapContext.dataManagementPersistenceController.requestSave !== "function") {
-    throw new Error("Renderer requires a data management persistence controller.");
-  }
 
   if (!bootstrapContext.seasonAdministrationService
       || typeof bootstrapContext.seasonAdministrationService !== "object"
@@ -3679,6 +3707,13 @@ function configureRenderer(bootstrapContext) {
       || typeof bootstrapContext.seasonAdministrationService.updateActiveSeasonServers !== "function"
       || typeof bootstrapContext.seasonAdministrationService.completeActiveSeason !== "function") {
     throw new Error("Renderer requires a Season Administration Service.");
+  }
+
+  if (!bootstrapContext.persistenceStartup
+      || !bootstrapContext.persistenceStartup.generationStore
+      || !bootstrapContext.persistenceStartup.legacyInput
+      || !bootstrapContext.persistenceStartup.persistenceBoundary) {
+    throw new Error("Renderer requires generation-first application persistence.");
   }
 
   if (!bootstrapContext.strategicNodeNetworkProjectionService
@@ -3717,7 +3752,23 @@ function configureRenderer(bootstrapContext) {
   summaryServiceFactory = bootstrapContext.summaryServiceFactory;
   serverStateServiceFactory = bootstrapContext.serverStateServiceFactory;
   serverStatePersistenceController = bootstrapContext.serverStatePersistenceController;
-  dataManagementPersistenceController = bootstrapContext.dataManagementPersistenceController;
+  bootstrapPersistence = bootstrapContext;
+  persistenceStartup = {
+    generationStore: bootstrapContext.generationStore,
+    legacyInput: bootstrapContext.legacyInput,
+    persistenceBoundary: bootstrapContext.persistenceBoundary
+  };
+  persistenceBoundary = bootstrapContext.persistenceBoundary;
+  createUnionRegistryServiceFactory = bootstrapContext.createUnionRegistryService;
+  createStrategicDomainRuntimeFactory = bootstrapContext.createStrategicDomainRuntime;
+  createEvidenceDomainRuntimeFactory = bootstrapContext.createEvidenceDomainRuntime;
+  strategicDomainModules = bootstrapContext.strategicDomainModules;
+  evidenceDomainModules = bootstrapContext.evidenceDomainModules;
+  applicationMutationCoordinatorFactory = bootstrapContext.createApplicationMutationCoordinator;
+  applicationPersistenceCoordinatorFactory = bootstrapContext.createWarMapApplicationPersistenceCoordinator;
+  applicationPersistenceCompositionFactory = bootstrapContext.createApplicationPersistenceCoordinator;
+  applicationPersistenceFacadeFactory = bootstrapContext.createApplicationPersistenceFacade;
+  legacyStateClassifier = bootstrapContext.legacyStateClassifier;
   seasonAdministrationService = bootstrapContext.seasonAdministrationService;
   seasonContext = bootstrapContext.seasonContext;
 

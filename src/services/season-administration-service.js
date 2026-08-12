@@ -4,6 +4,8 @@
     "validateSeasonPackage",
     "authorizationPolicyService",
     "storageAdapter",
+    "persistenceCoordinator",
+    "initialState",
     "clock"
   ]);
   const ACTIVATION_FIELDS = new Set([
@@ -284,10 +286,13 @@
       "options.authorizationPolicyService",
       ["requireAuthorized"]
     );
-    const storage = bindInterface(config.storageAdapter, "options.storageAdapter", [
-      "loadEnvelope",
-      "saveEnvelope"
-    ]);
+    const storage = config.storageAdapter
+      ? bindInterface(config.storageAdapter, "options.storageAdapter", ["loadEnvelope", "saveEnvelope"])
+      : null;
+    const persistence = config.persistenceCoordinator
+      ? bindInterface(config.persistenceCoordinator, "options.persistenceCoordinator", ["execute"])
+      : null;
+    if (!storage && !persistence) fail("invalid_input", "Season Administration requires persistenceCoordinator or storageAdapter.");
     const packagesBySeasonId = new Map();
 
     config.preparedPackages.forEach((candidate, index) => {
@@ -314,11 +319,27 @@
 
     async function initialize() {
       if (initialized) return getActiveSeason();
-      const stored = await storage.loadEnvelope(STORAGE_IDENTITY);
-      administrationState = stored === null || stored === undefined
-        ? { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
-        : normalizeAdministrationState(stored, packagesBySeasonId);
+      if (Object.prototype.hasOwnProperty.call(config, "initialState") && config.initialState !== undefined) {
+        administrationState = normalizeAdministrationState(config.initialState, packagesBySeasonId);
+      } else {
+        const stored = await storage.loadEnvelope(STORAGE_IDENTITY);
+        administrationState = stored === null || stored === undefined
+          ? { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
+          : normalizeAdministrationState(stored, packagesBySeasonId);
+      }
       initialized = true;
+      return getActiveSeason();
+    }
+
+    async function persistState(nextState) {
+      if (persistence) {
+        return persistence.execute(() => {
+          administrationState = nextState;
+          return getActiveSeason();
+        });
+      }
+      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
+      administrationState = nextState;
       return getActiveSeason();
     }
 
@@ -392,9 +413,7 @@
         activeSeason: activation,
         completedSeasons: safeClone(administrationState.completedSeasons)
       };
-      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
-      administrationState = nextState;
-      return getActiveSeason();
+      return persistState(nextState);
     }
 
     async function updateActiveSeasonServers(actor, serverIdsValue) {
@@ -414,12 +433,10 @@
         activeSeason: updatedActiveSeason,
         completedSeasons: safeClone(administrationState.completedSeasons)
       };
-      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
-      administrationState = nextState;
-      return getActiveSeason();
+      return persistState(nextState);
     }
 
-    async function completeActiveSeason(actor) {
+    async function completeActiveSeason(actor, options) {
       requireInitialized();
       const activeSeason = administrationState.activeSeason;
       if (!activeSeason) fail("no_active_season", "There is no active season to complete.");
@@ -444,9 +461,20 @@
         activeSeason: null,
         completedSeasons: administrationState.completedSeasons.concat([completion])
       };
-      await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
-      administrationState = nextState;
+      if (options && options.persist === false) {
+        administrationState = nextState;
+      } else {
+        await persistState(nextState);
+      }
       return safeClone(completion);
+    }
+
+    function captureTransactionState() {
+      return safeClone(administrationState);
+    }
+
+    function restoreTransactionState(snapshot) {
+      administrationState = normalizeAdministrationState(snapshot, packagesBySeasonId);
     }
 
     return Object.freeze({
@@ -458,6 +486,8 @@
       activateSeason,
       updateActiveSeasonServers,
       completeActiveSeason
+      ,captureTransactionState
+      ,restoreTransactionState
     });
   }
 
