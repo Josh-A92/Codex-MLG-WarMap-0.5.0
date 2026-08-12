@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const renderer = fs.readFileSync(path.join(root, "src", "map-renderer.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
+const { SEASON_2_PACKAGE } = require("../src/seasons/season2-package.js");
 
 function test(name, fn) {
   try {
@@ -237,6 +238,12 @@ test("draft Season 2 uses the preview-only branch without activation controls", 
   assert.match(renderSeasonSetupSource, /if \(activeSeason\) \{[\s\S]*renderPreparedSeasonSelector\(seasonSetupContent, preparedSeasons\);[\s\S]*renderDraftSeasonPreview\(seasonSetupContent, preparedView\);[\s\S]*return;/);
   assert.match(renderSeasonSetupSource, /if \(preparedView\.summary\.seasonStatus !== "active"\) \{[\s\S]*renderPreparedSeasonSelector\(seasonSetupContent, preparedSeasons\);[\s\S]*renderDraftSeasonPreview\(seasonSetupContent, preparedView\);[\s\S]*return;/);
   assert.doesNotMatch(renderSeasonSetupSource, /renderSeasonSetupActions\(seasonSetupContent, canContinue\);[\s\S]*renderSeasonSetupActions\(seasonSetupContent, canContinue\);/);
+});
+
+test("real bundled Season 2 status reaches the preview-only branch", () => {
+  assert.strictEqual(SEASON_2_PACKAGE.packageIdentity.seasonStatus, "draft");
+  assert.match(renderer, /if \(preparedView\.summary\.seasonStatus !== "active"\) \{[\s\S]*renderDraftSeasonPreview\(seasonSetupContent, preparedView\);/);
+  assert.match(renderer, /data-season-setup-action", "load-preview"/);
 });
 
 test("preview loading uses the prepared summary map reference", () => {

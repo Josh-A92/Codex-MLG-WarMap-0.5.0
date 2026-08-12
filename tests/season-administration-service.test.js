@@ -65,7 +65,7 @@ test("lists validated prepared seasons using package-driven summaries", () => {
   });
   const seasonTwo = listed.find((entry) => entry.seasonId === "season-2");
   assert.ok(seasonTwo);
-  assert.strictEqual(seasonTwo.seasonStatus, "active");
+  assert.strictEqual(seasonTwo.seasonStatus, "draft");
   assert.strictEqual(seasonTwo.map.topologyType, "strategic_node_network");
   assert.strictEqual(seasonTwo.map.mapDataRef, "data/season2-map.json");
   assert.strictEqual(listed[0].structures.length, 17);
@@ -228,9 +228,7 @@ test("authorized activation persists one canonical envelope and returns a safe c
 });
 
 test("draft prepared seasons cannot be activated and preserve the current active selection", async () => {
-  const draftSeasonTwo = clone(SEASON_2_PACKAGE);
-  draftSeasonTwo.packageIdentity.seasonStatus = "draft";
-  const { service, calls } = createSetup({ preparedPackages: [SEASON_1_PACKAGE, draftSeasonTwo] });
+  const { service, calls } = createSetup();
   await service.initialize();
   await assert.rejects(
     () => service.activateSeason({ actorId: "admin" }, activationRequest({ seasonId: "season-2" })),
@@ -241,8 +239,6 @@ test("draft prepared seasons cannot be activated and preserve the current active
 });
 
 test("draft Season 2 activation does not replace an existing active Season 1 activation", async () => {
-  const draftSeasonTwo = clone(SEASON_2_PACKAGE);
-  draftSeasonTwo.packageIdentity.seasonStatus = "draft";
   const stored = {
     schemaVersion: 1,
     seasonId: "season-1",
@@ -252,7 +248,7 @@ test("draft Season 2 activation does not replace an existing active Season 1 act
     activatedAt: "2026-07-31T10:00:00.000Z",
     activatedBy: "admin-1"
   };
-  const { service, calls } = createSetup({ preparedPackages: [SEASON_1_PACKAGE, draftSeasonTwo], stored });
+  const { service, calls } = createSetup({ stored });
   await service.initialize();
   await assert.rejects(
     () => service.activateSeason({ actorId: "admin" }, activationRequest({ seasonId: "season-2" })),

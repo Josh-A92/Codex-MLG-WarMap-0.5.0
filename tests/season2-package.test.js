@@ -24,6 +24,7 @@ runTest("SEASON_2_PACKAGE validates with no errors or warnings", () => {
   assert.strictEqual(result.valid, true);
   assert.deepStrictEqual(result.errors, []);
   assert.deepStrictEqual(result.warnings, []);
+  assert.strictEqual(SEASON_2_PACKAGE.packageIdentity.seasonStatus, "draft");
   assert.strictEqual(Object.prototype.hasOwnProperty.call(seasonIdentity, "kingdomNumber"), false);
 });
 
