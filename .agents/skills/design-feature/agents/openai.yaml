@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Feature"
+  short_description: "Turn settled intent into bounded engineering work"
+  default_prompt: "Use $design-feature to convert this settled WarMap feature into a bounded implementation specification."

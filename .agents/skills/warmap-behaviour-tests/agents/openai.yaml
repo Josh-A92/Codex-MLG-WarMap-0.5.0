@@ -1,0 +1,4 @@
+interface:
+  display_name: "WarMap Behaviour Tests"
+  short_description: "Design rule-focused WarMap regression tests"
+  default_prompt: "Use $warmap-behaviour-tests to turn this WarMap behaviour into implementation-independent regression tests."

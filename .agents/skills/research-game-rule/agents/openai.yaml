@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Game Rule"
+  short_description: "Verify X-Clash mechanics before implementation"
+  default_prompt: "Use $research-game-rule to establish the evidence and certainty level for this X-Clash mechanic before coding it."

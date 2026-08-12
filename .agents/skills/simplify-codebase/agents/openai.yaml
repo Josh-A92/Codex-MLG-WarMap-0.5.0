@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify Codebase"
+  short_description: "Reduce complexity without changing behaviour"
+  default_prompt: "Use $simplify-codebase to identify safe, behaviour-preserving simplifications in this stable WarMap milestone."

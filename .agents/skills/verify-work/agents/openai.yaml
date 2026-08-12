@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Work"
+  short_description: "Prove implementation claims with real evidence"
+  default_prompt: "Use $verify-work to verify that this WarMap task was actually completed and tested as claimed."

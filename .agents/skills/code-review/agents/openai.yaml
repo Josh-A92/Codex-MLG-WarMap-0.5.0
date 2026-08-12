@@ -1,0 +1,4 @@
+interface:
+  display_name: "WarMap Code Review"
+  short_description: "Review changes for defects and spec compliance"
+  default_prompt: "Use $code-review to review these WarMap changes against the repository rules and accepted specification."

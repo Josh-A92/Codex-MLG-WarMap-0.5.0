@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve Codebase Architecture"
+  short_description: "Review WarMap structural boundaries and debt"
+  default_prompt: "Use $improve-codebase-architecture to identify and classify the most important architectural issues in this WarMap codebase."
