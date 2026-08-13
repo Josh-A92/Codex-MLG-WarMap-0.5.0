@@ -1,4 +1,8 @@
 (function initializeWarMapApplicationPersistenceComposition(globalScope) {
+  const codecExports = typeof globalScope.createApplicationDocumentCodec === "function"
+    ? globalScope
+    : (typeof require === "function" ? require("./application-document-codec.js") : {});
+
   function createWarMapApplicationPersistenceCoordinator(options) {
     const input = options || {};
     const required = [
@@ -14,6 +18,26 @@
     required.forEach((field) => { if (typeof input[field] === "undefined") throw new TypeError(`Missing ${field}.`); });
     const provenanceState = input.ownershipHistoryProvenanceStateService || null;
     const provenanceSerializer = input.ownershipHistoryProvenanceSerializer || null;
+    if (typeof codecExports.createApplicationDocumentCodec !== "function") throw new TypeError("Missing application document codec.");
+    const documentCodec = codecExports.createApplicationDocumentCodec({
+      seasonId: input.seasonId,
+      baseMapId: input.baseMapId,
+      services: {
+        unionRegistryService: input.unionRegistryService,
+        strategicDomainRuntime: input.strategicDomainRuntime,
+        evidenceDomainRuntime: input.evidenceDomainRuntime,
+        serverStateService: input.serverStateService,
+        seasonAdministrationService: input.seasonAdministrationService,
+        applicationAuditRecordService: input.applicationAuditRecordService,
+        ownershipHistoryProvenanceStateService: provenanceState
+      },
+      provenanceSerializer,
+      deserializeUnionRegistryEnvelope: input.deserializeUnionRegistryEnvelope,
+      deserializeStrategicDomainEnvelope: input.deserializeStrategicDomainEnvelope,
+      deserializeEvidenceEnvelope: input.deserializeEvidenceEnvelope,
+      deserializeServerState: input.deserializeServerState,
+      deserializeApplicationAuditEnvelope: input.deserializeApplicationAuditEnvelope
+    });
 
     function serializeDocuments() {
       const clockValue = input.clock();
@@ -32,57 +56,13 @@
       return documents;
     }
 
-    async function deserializeDocuments(documents) {
-      const values = Object.fromEntries(documents.map((document) => [document.documentId, document.value]));
-      const provenanceDocumentId = provenanceSerializer ? provenanceSerializer.createDocumentId(input.seasonId, input.baseMapId) : null;
-      return {
-        unionRegistry: input.deserializeUnionRegistryEnvelope(values["union-registry-global"]),
-        strategicDomain: input.deserializeStrategicDomainEnvelope(values[`strategic-${input.seasonId}`]),
-        evidenceDomain: input.deserializeEvidenceEnvelope(values[`evidence-${input.seasonId}`]),
-        serverState: input.deserializeServerState(values[`projection-${input.seasonId}-${input.baseMapId}`])
-        , seasonAdministration: values["season-administration"] || { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
-        , applicationAudit: values["application-audit-global"] ? input.deserializeApplicationAuditEnvelope(values["application-audit-global"]) : { schemaVersion: 1, records: [] }
-        , ownershipHistoryProvenance: provenanceState && provenanceSerializer ? (Object.prototype.hasOwnProperty.call(values, provenanceDocumentId) ? provenanceSerializer.deserialize(values[provenanceDocumentId], { seasonId: input.seasonId, baseMapId: input.baseMapId, activeSeasonId: input.seasonId }) : { status: "unknown_provenance", seasonId: input.seasonId, baseMapId: input.baseMapId, records: [] }) : null
-      };
-    }
-
-    async function applyState(state) {
-      input.unionRegistryService.restoreTransactionState(state.unionRegistry.identities);
-      input.strategicDomainRuntime.relationService.restoreTransactionState(state.strategicDomain.state.relations);
-      input.strategicDomainRuntime.nativeAssignmentService.restoreTransactionState(state.strategicDomain.state.nativeAssignments);
-      input.strategicDomainRuntime.activeStatusService.restoreTransactionState(state.strategicDomain.state.activeStatuses);
-      input.strategicDomainRuntime.combatStrengthObservationService.restoreTransactionState(state.strategicDomain.state.combatStrengthObservations);
-      input.strategicDomainRuntime.serverObservationService.restoreTransactionState(state.strategicDomain.state.serverObservations);
-      input.strategicDomainRuntime.ownershipRecordService.restoreTransactionState({
-        territoryRecords: state.strategicDomain.state.territoryOwnershipRecords,
-        structureRecords: state.strategicDomain.state.structureOwnershipRecords
-      });
-      input.strategicDomainRuntime.targetVerificationService.restoreTransactionState(state.strategicDomain.state.targetVerifications);
-      input.strategicDomainRuntime.confirmedSnapshotService.restoreTransactionState(state.strategicDomain.state.confirmedSnapshots);
-      input.strategicDomainRuntime.activityFactHistoryService.restoreTransactionState({
-        confirmedPresenceFacts: state.strategicDomain.state.confirmedPresenceFacts,
-        qualifyingFullMapConfirmations: state.strategicDomain.state.qualifyingFullMapConfirmations
-      });
-      input.evidenceDomainRuntime.evidenceAssetService.restoreTransactionState(state.evidenceDomain.assets);
-      input.evidenceDomainRuntime.evidenceRecordService.restoreTransactionState(state.evidenceDomain.evidenceRecords);
-      state.serverState.servers.forEach((server) => {
-        if (!input.serverStateService.hasServer(server.id)) {
-          input.serverStateService.registerServer({ id: server.id, label: server.label || server.id });
-        }
-      });
-      input.serverStateService.replaceTerritoryOwnership(Object.fromEntries(state.serverState.servers.map((server) => [server.id, server.ownership])));
-      input.seasonAdministrationService.restoreTransactionState(state.seasonAdministration);
-      input.applicationAuditRecordService.restoreTransactionState(state.applicationAudit.records);
-      if (provenanceState && state.ownershipHistoryProvenance) provenanceState.restoreState(state.ownershipHistoryProvenance.status === "present" ? { status: "present", document: state.ownershipHistoryProvenance.document } : { status: "unknown_provenance" });
-    }
-
     return input.createApplicationPersistenceCoordinator({
       generationStore: input.generationStore,
       mutationCoordinator: input.mutationCoordinator,
       legacyStateClassifier: input.legacyStateClassifier,
       serializeDocuments,
-      deserializeDocuments,
-      applyState,
+      deserializeDocuments: documentCodec.deserializeDocuments,
+      applyState: documentCodec.applyState,
       clock: input.clock,
       createTransactionId: input.createTransactionId,
       ownershipProjectionReplacementCoordinator: input.ownershipProjectionReplacementCoordinator
