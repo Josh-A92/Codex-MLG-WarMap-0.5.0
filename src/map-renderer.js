@@ -26,6 +26,7 @@ let applicationMutationCoordinatorFactory = null;
 let applicationPersistenceCoordinatorFactory = null;
 let applicationPersistenceFacadeFactory = null;
 let legacyStateClassifier = null;
+let applicationAuditRecordService = null;
 let bootstrapPersistence = null;
 let seasonAdministrationService = null;
 let seasonContext = null;
@@ -3571,6 +3572,13 @@ async function initializePersistedDataManagementDomains(bundledIdentities) {
 }
 
 function initializeApplicationPersistence() {
+  applicationAuditRecordService = bootstrapPersistence.createApplicationAuditRecordService({
+    initialRecords: [],
+    validateAuditRecord: bootstrapPersistence.validateApplicationAuditRecord,
+    validateAuditHistory: bootstrapPersistence.validateApplicationAuditHistory,
+    createAuditId: createRuntimeId.bind(null, "audit"),
+    clock: () => new Date()
+  });
   const participants = [
     appState.unionRegistryService,
     strategicDomainRuntime.relationService,
@@ -3585,7 +3593,8 @@ function initializeApplicationPersistence() {
     evidenceDomainRuntime.evidenceAssetService,
     evidenceDomainRuntime.evidenceRecordService,
     serverStateService,
-    seasonAdministrationService
+    seasonAdministrationService,
+    applicationAuditRecordService
   ];
   const mutationCoordinator = applicationMutationCoordinatorFactory({ participants });
   const coordinator = applicationPersistenceCoordinatorFactory({
@@ -3597,6 +3606,9 @@ function initializeApplicationPersistence() {
     evidenceDomainRuntime,
     serverStateService,
     seasonAdministrationService,
+    applicationAuditRecordService,
+    serializeApplicationAuditRecords: bootstrapPersistence.createApplicationAuditRecordSerializer({ validateAuditHistory: bootstrapPersistence.validateApplicationAuditHistory }).serializeRecords,
+    deserializeApplicationAuditEnvelope: bootstrapPersistence.createApplicationAuditRecordSerializer({ validateAuditHistory: bootstrapPersistence.validateApplicationAuditHistory }).deserializeEnvelope,
     serializeUnionRegistry: bootstrapPersistence.serializeUnionRegistry,
     deserializeUnionRegistryEnvelope: bootstrapPersistence.deserializeUnionRegistryEnvelope,
     serializeStrategicDomainRuntime: bootstrapPersistence.serializeStrategicDomainRuntime,

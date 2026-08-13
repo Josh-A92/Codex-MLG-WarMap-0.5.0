@@ -259,6 +259,10 @@
         safeScope.createApplicationPersistenceFacade,
         "createApplicationPersistenceFacade"
       );
+      const createApplicationAuditRecordService = safeScope.createApplicationAuditRecordService;
+      const validateApplicationAuditRecord = safeScope.validateAuditRecord;
+      const validateApplicationAuditHistory = safeScope.validateAuditHistory;
+      const createApplicationAuditRecordSerializer = safeScope.createApplicationAuditRecordSerializer;
       const createLegacyStateClassifier = requireFunction(
         safeScope.createLegacyStateClassifier,
         "createLegacyStateClassifier"
@@ -450,6 +454,10 @@
         ,createWarMapApplicationPersistenceCoordinator
         ,createApplicationPersistenceCoordinator
         ,createApplicationPersistenceFacade
+        ,createApplicationAuditRecordService
+        ,validateApplicationAuditRecord
+        ,validateApplicationAuditHistory
+        ,createApplicationAuditRecordSerializer
         ,strategicDomainModules
         ,evidenceDomainModules
         ,createUnionRegistryService

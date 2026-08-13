@@ -4,6 +4,7 @@
     const required = [
       "generationStore", "mutationCoordinator", "legacyStateClassifier", "unionRegistryService",
       "strategicDomainRuntime", "evidenceDomainRuntime", "serverStateService", "seasonAdministrationService",
+      "applicationAuditRecordService", "serializeApplicationAuditRecords", "deserializeApplicationAuditEnvelope",
       "serializeUnionRegistry", "deserializeUnionRegistryEnvelope",
       "serializeStrategicDomainRuntime", "deserializeStrategicDomainEnvelope",
       "serializeEvidenceRuntime", "deserializeEvidenceEnvelope",
@@ -21,6 +22,7 @@
         { documentId: `evidence-${input.seasonId}`, scope: input.seasonId, type: "evidence-domain", value: input.serializeEvidenceRuntime(input.evidenceDomainRuntime, savedAt) },
         { documentId: `projection-${input.seasonId}-${input.baseMapId}`, scope: `${input.seasonId}/${input.baseMapId}`, type: "server-state", value: input.serializeServerState(input.serverStateService, savedAt) }
         , { documentId: "season-administration", scope: "global", type: "season-administration", value: input.seasonAdministrationService.captureTransactionState() }
+        , { documentId: "application-audit-global", scope: "global", type: "application-audit", value: input.serializeApplicationAuditRecords(input.applicationAuditRecordService.listRecords()) }
       ];
     }
 
@@ -32,6 +34,7 @@
         evidenceDomain: input.deserializeEvidenceEnvelope(values[`evidence-${input.seasonId}`]),
         serverState: input.deserializeServerState(values[`projection-${input.seasonId}-${input.baseMapId}`])
         , seasonAdministration: values["season-administration"] || { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
+        , applicationAudit: values["application-audit-global"] ? input.deserializeApplicationAuditEnvelope(values["application-audit-global"]) : { schemaVersion: 1, records: [] }
       };
     }
 
@@ -61,6 +64,7 @@
       });
       input.serverStateService.replaceTerritoryOwnership(Object.fromEntries(state.serverState.servers.map((server) => [server.id, server.ownership])));
       input.seasonAdministrationService.restoreTransactionState(state.seasonAdministration);
+      input.applicationAuditRecordService.restoreTransactionState(state.applicationAudit.records);
     }
 
     return input.createApplicationPersistenceCoordinator({

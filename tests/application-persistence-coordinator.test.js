@@ -2,6 +2,9 @@ const assert = require("assert");
 const { createApplicationMutationCoordinator } = require("../src/services/application-mutation-coordinator.js");
 const { createApplicationPersistenceCoordinator } = require("../src/services/application-persistence-coordinator.js");
 const { createWarMapApplicationPersistenceCoordinator } = require("../src/services/warmap-application-persistence-composition.js");
+const { createApplicationAuditRecordService } = require("../src/services/application-audit-record-service.js");
+const { validateAuditRecord, validateAuditHistory } = require("../src/services/application-audit-record-validator.js");
+const { createApplicationAuditRecordSerializer } = require("../src/services/application-audit-record-serializer.js");
 
 function participant(value) {
   return {
@@ -35,8 +38,14 @@ function baseOptions(overrides = {}) {
 
 (async () => {
   const timestamps = [];
+  const applicationAuditRecordService = createApplicationAuditRecordService({
+    initialRecords: [], validateAuditRecord, validateAuditHistory,
+    createAuditId: () => "audit-test", clock: () => new Date("2026-08-12T12:00:00.000Z")
+  });
+  const auditSerializer = createApplicationAuditRecordSerializer({ validateAuditHistory });
+  let committedDocuments = null;
   const compositionOptions = {
-    generationStore: { async loadCommittedGeneration() { return { status: "missing" }; }, async commit() { return { generation: 1 }; } },
+    generationStore: { async loadCommittedGeneration() { return { status: "missing" }; }, async commit(payload) { committedDocuments = payload.documents; return { generation: 1 }; } },
     mutationCoordinator: createApplicationMutationCoordinator({ participants: [participant(1)] }),
     legacyStateClassifier: { classify: () => ({ status: "first_run" }) },
     unionRegistryService: {}, strategicDomainRuntime: {}, evidenceDomainRuntime: {}, serverStateService: {},
@@ -44,6 +53,9 @@ function baseOptions(overrides = {}) {
       captureTransactionState: () => ({ schemaVersion: 2, activeSeason: null, completedSeasons: [] }),
       restoreTransactionState: () => {}
     },
+    applicationAuditRecordService,
+    serializeApplicationAuditRecords: auditSerializer.serializeRecords,
+    deserializeApplicationAuditEnvelope: auditSerializer.deserializeEnvelope,
     serializeUnionRegistry: (_value, savedAt) => { timestamps.push(savedAt); return {}; },
     deserializeUnionRegistryEnvelope: (value) => value,
     serializeStrategicDomainRuntime: (_value, _season, savedAt) => { timestamps.push(savedAt); return {}; },
@@ -62,6 +74,8 @@ function baseOptions(overrides = {}) {
   const composed = createWarMapApplicationPersistenceCoordinator(compositionOptions);
   await composed.commitCurrent();
   assert.strictEqual(new Set(timestamps).size, 1);
+  assert.strictEqual(committedDocuments.filter((document) => document.documentId === "application-audit-global").length, 1);
+  assert.strictEqual(committedDocuments.find((document) => document.documentId === "application-audit-global").type, "application-audit");
 
   const context = baseOptions({
     applyState: async () => {

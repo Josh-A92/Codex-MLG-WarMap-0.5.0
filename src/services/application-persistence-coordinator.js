@@ -61,7 +61,12 @@
       const current = await loadGeneration();
       if (current.status === "committed") {
         expectedGeneration = current.manifest.generation;
-        const state = await deserializeDocuments(current.documents);
+        let state;
+        try {
+          state = await deserializeDocuments(current.documents);
+        } catch (_error) {
+          return { status: "recovery_required", reason: "generation_document_invalid" };
+        }
         await mutation(() => applyState(state), async () => {});
         return { status: "committed", generation: expectedGeneration, source: current.source, state };
       }
