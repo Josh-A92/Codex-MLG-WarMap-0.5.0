@@ -976,6 +976,7 @@ runTest("index.html loads canonical dependencies in order and no season1-definit
     'src="src/services/union-registry-service.js"',
     'src="src/services/union-matching-service.js"',
     'src="src/services/union-server-season-relation-service.js"',
+    'src="src/services/temporal-metadata-contract.js"',
     'src="src/services/native-union-assignment-validator.js"',
     'src="src/services/native-union-assignment-service.js"',
     'src="src/services/active-union-status-validator.js"',
