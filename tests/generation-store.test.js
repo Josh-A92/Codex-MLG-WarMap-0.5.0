@@ -494,6 +494,121 @@ test("ordinary committed loading ignores candidate and temporary files", async (
   });
 });
 
+async function prepareCandidate(store, expectedCurrent, value = "candidate") {
+  return store.prepare({
+    expectedCurrent: generationIdentity(expectedCurrent),
+    transactionId: `publish-${value}`,
+    createdAt: "2026-08-12T12:02:00.000Z",
+    documents: documentSet(value)
+  });
+}
+
+test("publish requires fresh verification and preserves the prior generation on rejection", async () => {
+  await withStore(async (directory, store) => {
+    await commitInitial(store);
+    const current = await store.loadCommittedGeneration();
+    const prepared = await prepareCandidate(store, current);
+    let verificationCalls = 0;
+    await assert.rejects(
+      () => store.publish(prepared.candidate, async (candidate) => {
+        verificationCalls += 1;
+        const fresh = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+        const reopened = await fresh.loadCandidate(candidate.candidate);
+        assert.strictEqual(reopened.status, "prepared");
+        return false;
+      }),
+      (error) => error instanceof GenerationStoreError && error.code === "verification_rejected"
+    );
+    assert.strictEqual(verificationCalls, 1);
+    assert.strictEqual((await store.loadCommittedGeneration()).manifest.generation, 1);
+  });
+});
+
+test("publish rejects candidate tampering and missing files before head movement", async () => {
+  await withStore(async (directory, store) => {
+    await commitInitial(store);
+    const current = await store.loadCommittedGeneration();
+    const prepared = await prepareCandidate(store, current, "tamper");
+    const candidateDocument = prepared.candidate.documents.find((document) => document.documentId === "season-1");
+    const candidatePath = path.join(directory, "documents", candidateDocument.fileName);
+    await assert.rejects(() => store.publish(prepared.candidate, async () => {
+      await fs.promises.writeFile(candidatePath, JSON.stringify({ changed: true }), "utf8");
+      return true;
+    }), (error) => error instanceof GenerationStoreError && error.code === "candidate_checksum_mismatch");
+    assert.strictEqual((await store.loadCommittedGeneration()).manifest.generation, 1);
+
+    const missingPrepared = await prepareCandidate(store, current, "missing");
+    const missingDocument = missingPrepared.candidate.documents.find((document) => document.documentId === "season-1");
+    await fs.promises.unlink(path.join(directory, "documents", missingDocument.fileName));
+    await assert.rejects(() => store.publish(missingPrepared.candidate, async () => true), /Candidate document/);
+    assert.strictEqual((await store.loadCommittedGeneration()).manifest.generation, 1);
+  });
+});
+
+test("publish rejects a changed current generation and concurrent publication is idempotent", async () => {
+  await withStore(async (directory) => {
+    const first = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+    await commitInitial(first);
+    const current = await first.loadCommittedGeneration();
+    const prepared = await prepareCandidate(first, current, "stale");
+    const concurrent = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+    await concurrent.commit({ expectedGeneration: 1, transactionId: "concurrent", createdAt: "2026-08-12T12:03:00.000Z", documents: documentSet("concurrent") });
+    await assert.rejects(() => first.publish(prepared.candidate, async () => true), (error) => error instanceof GenerationStoreError && error.code === "stale_candidate");
+    assert.strictEqual((await first.loadCommittedGeneration()).manifest.generation, 2);
+
+    const retryCurrent = await concurrent.loadCommittedGeneration();
+    const retryCandidate = await prepareCandidate(concurrent, retryCurrent, "retry");
+    const published = await concurrent.publish(retryCandidate.candidate, async () => true);
+    assert.strictEqual(published.status, "published");
+    const retry = await concurrent.publish(retryCandidate.candidate, async () => { throw new Error("must not reverify an already current candidate"); });
+    assert.strictEqual(retry.status, "already_published");
+  });
+});
+
+test("publish pointer failures leave the prior generation current and readable", async () => {
+  for (const target of ["PREVIOUS", "CURRENT"]) {
+    await withStore(async (directory) => {
+      const baseStore = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+      await commitInitial(baseStore);
+      const current = await baseStore.loadCommittedGeneration();
+      const prepared = await prepareCandidate(baseStore, current, `pointer-${target}`);
+      const failingStore = createGenerationStore({
+        baseDirectory: directory,
+        fileSystem: failingFileSystem((_name, args) => args.some((arg) => String(arg).includes(target)))
+      });
+      await assert.rejects(() => failingStore.publish(prepared.candidate, async () => true), /injected/);
+      const loaded = await baseStore.loadCommittedGeneration();
+      assert.strictEqual(loaded.status, "committed", target);
+      assert.strictEqual(loaded.manifest.generation, 1, target);
+      assert.deepStrictEqual(loaded.documents.find((document) => document.documentId === "shared").value, { value: "one" }, target);
+    });
+  }
+});
+
+test("successful publication moves CURRENT and preserves PREVIOUS as fallback", async () => {
+  await withStore(async (directory) => {
+    const store = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+    await commitInitial(store);
+    const current = await store.loadCommittedGeneration();
+    const prepared = await prepareCandidate(store, current, "success");
+    const published = await store.publish(prepared.candidate, async (candidate) => {
+      const fresh = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+      const loaded = await fresh.loadCandidate(candidate.candidate);
+      assert.deepStrictEqual(loaded.documents.find((document) => document.documentId === "season-1").value, { value: "success" });
+      return true;
+    });
+    assert.strictEqual(published.status, "published");
+    const loaded = await store.loadCommittedGeneration();
+    assert.strictEqual(loaded.source, "current");
+    assert.strictEqual(loaded.manifest.generation, 2);
+    assert.deepStrictEqual(loaded.documents.find((document) => document.documentId === "season-1").value, { value: "success" });
+    await fs.promises.unlink(path.join(directory, "CURRENT"));
+    const fallback = await store.loadCommittedGeneration();
+    assert.strictEqual(fallback.source, "previous");
+    assert.strictEqual(fallback.manifest.generation, 1);
+  });
+});
+
 (async () => {
   let passed = 0;
   for (const entry of tests) {

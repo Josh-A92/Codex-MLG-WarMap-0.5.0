@@ -152,9 +152,8 @@ function createGenerationStore(options) {
   }
 
   function currentIdentity(committed) {
-    return committed.status === "committed"
-      ? { generation: committed.manifest.generation, manifestFile: committed.pointer.manifestFile, manifestSha256: committed.pointer.manifestSha256 }
-      : null;
+    if (!isRecord(committed) || !isRecord(committed.manifest) || !isRecord(committed.pointer)) return null;
+    return { generation: committed.manifest.generation, manifestFile: committed.pointer.manifestFile, manifestSha256: committed.pointer.manifestSha256 };
   }
 
   function canonical(value) {
@@ -180,6 +179,8 @@ function createGenerationStore(options) {
     const generation = requireGeneration(value.generation, "candidate.generation");
     const manifestFile = requireCandidateString(value.manifestFile, "candidate.manifestFile");
     const manifestSha256 = requireCandidateString(value.manifestSha256, "candidate.manifestSha256");
+    const expectedGeneration = expectedCurrent === null ? 1 : expectedCurrent.generation + 1;
+    if (generation !== expectedGeneration) throw new GenerationStoreError("invalid_candidate", "candidate.generation does not follow expectedCurrent.");
     if (manifestFile !== `${CANDIDATE_PREFIX}${candidateIdValue}.json`) throw new GenerationStoreError("invalid_candidate", "candidate.manifestFile does not match candidateId.");
     const documents = Array.isArray(value.documents) ? value.documents.map((document, index) => {
       if (!isRecord(document)) throw new GenerationStoreError("invalid_candidate", `candidate.documents[${index}] must be an object.`);
@@ -375,6 +376,61 @@ function createGenerationStore(options) {
     return { status: "prepared", candidate: clone(candidate), manifest: clone(manifest), documents: clone(documents) };
   }
 
+  async function readCurrentIdentity() {
+    const pointer = await readPointer(CURRENT_FILE);
+    if (!pointer) return null;
+    const pointed = await validatePointedGeneration(pointer);
+    return currentIdentity(pointed);
+  }
+
+  function publish(value, verify) {
+    return queueCommit(async () => {
+      if (typeof verify !== "function") throw new GenerationStoreError("verification_required", "publish requires a verification callback.");
+      const candidate = validateCandidateDescriptor(value);
+      const current = await readCurrentIdentity();
+      const candidateIdentity = { generation: candidate.generation, manifestFile: candidate.manifestFile, manifestSha256: candidate.manifestSha256 };
+      if (canonical(current) === canonical(candidateIdentity)) return { status: "already_published", candidate: clone(candidate) };
+      if (canonical(current) !== canonical(candidate.expectedCurrent)) throw new GenerationStoreError("stale_candidate", "Current generation changed since candidate preparation.");
+
+      const beforeVerification = await loadCandidate(candidate);
+      const verificationResult = await verify(clone(beforeVerification));
+      if (verificationResult !== true) throw new GenerationStoreError("verification_rejected", "Candidate verification was rejected.");
+
+      const afterVerification = await loadCandidate(candidate);
+      if (canonical(beforeVerification) !== canonical(afterVerification)) throw new GenerationStoreError("candidate_changed", "Candidate changed after verification.");
+      const currentAfterVerification = await readCurrentIdentity();
+      if (canonical(currentAfterVerification) !== canonical(candidate.expectedCurrent)) throw new GenerationStoreError("stale_candidate", "Current generation changed during candidate verification.");
+
+      const previousPointer = currentAfterVerification === null ? null : {
+        schemaVersion: SCHEMA_VERSION,
+        generation: currentAfterVerification.generation,
+        manifestFile: currentAfterVerification.manifestFile,
+        manifestSha256: currentAfterVerification.manifestSha256
+      };
+      if (previousPointer) {
+        const previousTemp = temporaryPath(pointerPath(PREVIOUS_FILE), candidate.transactionId);
+        await fileSystem.writeFile(previousTemp, Buffer.from(JSON.stringify(previousPointer), "utf8"));
+        await fileSystem.flush(previousTemp);
+        await fileSystem.rename(previousTemp, pointerPath(PREVIOUS_FILE));
+      }
+      const nextPointer = {
+        schemaVersion: SCHEMA_VERSION,
+        generation: candidate.generation,
+        manifestFile: candidate.manifestFile,
+        manifestSha256: candidate.manifestSha256
+      };
+      const currentTemp = temporaryPath(pointerPath(CURRENT_FILE), candidate.transactionId);
+      await fileSystem.writeFile(currentTemp, Buffer.from(JSON.stringify(nextPointer), "utf8"));
+      await fileSystem.flush(currentTemp);
+      await fileSystem.rename(currentTemp, pointerPath(CURRENT_FILE));
+      const visible = await loadCommittedGeneration();
+      if (visible.status !== "committed" || visible.source !== "current" || visible.manifest.generation !== candidate.generation || visible.pointer.manifestFile !== candidate.manifestFile || visible.pointer.manifestSha256 !== candidate.manifestSha256) {
+        throw new GenerationStoreError("publish_verification_failed", "Published candidate was not visible as CURRENT.");
+      }
+      return { status: "published", candidate: clone(candidate), generation: candidate.generation };
+    });
+  }
+
   function prepare(value) {
     return queueCommit(async () => {
       if (!isRecord(value)) throw new GenerationStoreError("invalid_input", "prepare value must be an object.");
@@ -556,7 +612,7 @@ function createGenerationStore(options) {
     });
   }
 
-  return Object.freeze({ commit, loadCommittedGeneration, prepare, loadCandidate });
+  return Object.freeze({ commit, loadCommittedGeneration, prepare, loadCandidate, publish });
 }
 
 module.exports = { createGenerationStore, GenerationStoreError };
