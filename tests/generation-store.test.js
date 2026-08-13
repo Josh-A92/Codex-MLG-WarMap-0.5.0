@@ -380,6 +380,120 @@ test("managed paths do not escape the state directory", async () => {
   });
 });
 
+function generationIdentity(loaded) {
+  return {
+    generation: loaded.manifest.generation,
+    manifestFile: loaded.pointer.manifestFile,
+    manifestSha256: loaded.pointer.manifestSha256
+  };
+}
+
+test("prepare creates an unpublished candidate that a fresh store can reopen", async () => {
+  await withStore(async (directory, store) => {
+    await commitInitial(store, "one");
+    await store.commit({ expectedGeneration: 1, transactionId: "tx-two", createdAt: "2026-08-12T12:01:00.000Z", documents: documentSet("two") });
+    const current = await store.loadCommittedGeneration();
+    const currentBytes = await fs.promises.readFile(path.join(directory, "CURRENT"));
+    const previousBytes = await fs.promises.readFile(path.join(directory, "PREVIOUS"));
+    const shared = current.manifest.documents.find((document) => document.documentId === "shared");
+    const prepared = await store.prepare({
+      expectedCurrent: generationIdentity(current),
+      transactionId: "candidate-three",
+      createdAt: "2026-08-12T12:02:00.000Z",
+      documents: [
+        { documentId: "shared", scope: "global", type: "union-registry", reference: shared },
+        { documentId: "season-1", scope: "season-1", type: "data-management", value: { value: "three" } },
+        { documentId: "projection-season-1-map-a", scope: "season-1/map-a", type: "server-state", value: { value: "three" } }
+      ]
+    });
+    assert.strictEqual(prepared.status, "prepared");
+    assert.strictEqual(prepared.candidate.schemaVersion, 1);
+    assert.strictEqual(prepared.candidate.expectedCurrent.generation, 2);
+    assert.strictEqual(prepared.candidate.transactionId, "candidate-three");
+    assert.ok(prepared.candidate.manifestSha256.startsWith("sha256:"));
+    assert.deepStrictEqual(prepared.candidate.documents.map((document) => document.storage), ["reference", "candidate", "candidate"]);
+    assert.deepStrictEqual(await fs.promises.readFile(path.join(directory, "CURRENT")), currentBytes);
+    assert.deepStrictEqual(await fs.promises.readFile(path.join(directory, "PREVIOUS")), previousBytes);
+
+    const reopened = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+    const committed = await reopened.loadCommittedGeneration();
+    assert.strictEqual(committed.manifest.generation, 2);
+    const candidate = await reopened.loadCandidate(prepared.candidate);
+    assert.strictEqual(candidate.status, "prepared");
+    assert.deepStrictEqual(candidate.documents.map((document) => document.value.value), ["two", "three", "three"]);
+    assert.strictEqual(candidate.documents[0].fileName, shared.fileName);
+  });
+});
+
+test("candidate descriptors reject mismatched, modified, missing, and malformed content", async () => {
+  await withStore(async (directory, store) => {
+    await commitInitial(store);
+    const current = await store.loadCommittedGeneration();
+    const prepared = await store.prepare({
+      expectedCurrent: generationIdentity(current),
+      transactionId: "candidate-invalid",
+      createdAt: "2026-08-12T12:01:00.000Z",
+      documents: documentSet("two")
+    });
+    const candidateDocument = prepared.candidate.documents.find((document) => document.documentId === "season-1");
+    const candidatePath = path.join(directory, "documents", candidateDocument.fileName);
+    const modified = structuredClone(prepared.candidate);
+    modified.transactionId = "different-transaction";
+    await assert.rejects(() => store.loadCandidate(modified), /[Cc]andidate/);
+    await fs.promises.writeFile(candidatePath, "not-json", "utf8");
+    await assert.rejects(() => store.loadCandidate(prepared.candidate), /checksum/);
+    await fs.promises.unlink(candidatePath);
+    await assert.rejects(() => store.loadCandidate(prepared.candidate), /[Cc]andidate/);
+    await fs.promises.writeFile(candidatePath, "not-json", "utf8");
+    const malformed = structuredClone(prepared.candidate);
+    malformed.documents = malformed.documents.map((document) => document.documentId === "season-1"
+      ? { ...document, sha256: `sha256:${"0".repeat(64)}` }
+      : document);
+    await assert.rejects(() => store.loadCandidate(malformed), /[Cc]andidate/);
+  });
+});
+
+test("preparation failures leave the prior generation current", async () => {
+  await withStore(async (directory) => {
+    const baseStore = createGenerationStore({ baseDirectory: directory, fileSystem: realFileSystem() });
+    await commitInitial(baseStore);
+    const current = await baseStore.loadCommittedGeneration();
+    const currentBytes = await fs.promises.readFile(path.join(directory, "CURRENT"));
+    const failingStore = createGenerationStore({
+      baseDirectory: directory,
+      fileSystem: failingFileSystem((_name, args) => args.some((arg) => String(arg).includes("candidate-")))
+    });
+    await assert.rejects(() => failingStore.prepare({
+      expectedCurrent: generationIdentity(current),
+      transactionId: "candidate-failure",
+      createdAt: "2026-08-12T12:01:00.000Z",
+      documents: documentSet("two")
+    }));
+    const loaded = await baseStore.loadCommittedGeneration();
+    assert.strictEqual(loaded.manifest.generation, 1);
+    assert.deepStrictEqual(await fs.promises.readFile(path.join(directory, "CURRENT")), currentBytes);
+  });
+});
+
+test("ordinary committed loading ignores candidate and temporary files", async () => {
+  await withStore(async (directory, store) => {
+    await commitInitial(store);
+    const current = await store.loadCommittedGeneration();
+    await store.prepare({
+      expectedCurrent: generationIdentity(current),
+      transactionId: "candidate-ignored",
+      createdAt: "2026-08-12T12:01:00.000Z",
+      documents: documentSet("candidate")
+    });
+    await fs.promises.writeFile(path.join(directory, "CURRENT.tmp"), "temporary", "utf8");
+    await fs.promises.writeFile(path.join(directory, "documents", "candidate-unreferenced.tmp"), "temporary", "utf8");
+    const loaded = await store.loadCommittedGeneration();
+    assert.strictEqual(loaded.status, "committed");
+    assert.strictEqual(loaded.source, "current");
+    assert.strictEqual(loaded.manifest.generation, 1);
+  });
+});
+
 (async () => {
   let passed = 0;
   for (const entry of tests) {
