@@ -61,10 +61,34 @@
       }
     }
 
+    async function repairOwnershipProjection(inputValue) {
+      if (recoveryState) return { status: "recovery_required", reason: recoveryState.reason };
+      if (typeof input.coordinator.repairOwnershipProjection !== "function") {
+        return { status: "recovery_required", reason: "projection_repair_unavailable" };
+      }
+      try {
+        const result = await input.coordinator.repairOwnershipProjection(inputValue);
+        lastError = null;
+        return result;
+      } catch (error) {
+        lastError = {
+          code: error && error.code ? error.code : "commit_failed",
+          message: error && error.message ? error.message : String(error),
+          recoverable: true
+        };
+        throw Object.assign(new Error(`The ownership projection repair was not saved and was rolled back. ${lastError.message}`), {
+          code: lastError.code,
+          recoverable: true,
+          cause: error
+        });
+      }
+    }
+
     return Object.freeze({
       load,
       execute,
       commitCurrent,
+      repairOwnershipProjection,
       isRecoveryRequired: () => recoveryState !== null,
       getRecoveryState: () => recoveryState,
       getLastError: () => lastError

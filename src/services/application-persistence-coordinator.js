@@ -9,6 +9,8 @@
     "clock",
     "createTransactionId"
   ]);
+  const OPTIONAL_FIELDS = new Set(["ownershipProjectionReplacementCoordinator"]);
+  const REPAIR_INPUT_FIELDS = new Set(["seasonId", "serverId"]);
 
   class ApplicationPersistenceCoordinatorError extends Error {
     constructor(code, message, cause) {
@@ -29,7 +31,8 @@
 
   function exact(value, fields) {
     if (!isRecord(value)) fail("invalid_factory", "options must be a plain object.");
-    const unknown = Object.keys(value).filter((field) => !fields.has(field)).sort();
+    const allowedFields = new Set([...fields, ...OPTIONAL_FIELDS]);
+    const unknown = Object.keys(value).filter((field) => !allowedFields.has(field)).sort();
     if (unknown.length) fail("invalid_factory", `Unsupported option '${unknown[0]}'.`);
     fields.forEach((field) => {
       if (!Object.prototype.hasOwnProperty.call(value, field)) fail("invalid_factory", `Missing option '${field}'.`);
@@ -55,6 +58,7 @@
     const applyState = requireFunction(input.applyState, "applyState");
     const clock = requireFunction(input.clock, "clock");
     const createTransactionId = requireFunction(input.createTransactionId, "createTransactionId");
+    const replacementCoordinator = input.ownershipProjectionReplacementCoordinator || null;
     let expectedGeneration = null;
 
     async function load(inputValue) {
@@ -115,7 +119,35 @@
       return mutation(mutate, async () => commitCurrent(), auditIntent);
     }
 
-    return Object.freeze({ load, commitCurrent, execute });
+    async function repairOwnershipProjection(repairInput) {
+      if (!replacementCoordinator || typeof replacementCoordinator.replace !== "function") {
+        return { status: "recovery_required", reason: "projection_repair_unavailable" };
+      }
+      if (!isRecord(repairInput)) return { status: "recovery_required", reason: "invalid_input" };
+      const unknown = Object.keys(repairInput).filter((field) => !REPAIR_INPUT_FIELDS.has(field)).sort();
+      if (unknown.length > 0) return { status: "recovery_required", reason: "invalid_input" };
+      if (typeof repairInput.seasonId !== "string" || repairInput.seasonId.trim() === ""
+          || typeof repairInput.serverId !== "string" || repairInput.serverId.trim() === "") {
+        return { status: "recovery_required", reason: "invalid_input" };
+      }
+      let documents;
+      try {
+        documents = await serializeDocuments();
+      } catch (_error) {
+        return { status: "recovery_required", reason: "projection_snapshot_failed" };
+      }
+      if (!Array.isArray(documents)) return { status: "recovery_required", reason: "projection_snapshot_invalid" };
+      const projectionDocuments = documents.filter((document) => isRecord(document) && document.type === "server-state");
+      if (projectionDocuments.length !== 1 || !Object.prototype.hasOwnProperty.call(projectionDocuments[0], "value")) {
+        return { status: "recovery_required", reason: "projection_snapshot_invalid" };
+      }
+      return replacementCoordinator.replace(
+        { ...repairInput, persistedProjection: projectionDocuments[0].value },
+        async () => commitCurrent()
+      );
+    }
+
+    return Object.freeze({ load, commitCurrent, execute, repairOwnershipProjection });
   }
 
   const exportsObject = { createApplicationPersistenceCoordinator, ApplicationPersistenceCoordinatorError };

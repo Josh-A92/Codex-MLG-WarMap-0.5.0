@@ -75,7 +75,8 @@
       deserializeDocuments,
       applyState,
       clock: input.clock,
-      createTransactionId: input.createTransactionId
+      createTransactionId: input.createTransactionId,
+      ownershipProjectionReplacementCoordinator: input.ownershipProjectionReplacementCoordinator
     });
   }
 
