@@ -12,11 +12,13 @@
       , "createApplicationPersistenceCoordinator"
     ];
     required.forEach((field) => { if (typeof input[field] === "undefined") throw new TypeError(`Missing ${field}.`); });
+    const provenanceState = input.ownershipHistoryProvenanceStateService || null;
+    const provenanceSerializer = input.ownershipHistoryProvenanceSerializer || null;
 
     function serializeDocuments() {
       const clockValue = input.clock();
       const savedAt = clockValue instanceof Date ? clockValue.toISOString() : clockValue;
-      return [
+      const documents = [
         { documentId: "union-registry-global", scope: "global", type: "union-registry", value: input.serializeUnionRegistry(input.unionRegistryService, savedAt) },
         { documentId: `strategic-${input.seasonId}`, scope: input.seasonId, type: "strategic-domain", value: input.serializeStrategicDomainRuntime(input.strategicDomainRuntime, input.seasonId, savedAt) },
         { documentId: `evidence-${input.seasonId}`, scope: input.seasonId, type: "evidence-domain", value: input.serializeEvidenceRuntime(input.evidenceDomainRuntime, savedAt) },
@@ -24,10 +26,15 @@
         , { documentId: "season-administration", scope: "global", type: "season-administration", value: input.seasonAdministrationService.captureTransactionState() }
         , { documentId: "application-audit-global", scope: "global", type: "application-audit", value: input.serializeApplicationAuditRecords(input.applicationAuditRecordService.listRecords()) }
       ];
+      if (provenanceState && provenanceSerializer && provenanceState.isPresent()) {
+        documents.push({ documentId: provenanceSerializer.createDocumentId(input.seasonId, input.baseMapId), scope: `${input.seasonId}/${input.baseMapId}`, type: "ownership-history-provenance", value: provenanceState.serialize() });
+      }
+      return documents;
     }
 
     async function deserializeDocuments(documents) {
       const values = Object.fromEntries(documents.map((document) => [document.documentId, document.value]));
+      const provenanceDocumentId = provenanceSerializer ? provenanceSerializer.createDocumentId(input.seasonId, input.baseMapId) : null;
       return {
         unionRegistry: input.deserializeUnionRegistryEnvelope(values["union-registry-global"]),
         strategicDomain: input.deserializeStrategicDomainEnvelope(values[`strategic-${input.seasonId}`]),
@@ -35,6 +42,7 @@
         serverState: input.deserializeServerState(values[`projection-${input.seasonId}-${input.baseMapId}`])
         , seasonAdministration: values["season-administration"] || { schemaVersion: 2, activeSeason: null, completedSeasons: [] }
         , applicationAudit: values["application-audit-global"] ? input.deserializeApplicationAuditEnvelope(values["application-audit-global"]) : { schemaVersion: 1, records: [] }
+        , ownershipHistoryProvenance: provenanceState && provenanceSerializer ? (Object.prototype.hasOwnProperty.call(values, provenanceDocumentId) ? provenanceSerializer.deserialize(values[provenanceDocumentId], { seasonId: input.seasonId, baseMapId: input.baseMapId, activeSeasonId: input.seasonId }) : { status: "unknown_provenance", seasonId: input.seasonId, baseMapId: input.baseMapId, records: [] }) : null
       };
     }
 
@@ -65,6 +73,7 @@
       input.serverStateService.replaceTerritoryOwnership(Object.fromEntries(state.serverState.servers.map((server) => [server.id, server.ownership])));
       input.seasonAdministrationService.restoreTransactionState(state.seasonAdministration);
       input.applicationAuditRecordService.restoreTransactionState(state.applicationAudit.records);
+      if (provenanceState && state.ownershipHistoryProvenance) provenanceState.restoreState(state.ownershipHistoryProvenance.status === "present" ? { status: "present", document: state.ownershipHistoryProvenance.document } : { status: "unknown_provenance" });
     }
 
     return input.createApplicationPersistenceCoordinator({
