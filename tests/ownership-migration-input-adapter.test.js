@@ -11,6 +11,7 @@ const { createStrategicDomainRuntime } = require("../src/app/strategic-domain-ru
 const { createServerStateService } = require("../src/services/server-state-service.js");
 const { createOwnershipHistoryProvenanceStateService } = require("../src/services/ownership-history-provenance-state-service.js");
 const { createOwnershipHistoryProvenanceDocumentSerializer } = require("../src/services/ownership-history-provenance-document-serializer.js");
+const { serializeServerState } = require("../src/services/persistence-state-serializer.js");
 const { createOwnershipMigrationInputAdapter, OwnershipMigrationInputAdapterError } = require("../src/services/ownership-migration-input-adapter.js");
 
 const context = { seasonId: "season-1", baseMapId: "season1-map" };
@@ -56,6 +57,7 @@ async function createRealSnapshot() {
         ownershipRecordService: strategicDomainRuntime.ownershipRecordService.captureTransactionState()
       },
       serverState: serverStateService.captureTransactionState(),
+      serverStateDocument: serializeServerState(serverStateService, "2026-08-13T00:00:00.000Z"),
       seasonAdministration: seasonAdministrationService.captureTransactionState(),
       ownershipHistoryProvenance: provenanceState.captureTransactionState()
     }
@@ -82,6 +84,8 @@ function assertCode(callback, code) { return assert.rejects(callback, (error) =>
   assert.deepStrictEqual(result.activeSeason, { seasonId: context.seasonId, baseMapId: context.baseMapId, serverIds: ["server-366"] });
   assert.deepStrictEqual(result.sourceDocumentIds, sourceDocumentIds());
   assert.strictEqual(result.provenanceState.status, "unknown_provenance");
+  assert.strictEqual(result.persistedProjection.schemaVersion, 1);
+  assert.strictEqual(result.persistedProjection.savedAt, "2026-08-13T00:00:00.000Z");
   assert.ok(Object.isFrozen(result));
   assert.ok(Object.isFrozen(result.targetCatalog));
   console.log("PASS real isolated snapshot derives migration input and target catalog");

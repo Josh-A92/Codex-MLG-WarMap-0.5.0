@@ -121,6 +121,8 @@ function loader(created, includeProvenance = true) {
   assert.notStrictEqual(firstResult.state, secondResult.state);
   assert.strictEqual(typeof firstResult.state.serverState.getServer, "undefined");
   assert.strictEqual(typeof firstResult.state.serverState.captureTransactionState, "undefined");
+  assert.strictEqual(firstResult.state.serverStateDocument.schemaVersion, 1);
+  assert.strictEqual(typeof firstResult.state.serverStateDocument.savedAt, "string");
   created[1].serverStateService.setTerritoryOwner("server-366", "1-1", "union-0001");
   assert.deepStrictEqual(firstResult.state.serverState, secondResult.state.serverState);
   console.log("PASS real fresh participants are isolated and snapshots expose no handles");

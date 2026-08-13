@@ -54,6 +54,8 @@
       const baseMapId = requireString(mapDefinition.baseMapId, "preparedPackage.rulesDefinition.mapDefinition.baseMapId");
       const serverState = state.serverState;
       if (!isRecord(serverState)) fail("missing_state", "Restored server state is required.");
+      const serverStateDocument = state.serverStateDocument;
+      if (!isRecord(serverStateDocument) || serverStateDocument.schemaVersion !== 1 || typeof serverStateDocument.savedAt !== "string" || serverStateDocument.seasonId !== seasonId || serverStateDocument.baseMapId !== baseMapId || !Array.isArray(serverStateDocument.servers)) fail("missing_state", "Restored server-state document metadata is required.");
       const projectionServers = Object.keys(serverState);
       serverIds.forEach((serverId) => { if (!Object.prototype.hasOwnProperty.call(serverState, serverId)) fail("server_scope_mismatch", `Active server '${serverId}' is missing from restored projection state.`); });
       const unionRegistry = requireArray(state.unionRegistry, "state.unionRegistry");
@@ -74,6 +76,9 @@
         if (!isRecord(ownership)) fail("invalid_projection", "Restored projection contains invalid server state.");
         Object.values(ownership).forEach((ownerUnionId) => { if (ownerUnionId !== null && !unionIds.has(ownerUnionId)) fail("unresolved_union", `Projection references unknown union '${ownerUnionId}'.`); });
       });
+      const documentServers = new Map(serverStateDocument.servers.map((server) => [server.id, server]));
+      if (documentServers.size !== serverStateDocument.servers.length) fail("invalid_projection", "Restored server-state document contains duplicate servers.");
+      if (documentServers.size !== projectionServers.length || projectionServers.some((serverId) => !documentServers.has(serverId))) fail("server_scope_mismatch", "Restored server-state metadata does not match the isolated projection.");
       const targetCatalog = await options.createTargetCatalog(preparedPackage);
       if (!isRecord(targetCatalog)) fail("invalid_target_catalog", "Target catalog factory returned an invalid catalog.");
       const provenanceState = state.ownershipHistoryProvenance;
@@ -83,7 +88,7 @@
         territoryRecords: territoryHistory,
         structureRecords: structureHistory,
         targetCatalog,
-        persistedProjection: { seasonId, baseMapId, servers: projectionServers.map((serverId) => ({ id: serverId, ownership: serverState[serverId] })) },
+        persistedProjection: { schemaVersion: serverStateDocument.schemaVersion, seasonId, baseMapId, savedAt: serverStateDocument.savedAt, servers: serverStateDocument.servers.map((server) => ({ ...clone(server), ownership: clone(serverState[server.id]) })) },
         provenanceState,
         sourceDocumentIds
       }));

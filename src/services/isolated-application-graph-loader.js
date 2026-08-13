@@ -86,6 +86,7 @@
           strategicDomain: Object.fromEntries(strategicServices.map((name) => [name, participants.strategicDomainRuntime[name].captureTransactionState()])),
           evidenceDomain: Object.fromEntries(evidenceServices.map((name) => [name, participants.evidenceDomainRuntime[name].captureTransactionState()])),
           serverState: participants.serverStateService.captureTransactionState(),
+          serverStateDocument: clone(state.serverState),
           seasonAdministration: participants.seasonAdministrationService.captureTransactionState(),
           applicationAudit: participants.applicationAuditRecordService.captureTransactionState()
         };
