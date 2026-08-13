@@ -20,7 +20,7 @@
       return result;
     }
 
-    async function execute(mutate) {
+    async function execute(mutate, auditIntent) {
       if (recoveryState) {
         const error = new Error(`Persistence recovery is required before changes can be made (${recoveryState.reason}).`);
         error.code = "recovery_required";
@@ -28,7 +28,7 @@
         throw error;
       }
       try {
-        const result = await input.coordinator.execute(mutate);
+        const result = await input.coordinator.execute(mutate, auditIntent);
         lastError = null;
         return result;
       } catch (error) {

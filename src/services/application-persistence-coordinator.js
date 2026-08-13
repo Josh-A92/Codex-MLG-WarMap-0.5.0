@@ -111,8 +111,8 @@
       return result;
     }
 
-    function execute(mutate) {
-      return mutation(mutate, async () => commitCurrent());
+    function execute(mutate, auditIntent) {
+      return mutation(mutate, async () => commitCurrent(), auditIntent);
     }
 
     return Object.freeze({ load, commitCurrent, execute });

@@ -1,5 +1,5 @@
 (function initializeApplicationMutationCoordinatorFactory(globalScope) {
-  const FACTORY_FIELDS = new Set(["participants"]);
+  const FACTORY_FIELDS = new Set(["participants", "auditRecordService", "createTransactionId"]);
 
   class ApplicationMutationCoordinatorError extends Error {
     constructor(code, message, options) {
@@ -52,9 +52,11 @@
   function createApplicationMutationCoordinator(options) {
     const input = requireOptions(options);
     const participants = bindParticipants(input.participants);
+    const auditRecordService = input.auditRecordService || null;
+    const createTransactionId = input.createTransactionId || null;
     let queueTail = Promise.resolve();
 
-    async function runMutation(mutation, durableCommit) {
+    async function runMutation(mutation, durableCommit, auditIntent) {
       if (typeof mutation !== "function") fail("invalid_mutation", "mutation must be a function.");
       if (typeof durableCommit !== "function") fail("invalid_commit", "durableCommit must be a function.");
 
@@ -63,6 +65,10 @@
 
       try {
         const result = await mutation();
+        if (auditIntent) {
+          if (!auditRecordService || !createTransactionId) fail("invalid_audit", "Audit intent requires auditRecordService and createTransactionId.");
+          await auditRecordService.append({ ...auditIntent, transactionId: createTransactionId(), sequence: 1 });
+        }
         await durableCommit(result);
         return result;
       } catch (operationError) {
@@ -85,10 +91,10 @@
       }
     }
 
-    function execute(mutation, durableCommit) {
+    function execute(mutation, durableCommit, auditIntent) {
       const queued = queueTail.then(
-        () => runMutation(mutation, durableCommit),
-        () => runMutation(mutation, durableCommit)
+        () => runMutation(mutation, durableCommit, auditIntent),
+        () => runMutation(mutation, durableCommit, auditIntent)
       );
       queueTail = queued.catch(() => undefined);
       return queued;

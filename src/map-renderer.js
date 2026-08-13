@@ -3596,7 +3596,11 @@ function initializeApplicationPersistence() {
     seasonAdministrationService,
     applicationAuditRecordService
   ];
-  const mutationCoordinator = applicationMutationCoordinatorFactory({ participants });
+  const mutationCoordinator = applicationMutationCoordinatorFactory({
+    participants,
+    auditRecordService: applicationAuditRecordService,
+    createTransactionId: createRuntimeId.bind(null, "transaction")
+  });
   const coordinator = applicationPersistenceCoordinatorFactory({
     generationStore: persistenceStartup.generationStore,
     mutationCoordinator,

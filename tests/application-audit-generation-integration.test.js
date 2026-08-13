@@ -90,7 +90,7 @@ function context(generationResult, auditDocument) {
     clock: () => new Date("2026-08-13T10:00:00.000Z"), createTransactionId: () => "tx-failure"
   });
   await failingCoordinator.load({});
-  await assert.rejects(() => failingCoordinator.execute(() => { generationFailure.live.value = "mutated"; }, async () => { throw new Error("unused"); }), /generation commit failed/);
+  await assert.rejects(() => failingCoordinator.execute(() => { generationFailure.live.value = "mutated"; }), /generation commit failed/);
   assert.deepStrictEqual(generationFailure.audit.captureTransactionState(), auditBeforeGenerationFailure);
   assert.strictEqual(generationFailure.live.value, "before");
   console.log("PASS generation commit failure restores audit and other participants");

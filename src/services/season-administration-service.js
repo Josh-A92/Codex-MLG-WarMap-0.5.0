@@ -331,12 +331,12 @@
       return getActiveSeason();
     }
 
-    async function persistState(nextState) {
+    async function persistState(nextState, auditIntent) {
       if (persistence) {
         return persistence.execute(() => {
           administrationState = nextState;
           return getActiveSeason();
-        });
+        }, auditIntent);
       }
       await storage.saveEnvelope(STORAGE_IDENTITY, safeClone(nextState));
       administrationState = nextState;
@@ -413,7 +413,15 @@
         activeSeason: activation,
         completedSeasons: safeClone(administrationState.completedSeasons)
       };
-      return persistState(nextState);
+      return persistState(nextState, {
+        actionType: "season_activated",
+        targetType: "season_administration",
+        targetId: seasonId,
+        seasonId,
+        serverId: null,
+        actorId: decision.actorId,
+        details: {}
+      });
     }
 
     async function updateActiveSeasonServers(actor, serverIdsValue) {
