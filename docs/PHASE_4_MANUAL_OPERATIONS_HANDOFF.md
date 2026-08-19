@@ -2,7 +2,7 @@
 
 ## Current committed boundary
 
-Baseline after this work: `f751aa1`.
+Baseline after this work: `2915775`.
 
 Completed Phase 4 slices:
 
@@ -37,17 +37,13 @@ gate now accepts the readiness result's trusted `classification` field, and the
 legacy writer now stores the union, strategic, and evidence documents in the
 single combined Data Management envelope expected by restart classification.
 
-### Known first-run audit limitation
+### First-run audit compatibility
 
-First-run legacy writes currently persist the combined Data Management envelope,
-server-state projection, and Season Administration state. They do not persist the
-application-audit document. Domain facts therefore reopen coherently, but audit
-records created while the profile remains in legacy mode do not survive restart.
-Phase 4 release verification must not claim durable audit coverage for that mode.
-The coherent fix is either to migrate first-run profiles to generation persistence
-before operational writes or to version and classify an explicit legacy audit
-envelope; silently adding audit fields to the strict legacy Data Management schema
-is not safe.
+First-run legacy writes persist the application-audit document through a separate,
+strict `application_audit` storage identity. Startup loads that envelope into the
+existing application document codec, defaulting to an empty version-1 history only
+when the envelope is absent. This preserves audit records without weakening or
+silently extending the strict legacy Data Management schema.
 
 ## Authority and data flow
 
@@ -148,15 +144,13 @@ identity differs after the read. These checks run before hashing or copying.
 
 ## Remaining Phase 4 sequence
 
-1. Resolve first-run durable audit persistence before claiming the Phase 4 audit
-   Definition of Done.
-2. Resolve the first-capture undo compensation rule.
-3. Integrate session undo/redo through compensating durable operations and audit.
-4. Add the versioned notes/objectives persistence slice described above.
-5. Add operator conflict-resolution flow for contradictory evidence.
-6. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
+1. Resolve the first-capture undo compensation rule.
+2. Integrate session undo/redo through compensating durable operations and audit.
+3. Add the versioned notes/objectives persistence slice described above.
+4. Add operator conflict-resolution flow for contradictory evidence.
+5. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
    its package is promoted from Draft through the existing readiness process.
-7. Run the Phase 4 release matrix, active-season evidence walkthrough, backup/restore checks, and
+6. Run the Phase 4 release matrix, active-season evidence walkthrough, backup/restore checks, and
    update the Completion Plan only after the Definition of Done is evidenced.
 
 Contradictory exact ownership terminals currently fail closed inside the
