@@ -7,13 +7,15 @@
     "serverIntelligenceManagementService",
     "targetVerificationService",
     "ownershipRecordService",
+    "ownershipRetractionService",
     "evidenceRecordService",
     "resolveEvidenceScope",
     "seasonAdministrationService",
     "serverStateService",
     "targetCatalog",
     "executeAtomically",
-    "createId"
+    "createId",
+    "clock"
   ]);
   const TERRITORY_FIELDS = new Set([
     "seasonId", "serverId", "row", "col", "territoryRef", "ownerUnionId",
@@ -22,6 +24,9 @@
   const STRUCTURE_FIELDS = new Set([
     "seasonId", "serverId", "structureId", "footprint", "ownerUnionId",
     "effectiveAt", "eventAt", "evidenceIds"
+  ]);
+  const RETRACTION_FIELDS = new Set([
+    "seasonId", "serverId", "reason", "transactionId", "retractedRecordId", "targetKind", "territoryRef", "row", "col", "structureId"
   ]);
 
   class MapOwnershipCoordinatorError extends Error {
@@ -253,6 +258,11 @@
       "options.ownershipRecordService",
       ["listTerritoryRecords", "listStructureRecords"]
     );
+    const retractions = bindInterface(
+      input.ownershipRetractionService,
+      "options.ownershipRetractionService",
+      ["listRetractions", "addManualRetraction"]
+    );
     const evidence = bindInterface(
       input.evidenceRecordService,
       "options.evidenceRecordService",
@@ -277,6 +287,9 @@
     if (typeof input.createId !== "function") {
       fail("invalid_factory", "Map Ownership Coordinator requires options.createId.");
     }
+    if (typeof input.clock !== "function") {
+      fail("invalid_factory", "Map Ownership Coordinator requires options.clock.");
+    }
 
     const catalog = normalizeCatalog(input.targetCatalog);
     if (typeof historyResolverExports.createOwnershipHistoryResolver !== "function") {
@@ -288,6 +301,15 @@
     const resolveEvidenceScope = input.resolveEvidenceScope.bind(input);
     const executeAtomically = input.executeAtomically.bind(input);
     const createId = input.createId.bind(input);
+    const clock = input.clock.bind(input);
+
+    function currentTimestamp() {
+      const value = clock();
+      if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+        fail("invalid_clock", "Map Ownership Coordinator clock must return a valid Date.");
+      }
+      return value.toISOString();
+    }
 
     function ensureActiveSeasonScope(seasonId, serverId) {
       const activeSeason = seasonAdministration.getActiveSeason();
@@ -369,34 +391,7 @@
     }
 
     function createProjectionMap(seasonId, serverId) {
-      const territoryRecords = ownership.listTerritoryRecords({
-        seasonId,
-        serverId,
-        reviewState: "confirmed"
-      });
-      const structureRecords = ownership.listStructureRecords({
-        seasonId,
-        serverId,
-        reviewState: "confirmed"
-      });
-
-      let resolved;
-      try {
-        resolved = historyResolver.resolve({
-          seasonId,
-          serverId,
-          territoryRecords,
-          structureRecords
-        });
-      } catch (error) {
-        fail(
-          error && error.code === "contradiction"
-            ? "contradictory_authoritative_history"
-            : "invalid_authoritative_history",
-          `Map Ownership Coordinator could not rebuild ownership projection: ${error.message}`
-        );
-      }
-
+      const resolved = resolveOwnershipState(seasonId, serverId);
       const rebuiltOwnership = {};
       resolved.territories.forEach((record) => {
         const targetKey = territoryProjectionKey(record.territoryRef);
@@ -411,6 +406,131 @@
       });
 
       return rebuiltOwnership;
+    }
+
+    function resolveOwnershipState(seasonId, serverId) {
+      const territoryRecords = ownership.listTerritoryRecords({
+        seasonId,
+        serverId
+      });
+      const structureRecords = ownership.listStructureRecords({
+        seasonId,
+        serverId
+      });
+      const retractionRecords = retractions.listRetractions({ seasonId, serverId });
+
+      let resolved;
+      try {
+        resolved = historyResolver.resolve({
+          seasonId,
+          serverId,
+          territoryRecords,
+          structureRecords,
+          retractionRecords
+        });
+      } catch (error) {
+        fail(
+          error && error.code === "contradiction"
+            ? "contradictory_authoritative_history"
+            : "invalid_authoritative_history",
+          `Map Ownership Coordinator could not rebuild ownership projection: ${error.message}`
+        );
+      }
+      return resolved;
+    }
+
+    function nextRetractionId() {
+      return requiredString(createId("ownership_retraction"), "createId('ownership_retraction')");
+    }
+
+    function resolveCurrentTerritoryRecord(seasonId, serverId, territoryRef) {
+      const resolved = resolveOwnershipState(seasonId, serverId);
+      const key = territoryCatalogKey(territoryRef);
+      const match = resolved.territories.find((entry) => territoryCatalogKey(entry.territoryRef) === key);
+      return match || null;
+    }
+
+    function resolveCurrentStructureRecord(seasonId, serverId, structureId) {
+      const resolved = resolveOwnershipState(seasonId, serverId);
+      return resolved.structures.find((entry) => entry.structureId === structureId) || null;
+    }
+
+    function retractTerritoryOwnership(actor, value) {
+      const hasTargetRef = value && Object.prototype.hasOwnProperty.call(value, "territoryRef");
+      const required = hasTargetRef
+        ? new Set(["seasonId", "serverId", "territoryRef", "reason", "transactionId", "retractedRecordId"])
+        : new Set(["seasonId", "serverId", "row", "col", "reason", "transactionId", "retractedRecordId"]);
+      const inputValue = requireFields(value, RETRACTION_FIELDS, required, "input");
+      const seasonId = requiredString(inputValue.seasonId, "input.seasonId");
+      const serverId = requiredString(inputValue.serverId, "input.serverId");
+      const reason = requiredString(inputValue.reason, "input.reason");
+      const transactionId = requiredString(inputValue.transactionId, "input.transactionId");
+      const retractedRecordId = requiredString(inputValue.retractedRecordId, "input.retractedRecordId");
+      const territoryRef = normalizeTerritoryRef(inputValue);
+
+      return executeAtomically(() => {
+        ensureActiveSeasonScope(seasonId, serverId);
+        ensureKnownTerritory(territoryRef);
+        const current = resolveCurrentTerritoryRecord(seasonId, serverId, territoryRef);
+        if (!current || current.recordId !== retractedRecordId) {
+          fail("stale_retraction_target", `Map Ownership Coordinator cannot retract stale territory record '${retractedRecordId}'.`);
+        }
+        const retraction = retractions.addManualRetraction({
+          retractionId: nextRetractionId(),
+          seasonId,
+          serverId,
+          targetKind: "territory_ownership_record",
+          retractedRecordId,
+          actorId: requiredString(actor && actor.actorId, "actor.actorId"),
+          reason,
+          recordedAt: currentTimestamp(),
+          transactionId,
+          sourceType: "manual_retraction"
+        });
+        const rebuiltOwnership = createProjectionMap(seasonId, serverId);
+        replaceServerProjection(serverId, rebuiltOwnership);
+        return { retraction, targetType: territoryRef.type, projectedTerritoryKeys: [territoryProjectionKey(territoryRef)] };
+      });
+    }
+
+    function retractStructureOwnership(actor, value) {
+      const inputValue = requireFields(
+        value,
+        RETRACTION_FIELDS,
+        new Set(["seasonId", "serverId", "structureId", "reason", "transactionId", "retractedRecordId"]),
+        "input"
+      );
+      const seasonId = requiredString(inputValue.seasonId, "input.seasonId");
+      const serverId = requiredString(inputValue.serverId, "input.serverId");
+      const structureId = requiredString(inputValue.structureId, "input.structureId");
+      const reason = requiredString(inputValue.reason, "input.reason");
+      const transactionId = requiredString(inputValue.transactionId, "input.transactionId");
+      const retractedRecordId = requiredString(inputValue.retractedRecordId, "input.retractedRecordId");
+
+      return executeAtomically(() => {
+        ensureActiveSeasonScope(seasonId, serverId);
+        ensureKnownStructure(structureId);
+        const current = resolveCurrentStructureRecord(seasonId, serverId, structureId);
+        if (!current || current.recordId !== retractedRecordId) {
+          fail("stale_retraction_target", `Map Ownership Coordinator cannot retract stale structure record '${retractedRecordId}'.`);
+        }
+        const retraction = retractions.addManualRetraction({
+          retractionId: nextRetractionId(),
+          seasonId,
+          serverId,
+          targetKind: "structure_ownership_record",
+          retractedRecordId,
+          actorId: requiredString(actor && actor.actorId, "actor.actorId"),
+          reason,
+          recordedAt: currentTimestamp(),
+          transactionId,
+          sourceType: "manual_retraction"
+        });
+        const rebuiltOwnership = createProjectionMap(seasonId, serverId);
+        const footprint = catalog.structureFootprintById.get(structureId) || [];
+        replaceServerProjection(serverId, rebuiltOwnership);
+        return { retraction, targetType: "logical_structure", projectedTerritoryKeys: footprint.map((cell) => cell.key) };
+      });
     }
 
     function replaceServerProjection(serverId, rebuiltOwnership) {
@@ -527,7 +647,7 @@
       });
     }
 
-    return Object.freeze({ setTerritoryOwnership, setStructureOwnership });
+    return Object.freeze({ setTerritoryOwnership, setStructureOwnership, retractTerritoryOwnership, retractStructureOwnership });
   }
 
   const exportsObject = {

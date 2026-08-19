@@ -13,11 +13,26 @@ function territory(overrides = {}) {
 function structure(overrides = {}) {
   return { structureOwnershipId: "structure-1", serverId: "server-366", seasonId: "season-1", structureId: "fort-1", ownerUnionId: "union-1", ownershipState: "owned", reviewState: "confirmed", effectiveAt: "2026-08-01T00:00:00Z", sourceType: "manual_entry", evidenceIds: [], actorId: "actor-1", reviewerId: "reviewer-1", reviewedAt: "2026-08-01T00:10:00Z", supersededBy: null, ...overrides };
 }
+function retraction(overrides = {}) {
+  return {
+    retractionId: "retraction-1",
+    seasonId: "season-1",
+    serverId: "server-366",
+    targetKind: "territory_ownership_record",
+    retractedRecordId: "territory-1",
+    actorId: "actor-1",
+    reason: "undo capture",
+    recordedAt: "2026-08-01T00:20:00Z",
+    transactionId: "transaction-1",
+    sourceType: "manual_retraction",
+    ...overrides
+  };
+}
 function resolver(targetCatalog = { territoryKeys: [{ row: 1, col: 1 }, { row: 1, col: 2 }, { row: 2, col: 1 }], structures: [{ structureId: "fort-1", footprint: [{ row: 1, col: 1 }, { row: 1, col: 2 }] }] }) {
   return createOwnershipHistoryResolver({ targetCatalog });
 }
 function expectError(fn, code) { assert.throws(fn, (error) => error instanceof OwnershipHistoryResolverError && error.code === code); }
-function resolve(overrides = {}) { return resolver().resolve({ territoryRecords: [], structureRecords: [], seasonId: "season-1", serverId: "server-366", ...overrides }); }
+function resolve(overrides = {}) { return resolver().resolve({ territoryRecords: [], structureRecords: [], retractionRecords: [], seasonId: "season-1", serverId: "server-366", ...overrides }); }
 
 test("resolves every ownership state and exact structure", () => {
   const result = resolve({ territoryRecords: [territory({ ownershipRecordId: "owned", territoryRef: { type: "normal_map_cell", row: 1, col: 1 } }), territory({ ownershipRecordId: "unclaimed", territoryRef: { type: "normal_map_cell", row: 1, col: 2 }, ownershipState: "unclaimed", ownerUnionId: null }), territory({ ownershipRecordId: "unknown", territoryRef: { type: "normal_map_cell", row: 2, col: 1 }, ownershipState: "unknown", ownerUnionId: null })], structureRecords: [structure()] });
@@ -55,6 +70,31 @@ test("fails closed for malformed chains, contradictions, and invalid catalog tar
   assert.throws(() => createOwnershipHistoryResolver({ targetCatalog: { territoryKeys: [{ row: 1, col: 1 }, { row: 1, col: 1 }], structures: [] } }), (error) => error.code === "invalid_target_catalog");
 });
 
+test("resolves supersession with retraction chain and redo deterministically", () => {
+  const records = [
+    territory({ ownershipRecordId: "A", ownerUnionId: "union-a", reviewedAt: "2026-08-01T00:10:00Z", effectiveAt: "2026-08-01T00:00:00Z", reviewState: "superseded", supersededBy: "B" }),
+    territory({ ownershipRecordId: "B", ownerUnionId: "union-b", reviewedAt: "2026-08-02T00:10:00Z", effectiveAt: "2026-08-02T00:00:00Z", reviewState: "superseded", supersededBy: "C" }),
+    territory({ ownershipRecordId: "C", ownerUnionId: "union-c", reviewedAt: "2026-08-03T00:10:00Z", effectiveAt: "2026-08-03T00:00:00Z", supersededBy: null, reviewState: "confirmed" })
+  ];
+  assert.strictEqual(resolve({ territoryRecords: records }).territories[0].recordId, "C");
+  assert.strictEqual(resolve({ territoryRecords: records, retractionRecords: [retraction({ retractedRecordId: "C" })] }).territories[0].recordId, "B");
+  assert.strictEqual(resolve({ territoryRecords: records, retractionRecords: [retraction({ retractionId: "r-1", retractedRecordId: "C" }), retraction({ retractionId: "r-2", retractedRecordId: "B" })] }).territories[0].recordId, "A");
+  assert.deepStrictEqual(resolve({ territoryRecords: records, retractionRecords: [retraction({ retractionId: "r-1", retractedRecordId: "C" }), retraction({ retractionId: "r-2", retractedRecordId: "B" }), retraction({ retractionId: "r-3", retractedRecordId: "A" })] }).territories, []);
+
+  const withRedo = records.map((entry) => ({ ...entry }));
+  withRedo[2] = { ...withRedo[2], reviewState: "superseded", supersededBy: "D" };
+  withRedo.push(territory({ ownershipRecordId: "D", ownerUnionId: "union-d", reviewedAt: "2026-08-04T00:10:00Z", effectiveAt: "2026-08-04T00:00:00Z", reviewState: "confirmed", supersededBy: null }));
+  assert.strictEqual(resolve({ territoryRecords: withRedo, retractionRecords: [retraction({ retractedRecordId: "C" })] }).territories[0].recordId, "D");
+});
+
+test("fails closed for malformed retractions and wrong references", () => {
+  const records = [territory({ ownershipRecordId: "A" })];
+  expectError(() => resolve({ territoryRecords: records, retractionRecords: [retraction({ retractedRecordId: "missing" })] }), "invalid_history");
+  expectError(() => resolve({ territoryRecords: records, retractionRecords: [retraction({ sourceType: "manual_entry" })] }), "invalid_history");
+  expectError(() => resolve({ territoryRecords: records, retractionRecords: [retraction({ targetKind: "structure_ownership_record" })] }), "invalid_history");
+  expectError(() => resolve({ territoryRecords: records, retractionRecords: [retraction({ retractedRecordId: "A" }), retraction({ retractionId: "r-2", retractedRecordId: "A" })] }), "invalid_history");
+});
+
 test("isolates season and server scopes", () => {
   const result = resolve({ territoryRecords: [territory({ ownershipRecordId: "other-server", serverId: "server-367", territoryRef: { type: "normal_map_cell", row: 1, col: 1 }, ownerUnionId: "union-other" }), territory({ ownershipRecordId: "other-season", seasonId: "season-2", territoryRef: { type: "normal_map_cell", row: 1, col: 2 }, ownerUnionId: "union-other" })] });
   assert.deepStrictEqual(result.territories, []);
@@ -81,15 +121,12 @@ test("is permutation-independent and does not mutate records or catalog", () => 
   assert.deepStrictEqual(targetCatalog, catalogBefore);
 });
 
-test("keeps multiple uncertain terminals deterministic for one target", () => {
+test("fails closed when one target has multiple terminal records", () => {
   const first = territory({ ownershipRecordId: "bounded-a", eventAt: { precision: "bounded", earliestAt: "2026-08-01T00:00:00Z", latestAt: "2026-08-02T00:00:00Z" } });
   const second = territory({ ownershipRecordId: "bounded-b", eventAt: { precision: "unknown" } });
   delete first.effectiveAt;
   delete second.effectiveAt;
-  const resultA = resolve({ territoryRecords: [first, second] });
-  const resultB = resolve({ territoryRecords: [second, first] });
-  assert.deepStrictEqual(resultA, resultB);
-  assert.deepStrictEqual(resultA.uncertainty.map((item) => item.recordId), ["bounded-a", "bounded-b"]);
+  expectError(() => resolve({ territoryRecords: [first, second] }), "contradiction");
 });
 
 test("supports browser globals and has no infrastructure dependency", () => {

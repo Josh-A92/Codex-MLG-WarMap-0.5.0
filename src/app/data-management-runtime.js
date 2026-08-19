@@ -101,6 +101,7 @@
       "combatStrengthObservationService",
       "serverObservationService",
       "ownershipRecordService",
+      "ownershipRetractionService",
       "targetVerificationService",
       "serverIntelligenceViewService"
     ].forEach((field) => {
@@ -172,6 +173,7 @@
         participants: [
           strategic.relationService,
           strategic.ownershipRecordService,
+          strategic.ownershipRetractionService,
           strategic.targetVerificationService,
           serverState
         ]
@@ -184,6 +186,7 @@
       serverIntelligenceManagementService,
       targetVerificationService: strategic.targetVerificationService,
       ownershipRecordService: strategic.ownershipRecordService,
+      ownershipRetractionService: strategic.ownershipRetractionService,
       evidenceRecordService: evidence.evidenceRecordService,
       resolveEvidenceScope: evidenceManagementService.resolveEvidenceScope,
       seasonAdministrationService: input.seasonAdministrationService,
@@ -191,7 +194,8 @@
       targetCatalog: input.targetCatalog,
       executeAtomically:
         mapOwnershipAtomicExecutor.executeAtomically.bind(mapOwnershipAtomicExecutor),
-      createId: input.createId
+      createId: input.createId,
+      clock: input.clock
     });
     const selectedMapTargetViewService =
       modules.createSelectedMapTargetViewService({

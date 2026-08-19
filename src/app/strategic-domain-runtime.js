@@ -8,6 +8,7 @@
     "serverObservations",
     "territoryOwnershipRecords",
     "structureOwnershipRecords",
+    "ownershipRetractions",
     "targetVerifications",
     "confirmedSnapshots",
     "confirmedPresenceFacts",
@@ -35,6 +36,9 @@
     "validateStructureOwnershipRecord",
     "validateStructureOwnershipHistory",
     "createOwnershipRecordService",
+    "validateOwnershipRetractionRecord",
+    "validateOwnershipRetractionHistory",
+    "createOwnershipRetractionService",
     "validateTargetVerificationRecord",
     "validateTargetVerificationHistory",
     "createTargetVerificationService",
@@ -175,6 +179,11 @@
       validateStructureOwnershipHistory: modules.validateStructureOwnershipHistory,
       clock: typeof input.clock === "function" ? input.clock : () => new Date()
     });
+    const ownershipRetractionService = modules.createOwnershipRetractionService({
+      initialRetractions: initialState.ownershipRetractions,
+      validateOwnershipRetractionRecord: modules.validateOwnershipRetractionRecord,
+      validateOwnershipRetractionHistory: modules.validateOwnershipRetractionHistory
+    });
     const targetVerificationService = modules.createTargetVerificationService({
       initialVerifications: initialState.targetVerifications,
       validateTargetVerificationRecord: modules.validateTargetVerificationRecord,
@@ -255,6 +264,7 @@
       combatStrengthObservationService,
       serverObservationService,
       ownershipRecordService,
+      ownershipRetractionService,
       targetVerificationService,
       confirmedSnapshotValidator,
       confirmedSnapshotService,

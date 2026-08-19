@@ -48,7 +48,7 @@
     if (unknown.length > 0) fail("invalid_factory", `Unsupported option '${unknown[0]}'.`);
     const resolver = requireInterface(options.ownershipHistoryResolver, "options.ownershipHistoryResolver", ["resolve"]);
     const comparator = requireInterface(options.ownershipProjectionComparator, "options.ownershipProjectionComparator", ["compare"]);
-    const ownership = requireInterface(options.ownershipRecordService, "options.ownershipRecordService", ["listTerritoryRecords", "listStructureRecords"]);
+    const ownership = requireInterface(options.ownershipRecordService, "options.ownershipRecordService", ["listTerritoryRecords", "listStructureRecords", "listRetractions"]);
     const serverState = requireInterface(options.serverStateService, "options.serverStateService", ["getSeasonId", "captureTransactionState", "replaceTerritoryOwnership"]);
     const mutation = requireInterface(options.mutationCoordinator, "options.mutationCoordinator", ["execute"]);
 
@@ -63,7 +63,7 @@
       let resolved;
       let comparison;
       try {
-        resolved = await resolver.resolve({ seasonId, serverId, territoryRecords: await ownership.listTerritoryRecords(), structureRecords: await ownership.listStructureRecords() });
+        resolved = await resolver.resolve({ seasonId, serverId, territoryRecords: await ownership.listTerritoryRecords(), structureRecords: await ownership.listStructureRecords(), retractionRecords: await ownership.listRetractions() });
         comparison = comparator.compare({ resolverResult: resolved, persistedProjection: input.persistedProjection });
       } catch (error) {
         const causeCode = error && error.code ? error.code : "invalid_input";

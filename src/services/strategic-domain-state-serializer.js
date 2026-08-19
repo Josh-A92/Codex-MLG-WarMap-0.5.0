@@ -1,5 +1,6 @@
 (function initializeStrategicDomainStateSerializer(globalScope) {
-  const SUPPORTED_SCHEMA_VERSION = 1;
+  const SUPPORTED_SCHEMA_VERSION = 2;
+  const LEGACY_SCHEMA_VERSION = 1;
   const TOP_LEVEL_FIELDS = ["schemaVersion", "seasonId", "savedAt", "state"];
   const STATE_FIELDS = [
     "relations",
@@ -9,6 +10,7 @@
     "serverObservations",
     "territoryOwnershipRecords",
     "structureOwnershipRecords",
+    "ownershipRetractions",
     "targetVerifications",
     "confirmedSnapshots",
     "confirmedPresenceFacts",
@@ -146,12 +148,13 @@
           "schemaVersion",
           "schemaVersion must be a positive integer."
         );
-      } else if (candidate.schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
+      } else if (candidate.schemaVersion !== SUPPORTED_SCHEMA_VERSION
+          && candidate.schemaVersion !== LEGACY_SCHEMA_VERSION) {
         pushError(
           result,
           "UNSUPPORTED_SCHEMA_VERSION",
           "schemaVersion",
-          `Only schema version ${SUPPORTED_SCHEMA_VERSION} is supported.`
+          `Only schema versions ${LEGACY_SCHEMA_VERSION} and ${SUPPORTED_SCHEMA_VERSION} are supported.`
         );
       }
     }
@@ -260,6 +263,7 @@
       "listTerritoryRecords",
       "listStructureRecords"
     ]);
+    const retractions = requireService(runtime, "ownershipRetractionService", ["listRetractions"]);
     const verifications = requireService(runtime, "targetVerificationService", ["listVerifications"]);
     const snapshots = requireService(runtime, "confirmedSnapshotService", ["listSnapshots"]);
     const activityFacts = requireService(runtime, "activityFactHistoryService", ["getAllFacts"]);
@@ -307,6 +311,10 @@
           ownership.listStructureRecords(),
           "runtime.ownershipRecordService.listStructureRecords"
         ),
+        ownershipRetractions: requireCollection(
+          retractions.listRetractions(),
+          "runtime.ownershipRetractionService.listRetractions"
+        ),
         targetVerifications: requireCollection(
           verifications.listVerifications(),
           "runtime.targetVerificationService.listVerifications"
@@ -337,8 +345,24 @@
     return deepClone(envelope);
   }
 
+  function migrateLegacyEnvelope(candidate) {
+    if (!isPlainObject(candidate) || candidate.schemaVersion !== LEGACY_SCHEMA_VERSION) {
+      return candidate;
+    }
+    const migrated = deepClone(candidate);
+    if (!isPlainObject(migrated.state)) {
+      return migrated;
+    }
+    if (!Object.prototype.hasOwnProperty.call(migrated.state, "ownershipRetractions")) {
+      migrated.state.ownershipRetractions = [];
+    }
+    migrated.schemaVersion = SUPPORTED_SCHEMA_VERSION;
+    return migrated;
+  }
+
   function deserializeStrategicDomainEnvelope(candidate) {
-    const validation = validateStrategicDomainEnvelope(candidate);
+    const migrated = migrateLegacyEnvelope(candidate);
+    const validation = validateStrategicDomainEnvelope(migrated);
     if (!validation.valid) {
       throw createSerializerError(
         "INVALID_ENVELOPE",
@@ -346,7 +370,7 @@
         validation.errors
       );
     }
-    return deepClone(candidate);
+    return deepClone(migrated);
   }
 
   const exportsObject = {

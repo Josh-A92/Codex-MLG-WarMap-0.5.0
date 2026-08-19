@@ -3,9 +3,10 @@
     ? globalScope
     : (typeof require === "function" ? require("./ownership-record-validator.js") : {});
   const FACTORY_FIELDS = new Set(["targetCatalog"]);
-  const INPUT_FIELDS = new Set(["territoryRecords", "structureRecords", "seasonId", "serverId"]);
+  const INPUT_FIELDS = new Set(["territoryRecords", "structureRecords", "retractionRecords", "seasonId", "serverId"]);
   const OWNERSHIP_STATES = new Set(["owned", "unclaimed", "unknown"]);
   const REVIEW_STATES = new Set(["proposed", "confirmed", "rejected", "superseded"]);
+  const RETRACTION_TARGET_KINDS = new Set(["territory_ownership_record", "structure_ownership_record"]);
 
   class OwnershipHistoryResolverError extends Error {
     constructor(code, message, details) {
@@ -144,27 +145,37 @@
     return kind === "territory" ? targetKey(record.territoryRef) : structureKey(record.structureId);
   }
 
+  function recordId(record, kind) {
+    return kind === "territory" ? record.ownershipRecordId : record.structureOwnershipId;
+  }
+
   function targetDescription(record, kind) {
     return kind === "territory" ? deepClone(record.territoryRef) : record.structureId;
   }
 
   function validateChain(records, idMap, kind) {
+    const predecessorByReplacementId = new Map();
     records.forEach((record) => {
       if (record.reviewState !== "superseded") return;
-      const sourceId = kind === "territory" ? record.ownershipRecordId : record.structureOwnershipId;
+      const sourceId = recordId(record, kind);
       const chainSeen = new Set();
       let current = record;
       while (current.reviewState === "superseded") {
-        const currentId = kind === "territory" ? current.ownershipRecordId : current.structureOwnershipId;
+        const currentId = recordId(current, kind);
         if (chainSeen.has(currentId)) fail("invalid_history", `Supersession cycle includes '${currentId}'.`);
         chainSeen.add(currentId);
         const replacement = idMap.get(current.supersededBy);
         if (!replacement) fail("invalid_history", `Supersession for '${currentId}' references a missing record.`);
-        const replacementId = kind === "territory" ? replacement.ownershipRecordId : replacement.structureOwnershipId;
+        const replacementId = recordId(replacement, kind);
         if (replacementId === currentId) fail("invalid_history", `Record '${currentId}' supersedes itself.`);
         if (replacement.seasonId !== current.seasonId || replacement.serverId !== current.serverId) fail("invalid_history", `Supersession for '${currentId}' crosses scope.`);
         if (canonicalTarget(replacement, kind) !== canonicalTarget(current, kind)) fail("invalid_history", `Supersession for '${currentId}' crosses target.`);
         if (replacement.reviewState !== "confirmed" && replacement.reviewState !== "superseded") fail("invalid_history", `Supersession for '${currentId}' does not terminate in confirmed history.`);
+        const predecessor = predecessorByReplacementId.get(replacementId);
+        if (predecessor && predecessor !== currentId) {
+          fail("invalid_history", `Supersession for '${replacementId}' has multiple predecessors.`);
+        }
+        predecessorByReplacementId.set(replacementId, currentId);
         const currentEventTime = exactEventTime(current);
         const replacementEventTime = exactEventTime(replacement);
         if (currentEventTime !== null && replacementEventTime !== null && replacementEventTime < currentEventTime) fail("invalid_history", `Supersession for '${currentId}' moves the fact earlier.`);
@@ -175,6 +186,41 @@
       }
       if (current.reviewState !== "confirmed") fail("invalid_history", `Supersession for '${sourceId}' has an invalid terminal state.`);
     });
+  }
+
+  function validateRetractionRecord(record, index) {
+    if (!isPlainObject(record)) fail("invalid_history", `Retraction record ${index} must be a plain object.`);
+    const required = [
+      "retractionId",
+      "seasonId",
+      "serverId",
+      "targetKind",
+      "retractedRecordId",
+      "actorId",
+      "reason",
+      "recordedAt",
+      "transactionId",
+      "sourceType"
+    ];
+    const allowed = new Set(required);
+    required.forEach((field) => {
+      if (!Object.prototype.hasOwnProperty.call(record, field)) {
+        fail("invalid_history", `Retraction record ${index} is missing '${field}'.`);
+      }
+    });
+    const unknown = Object.keys(record).filter((field) => !allowed.has(field)).sort();
+    if (unknown.length > 0) fail("invalid_history", `Retraction record ${index} has unsupported field '${unknown[0]}'.`);
+    ["retractionId", "seasonId", "serverId", "retractedRecordId", "actorId", "reason", "recordedAt", "transactionId"].forEach((field) => {
+      if (typeof record[field] !== "string" || record[field].trim() === "") {
+        fail("invalid_history", `Retraction record ${index}.${field} must be a non-empty string.`);
+      }
+    });
+    if (!RETRACTION_TARGET_KINDS.has(record.targetKind)) {
+      fail("invalid_history", `Retraction record ${index}.targetKind is unsupported.`);
+    }
+    if (record.sourceType !== "manual_retraction") {
+      fail("invalid_history", `Retraction record ${index}.sourceType must be 'manual_retraction'.`);
+    }
   }
 
   function sortByTarget(left, right) {
@@ -201,6 +247,7 @@
       const serverId = requireString(input.serverId, "serverId");
       const territoryRecords = requireArray(input.territoryRecords, "territoryRecords");
       const structureRecords = requireArray(input.structureRecords, "structureRecords");
+      const retractionRecords = requireArray(input.retractionRecords || [], "retractionRecords");
       const territoryIds = new Map();
       const structureIds = new Map();
       territoryRecords.forEach((record, index) => {
@@ -225,7 +272,78 @@
       const uncertainty = [];
       const excludedRecords = [];
       const consistencyDiagnostics = [];
-      const exactTerminalByTarget = new Map();
+      const terminalByTarget = new Map();
+      const predecessorByKind = {
+        territory: new Map(),
+        structure: new Map()
+      };
+      const scopedRecordByKind = {
+        territory: new Map(),
+        structure: new Map()
+      };
+
+      function indexScope(records, kind, idField) {
+        records.forEach((record) => {
+          const id = record[idField];
+          if (record.seasonId !== seasonId || record.serverId !== serverId) return;
+          scopedRecordByKind[kind].set(id, record);
+          if (record.reviewState === "superseded") {
+            const replacementId = record.supersededBy;
+            if (predecessorByKind[kind].has(replacementId)) {
+              fail("invalid_history", `Supersession for '${replacementId}' has multiple predecessors.`);
+            }
+            predecessorByKind[kind].set(replacementId, id);
+          }
+        });
+      }
+
+      indexScope(territoryRecords, "territory", "ownershipRecordId");
+      indexScope(structureRecords, "structure", "structureOwnershipId");
+
+      const retractedByKind = {
+        territory: new Set(),
+        structure: new Set()
+      };
+      const retractedRecordIds = new Set();
+
+      retractionRecords.forEach((record, index) => {
+        validateRetractionRecord(record, index);
+        if (record.seasonId !== seasonId || record.serverId !== serverId) return;
+        if (retractedRecordIds.has(record.retractedRecordId)) {
+          fail("invalid_history", `Duplicate retraction references '${record.retractedRecordId}'.`);
+        }
+        retractedRecordIds.add(record.retractedRecordId);
+        const territoryRecord = scopedRecordByKind.territory.get(record.retractedRecordId);
+        const structureRecord = scopedRecordByKind.structure.get(record.retractedRecordId);
+        if (record.targetKind === "territory_ownership_record") {
+          if (!territoryRecord || structureRecord) {
+            fail("invalid_history", `Retraction '${record.retractionId}' references missing or wrong-kind territory record '${record.retractedRecordId}'.`);
+          }
+          retractedByKind.territory.add(record.retractedRecordId);
+          return;
+        }
+        if (!structureRecord || territoryRecord) {
+          fail("invalid_history", `Retraction '${record.retractionId}' references missing or wrong-kind structure record '${record.retractedRecordId}'.`);
+        }
+        retractedByKind.structure.add(record.retractedRecordId);
+      });
+
+      function resolveEffectiveTerminal(terminalRecord, kind, idField) {
+        if (!terminalRecord) return null;
+        let current = terminalRecord;
+        const visited = new Set();
+        while (current && retractedByKind[kind].has(current[idField])) {
+          const currentId = current[idField];
+          if (visited.has(currentId)) {
+            fail("invalid_history", `Retraction walk found a cycle at '${currentId}'.`);
+          }
+          visited.add(currentId);
+          const predecessorId = predecessorByKind[kind].get(currentId);
+          if (!predecessorId) return null;
+          current = scopedRecordByKind[kind].get(predecessorId) || null;
+        }
+        return current;
+      }
 
       function collect(records, kind, idField) {
         records.forEach((record) => {
@@ -239,23 +357,41 @@
             return;
           }
           if (record.reviewState !== "confirmed" || record.supersededBy !== null) return;
-          const existing = exactTerminalByTarget.get(`${kind}:${key}`);
-          if (existing && eventPrecision(existing) === "exact" && eventPrecision(record) === "exact") {
-            fail("contradiction", `Multiple exact terminal ${kind} records affect target '${key}'.`, { kind, targetKey: key, recordIds: [existing[idField], id].sort() });
+          const terminalKey = `${kind}:${key}`;
+          const existing = terminalByTarget.get(terminalKey);
+          if (existing) {
+            fail("contradiction", `Multiple terminal ${kind} records affect target '${key}'.`, { kind, targetKey: key, recordIds: [existing[idField], id].sort() });
           }
-          if (eventPrecision(record) !== "exact") {
-            uncertainty.push({ kind, recordId: id, targetKey: key, target: targetDescription(record, kind), precision: eventPrecision(record), eventAt: deepClone(record.eventAt) });
-            return;
-          }
-          exactTerminalByTarget.set(`${kind}:${key}`, record);
-          const value = { targetKey: key, ownershipState: record.ownershipState, ownerUnionId: record.ownerUnionId, recordId: id, eventAt: deepClone(record.eventAt || { precision: "exact", at: record.effectiveAt }) };
-          if (kind === "territory") territories.push({ territoryRef: deepClone(record.territoryRef), ...value });
-          else structures.push({ structureId: record.structureId, ...value });
+          terminalByTarget.set(terminalKey, record);
         });
       }
 
       collect(territoryRecords, "territory", "ownershipRecordId");
       collect(structureRecords, "structure", "structureOwnershipId");
+
+      terminalByTarget.forEach((terminalRecord, terminalKey) => {
+        const separator = terminalKey.indexOf(":");
+        const kind = terminalKey.slice(0, separator);
+        const key = terminalKey.slice(separator + 1);
+        const idField = kind === "territory" ? "ownershipRecordId" : "structureOwnershipId";
+        const effective = resolveEffectiveTerminal(terminalRecord, kind, idField);
+        if (!effective) return;
+        const effectivePrecision = eventPrecision(effective);
+        if (effectivePrecision !== "exact") {
+          uncertainty.push({ kind, recordId: effective[idField], targetKey: key, target: targetDescription(effective, kind), precision: effectivePrecision, eventAt: deepClone(effective.eventAt) });
+          return;
+        }
+        const value = {
+          targetKey: key,
+          ownershipState: effective.ownershipState,
+          ownerUnionId: effective.ownerUnionId,
+          recordId: effective[idField],
+          eventAt: deepClone(effective.eventAt || { precision: "exact", at: effective.effectiveAt })
+        };
+        if (kind === "territory") territories.push({ territoryRef: deepClone(effective.territoryRef), ...value });
+        else structures.push({ structureId: effective.structureId, ...value });
+      });
+
       const territoryByKey = new Map(territories.map((entry) => [entry.targetKey, entry]));
       structures.forEach((structure) => {
         const catalogStructure = structureCatalog.get(structure.structureId);

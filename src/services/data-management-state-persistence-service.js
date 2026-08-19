@@ -92,6 +92,7 @@
       serverObservations: [],
       territoryOwnershipRecords: [],
       structureOwnershipRecords: [],
+      ownershipRetractions: [],
       targetVerifications: [],
       confirmedSnapshots: [],
       confirmedPresenceFacts: [],

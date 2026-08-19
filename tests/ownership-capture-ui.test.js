@@ -44,13 +44,14 @@ test("renderer imports managed screenshots into durable evidence records before 
   assert.match(renderer, /createManualAttachment\(localActor/);
   assert.match(renderer, /actionType: "ownership_evidence_attached"/);
   assert.match(renderer, /attachment\.evidenceId/);
-  assert.match(renderer, /selectionPanel\.addEventListener\("click", handleOwnershipEvidenceImport\)/);
+  assert.match(renderer, /selectionPanel\.addEventListener\("click", handleSelectionPanelClick\)/);
 });
 
 test("renderer persists a scoped ownership audit intent with capture metadata", () => {
   assert.match(renderer, /actionType: correction \? "ownership_corrected" : "ownership_confirmed"/);
   assert.match(renderer, /targetType: "ownership_record"/);
-  assert.match(renderer, /applicationPersistenceFacade\.execute\(async \(\) => \{[\s\S]*\}, auditIntent\)/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute\(\s*\(\) => executeOwnershipCapture\(captureSpec\),\s*auditIntent\s*\)/);
+  assert.match(renderer, /registerOwnershipCaptureOperation\(captureSpec, captureResult\)/);
   assert.match(renderer, /details: \{[\s\S]*ownerUnionId: ownerId,[\s\S]*eventAt,[\s\S]*evidenceIds: evidenceIds\.slice\(\)/);
 });
 

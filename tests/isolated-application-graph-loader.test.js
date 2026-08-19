@@ -25,14 +25,14 @@ const { serializeServerState, deserializePersistenceEnvelope } = require("../src
 const context = { seasonId: "season-1", baseMapId: "season1-map" };
 const emptyStrategicState = {
   relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [], serverObservations: [],
-  territoryOwnershipRecords: [], structureOwnershipRecords: [], targetVerifications: [], confirmedSnapshots: [],
+  territoryOwnershipRecords: [], structureOwnershipRecords: [], ownershipRetractions: [], targetVerifications: [], confirmedSnapshots: [],
   confirmedPresenceFacts: [], qualifyingFullMapConfirmations: []
 };
 const strategicFiles = [
   "union-matching-service", "union-server-season-relation-service", "native-union-assignment-validator", "native-union-assignment-service",
   "active-union-status-validator", "active-union-status-evaluator", "active-union-status-service", "combat-strength-observation-validator",
   "combat-strength-observation-service", "server-observation-validator", "server-observation-service", "ownership-record-validator",
-  "ownership-record-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
+  "ownership-record-service", "ownership-retraction-validator", "ownership-retraction-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
   "confirmed-server-snapshot-service", "confirmed-server-snapshot-coordinator", "snapshot-activity-fact-resolver", "activity-fact-history-service",
   "active-union-status-update-coordinator", "active-union-status-projection-service", "union-server-season-view-service",
   "union-server-season-intelligence-view-service", "server-intelligence-view-service", "server-data-completeness-service",

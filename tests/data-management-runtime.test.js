@@ -60,6 +60,10 @@ function factory() {
       captureTransactionState() {},
       restoreTransactionState() {}
     },
+    ownershipRetractionService: {
+      captureTransactionState() {},
+      restoreTransactionState() {}
+    },
     targetVerificationService: {
       captureTransactionState() {},
       restoreTransactionState() {}
@@ -185,6 +189,7 @@ test("builds registration and map ownership transaction support from their mutab
   assert.deepStrictEqual(atomicCalls[1][1].participants, [
     setup.options.strategicDomainRuntime.relationService,
     setup.options.strategicDomainRuntime.ownershipRecordService,
+    setup.options.strategicDomainRuntime.ownershipRetractionService,
     setup.options.strategicDomainRuntime.targetVerificationService,
     setup.options.serverStateService
   ]);
@@ -193,6 +198,7 @@ test("builds registration and map ownership transaction support from their mutab
   assert.strictEqual(mapOwnership.serverIntelligenceManagementService, setup.created.serverManagement);
   assert.strictEqual(mapOwnership.targetVerificationService, setup.options.strategicDomainRuntime.targetVerificationService);
   assert.strictEqual(mapOwnership.ownershipRecordService, setup.options.strategicDomainRuntime.ownershipRecordService);
+  assert.strictEqual(mapOwnership.ownershipRetractionService, setup.options.strategicDomainRuntime.ownershipRetractionService);
   assert.strictEqual(mapOwnership.evidenceRecordService, setup.options.evidenceDomainRuntime.evidenceRecordService);
   assert.strictEqual(mapOwnership.resolveEvidenceScope, setup.created.evidenceManagement.resolveEvidenceScope);
   assert.strictEqual(mapOwnership.seasonAdministrationService, setup.options.seasonAdministrationService);

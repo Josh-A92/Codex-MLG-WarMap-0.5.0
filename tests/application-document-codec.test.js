@@ -24,6 +24,7 @@ function graph(includeProvenance = true) {
     combatStrengthObservationService: participant("combatStrengthObservations", calls, state),
     serverObservationService: participant("serverObservations", calls, state),
     ownershipRecordService: participant("ownershipRecords", calls, state),
+    ownershipRetractionService: participant("ownershipRetractions", calls, state),
     targetVerificationService: participant("targetVerifications", calls, state),
     confirmedSnapshotService: participant("confirmedSnapshots", calls, state),
     activityFactHistoryService: participant("activityFacts", calls, state)
@@ -74,6 +75,7 @@ function documents({ includeAudit = true, includeProvenance = true } = {}) {
       relations: ["relation"], nativeAssignments: ["assignment"], activeStatuses: ["status"],
       combatStrengthObservations: ["strength"], serverObservations: ["observation"],
       territoryOwnershipRecords: ["territory"], structureOwnershipRecords: ["structure"],
+      ownershipRetractions: ["retraction"],
       targetVerifications: ["verification"], confirmedSnapshots: ["snapshot"],
       confirmedPresenceFacts: ["presence"], qualifyingFullMapConfirmations: ["confirmation"]
     } } },
@@ -146,7 +148,7 @@ async function runParity(includeAudit = true, includeProvenance = true) {
   assert.deepStrictEqual(parity.compositionGraph.calls, parity.extractedGraph.calls);
   assert.deepStrictEqual(parity.compositionGraph.calls, [
     "unionRegistry", "relations", "nativeAssignments", "activeStatuses", "combatStrengthObservations",
-    "serverObservations", "ownershipRecords", "targetVerifications", "confirmedSnapshots", "activityFacts",
+    "serverObservations", "ownershipRecords", "ownershipRetractions", "targetVerifications", "confirmedSnapshots", "activityFacts",
     "evidenceAssets", "evidenceRecords", "registerServer", "projection", "seasonAdministration",
     "applicationAudit", "provenance"
   ]);

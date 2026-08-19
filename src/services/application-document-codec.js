@@ -99,6 +99,9 @@
         territoryRecords: state.strategicDomain.state.territoryOwnershipRecords,
         structureRecords: state.strategicDomain.state.structureOwnershipRecords
       });
+      services.strategicDomainRuntime.ownershipRetractionService.restoreTransactionState(
+        state.strategicDomain.state.ownershipRetractions
+      );
       services.strategicDomainRuntime.targetVerificationService.restoreTransactionState(state.strategicDomain.state.targetVerifications);
       services.strategicDomainRuntime.confirmedSnapshotService.restoreTransactionState(state.strategicDomain.state.confirmedSnapshots);
       services.strategicDomainRuntime.activityFactHistoryService.restoreTransactionState({

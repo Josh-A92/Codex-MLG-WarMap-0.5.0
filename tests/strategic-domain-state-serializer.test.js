@@ -16,6 +16,7 @@ const COLLECTION_FIELDS = [
   "serverObservations",
   "territoryOwnershipRecords",
   "structureOwnershipRecords",
+  "ownershipRetractions",
   "targetVerifications",
   "confirmedSnapshots",
   "confirmedPresenceFacts",
@@ -31,7 +32,7 @@ function createState() {
 
 function createEnvelope() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     seasonId: "season-1",
     savedAt: "2026-07-30T22:30:00.000Z",
     state: createState()
@@ -55,6 +56,7 @@ function createRuntime() {
     serverObservations: [record("server-observation")],
     territoryOwnershipRecords: [record("territory")],
     structureOwnershipRecords: [record("structure")],
+    ownershipRetractions: [record("retraction")],
     targetVerifications: [record("verification")],
     confirmedSnapshots: [record("snapshot")],
     confirmedPresenceFacts: [record("presence")],
@@ -75,6 +77,9 @@ function createRuntime() {
       ownershipRecordService: {
         listTerritoryRecords: () => state.territoryOwnershipRecords,
         listStructureRecords: () => state.structureOwnershipRecords
+      },
+      ownershipRetractionService: {
+        listRetractions: () => state.ownershipRetractions
       },
       targetVerificationService: { listVerifications: () => state.targetVerifications },
       confirmedSnapshotService: { listSnapshots: () => state.confirmedSnapshots },
@@ -110,10 +115,17 @@ assert.ok(unknownResult.errors.some((error) => error.path === "extra"));
 assert.ok(unknownResult.errors.some((error) => error.path === "state.extra"));
 
 const invalidVersion = createEnvelope();
-invalidVersion.schemaVersion = 2;
+invalidVersion.schemaVersion = 3;
 assert.ok(validateStrategicDomainEnvelope(invalidVersion).errors.some(
   (error) => error.code === "UNSUPPORTED_SCHEMA_VERSION"
 ));
+
+const legacy = createEnvelope();
+legacy.schemaVersion = 1;
+delete legacy.state.ownershipRetractions;
+const migrated = deserializeStrategicDomainEnvelope(legacy);
+assert.strictEqual(migrated.schemaVersion, 2);
+assert.deepStrictEqual(migrated.state.ownershipRetractions, []);
 
 [
   "2026-07-30T22:30:00Z",

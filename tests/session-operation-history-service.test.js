@@ -30,6 +30,57 @@ test("failed compensation leaves stacks unchanged and queue recovers", async () 
   assert.strictEqual((await history.undo()).status, "applied");
 });
 
+test("ownership capture undo redo cycles use a fresh record ID each time", async () => {
+  const history = createSessionOperationHistoryService();
+  const captures = ["C", "D", "E"];
+  const retracted = [];
+  let currentRecordId = captures.shift();
+  let failRedo = false;
+  let staleTarget = false;
+  history.record({
+    operationId: "ownership-1",
+    undo: async () => {
+      if (staleTarget) throw new Error("stale_retraction_target");
+      retracted.push(currentRecordId);
+    },
+    redo: async () => {
+      if (failRedo) throw new Error("redo failed");
+      currentRecordId = captures.shift();
+      return currentRecordId;
+    }
+  });
+
+  await history.undo();
+  assert.deepStrictEqual(retracted, ["C"]);
+  await history.redo();
+  assert.strictEqual(currentRecordId, "D");
+  await history.undo();
+  assert.deepStrictEqual(retracted, ["C", "D"]);
+  await history.redo();
+  assert.strictEqual(currentRecordId, "E");
+  await history.undo();
+  assert.deepStrictEqual(retracted, ["C", "D", "E"]);
+
+  const beforeFailedRedo = history.getState();
+  failRedo = true;
+  await assert.rejects(history.redo(), /redo failed/);
+  assert.deepStrictEqual(history.getState(), beforeFailedRedo);
+  assert.strictEqual(currentRecordId, "E");
+
+  const staleHistory = createSessionOperationHistoryService();
+  staleTarget = true;
+  staleHistory.record({
+    operationId: "stale-ownership",
+    undo: async () => {
+      if (staleTarget) throw new Error("stale_retraction_target");
+    },
+    redo: async () => {}
+  });
+  const beforeStaleUndo = staleHistory.getState();
+  await assert.rejects(staleHistory.undo(), /stale_retraction_target/);
+  assert.deepStrictEqual(staleHistory.getState(), beforeStaleUndo);
+});
+
 test("new operations clear redo history", async () => {
   const history = createSessionOperationHistoryService();
   history.record({ operationId: "one", undo: async () => {}, redo: async () => {} });

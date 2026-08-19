@@ -172,6 +172,73 @@ test("queued operations execute serially", async () => {
   assert.strictEqual(target.value, 2);
 });
 
+test("audited mutation shares one coordinator-generated transaction ID with the callback and audit record", async () => {
+  const state = participant({ value: 0 });
+  const audit = participant([]);
+  audit.append = function append(record) {
+    this.value.push(structuredClone(record));
+    return structuredClone(record);
+  };
+  const coordinator = createApplicationMutationCoordinator({
+    participants: [state, audit],
+    auditRecordService: audit,
+    createTransactionId: () => "generated-transaction"
+  });
+  let callbackTransactionId = null;
+  await coordinator.execute(
+    (transactionId) => {
+      callbackTransactionId = transactionId;
+      state.value.value = 1;
+    },
+    async () => {},
+    { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "record-1", details: {} }
+  );
+  assert.strictEqual(callbackTransactionId, "generated-transaction");
+  assert.strictEqual(audit.value[0].transactionId, callbackTransactionId);
+});
+
+test("caller-authored audit transaction IDs are rejected before mutation", async () => {
+  const state = participant({ value: 0 });
+  const audit = { append() {} };
+  const coordinator = createApplicationMutationCoordinator({
+    participants: [state],
+    auditRecordService: audit,
+    createTransactionId: () => "generated-transaction"
+  });
+  await assert.rejects(
+    () => coordinator.execute(
+      () => { state.value.value = 1; },
+      async () => {},
+      { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "record-1", transactionId: "forged", details: {} }
+    ),
+    (error) => error.code === "forged_audit_metadata"
+  );
+  assert.deepStrictEqual(state.value, { value: 0 });
+});
+
+test("audited durable commit failure rolls back mutation and audit participants", async () => {
+  const state = participant({ value: 0 });
+  const audit = participant([]);
+  audit.append = function append(record) {
+    this.value.push(structuredClone(record));
+  };
+  const coordinator = createApplicationMutationCoordinator({
+    participants: [state, audit],
+    auditRecordService: audit,
+    createTransactionId: () => "generated-transaction"
+  });
+  await assert.rejects(
+    () => coordinator.execute(
+      () => { state.value.value = 1; },
+      async () => { throw new Error("durable commit failed"); },
+      { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "record-1", details: {} }
+    ),
+    /durable commit failed/
+  );
+  assert.deepStrictEqual(state.value, { value: 0 });
+  assert.deepStrictEqual(audit.value, []);
+});
+
 (async () => {
   let passed = 0;
   for (const entry of tests) {

@@ -24,14 +24,14 @@ const strategicFiles = [
   "union-matching-service", "union-server-season-relation-service", "native-union-assignment-validator", "native-union-assignment-service",
   "active-union-status-validator", "active-union-status-evaluator", "active-union-status-service", "combat-strength-observation-validator",
   "combat-strength-observation-service", "server-observation-validator", "server-observation-service", "ownership-record-validator",
-  "ownership-record-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
+  "ownership-record-service", "ownership-retraction-validator", "ownership-retraction-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
   "confirmed-server-snapshot-service", "confirmed-server-snapshot-coordinator", "snapshot-activity-fact-resolver", "activity-fact-history-service",
   "active-union-status-update-coordinator", "active-union-status-projection-service", "union-server-season-view-service",
   "union-server-season-intelligence-view-service", "server-intelligence-view-service", "server-data-completeness-service",
   "confirmed-snapshot-change-service", "server-history-service"
 ];
 function modules() { return strategicFiles.reduce((all, name) => Object.assign(all, require(`../src/services/${name}.js`)), {}); }
-function emptyState() { return { relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [], serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [], targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: [] }; }
+function emptyState() { return { relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [], serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [], ownershipRetractions: [], targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: [] }; }
 function evidenceModules() { return { validateEvidenceAsset, validateEvidenceAssetHistory, createEvidenceAssetService, validateEvidenceRecord, validateEvidenceRecordHistory, createEvidenceRecordService }; }
 function createEvidence() { return createEvidenceDomainRuntime({ modules: evidenceModules(), initialState: { assets: [], evidenceRecords: [] } }); }
 function createStrategic() { return createStrategicDomainRuntime({ modules: modules(), unionRegistryService: createUnionRegistryService(unions.unions), initialState: emptyState() }); }
@@ -47,7 +47,7 @@ function buildContext(directory, fileSystem, failApply = false) {
   const strategicDomainRuntime = createStrategic();
   const evidenceDomainRuntime = createEvidence();
   const serverStateService = createServer();
-  const participants = [unionRegistryService, strategicDomainRuntime.relationService, strategicDomainRuntime.nativeAssignmentService, strategicDomainRuntime.activeStatusService, strategicDomainRuntime.combatStrengthObservationService, strategicDomainRuntime.serverObservationService, strategicDomainRuntime.ownershipRecordService, strategicDomainRuntime.targetVerificationService, strategicDomainRuntime.confirmedSnapshotService, strategicDomainRuntime.activityFactHistoryService, evidenceDomainRuntime.evidenceAssetService, evidenceDomainRuntime.evidenceRecordService, serverStateService];
+  const participants = [unionRegistryService, strategicDomainRuntime.relationService, strategicDomainRuntime.nativeAssignmentService, strategicDomainRuntime.activeStatusService, strategicDomainRuntime.combatStrengthObservationService, strategicDomainRuntime.serverObservationService, strategicDomainRuntime.ownershipRecordService, strategicDomainRuntime.ownershipRetractionService, strategicDomainRuntime.targetVerificationService, strategicDomainRuntime.confirmedSnapshotService, strategicDomainRuntime.activityFactHistoryService, evidenceDomainRuntime.evidenceAssetService, evidenceDomainRuntime.evidenceRecordService, serverStateService];
   const mutationCoordinator = createApplicationMutationCoordinator({ participants });
   const evidenceSerializer = createEvidenceDomainStateSerializer({ validateEvidenceAssetHistory, validateEvidenceRecordHistory });
   const state = { unionRegistryService, strategicDomainRuntime, evidenceDomainRuntime, serverStateService };
@@ -68,6 +68,7 @@ function buildContext(directory, fileSystem, failApply = false) {
     strategicDomainRuntime.combatStrengthObservationService.restoreTransactionState(documents.strategic.state.combatStrengthObservations);
     strategicDomainRuntime.serverObservationService.restoreTransactionState(documents.strategic.state.serverObservations);
     strategicDomainRuntime.ownershipRecordService.restoreTransactionState({ territoryRecords: documents.strategic.state.territoryOwnershipRecords, structureRecords: documents.strategic.state.structureOwnershipRecords });
+    strategicDomainRuntime.ownershipRetractionService.restoreTransactionState(documents.strategic.state.ownershipRetractions);
     strategicDomainRuntime.targetVerificationService.restoreTransactionState(documents.strategic.state.targetVerifications);
     strategicDomainRuntime.confirmedSnapshotService.restoreTransactionState(documents.strategic.state.confirmedSnapshots);
     strategicDomainRuntime.activityFactHistoryService.restoreTransactionState({ confirmedPresenceFacts: documents.strategic.state.confirmedPresenceFacts, qualifyingFullMapConfirmations: documents.strategic.state.qualifyingFullMapConfirmations });

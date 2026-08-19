@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define the storage-neutral version 1 contract for mutable, season-scoped strategic domain state.
+Define the storage-neutral version 2 contract for mutable, season-scoped strategic domain state.
 
 The contract allows the same canonical state to be stored by a local adapter during desktop development or by a hosted database/API later. It does not select a backend.
 
@@ -18,7 +18,7 @@ The contract allows the same canonical state to be stored by a local adapter dur
 
 ## Scope
 
-Version 1 persists:
+Version 2 persists:
 
 - known union/server/season relations;
 - native-union assignment history;
@@ -26,12 +26,13 @@ Version 1 persists:
 - server observation history;
 - canonical territory ownership history;
 - canonical logical-structure ownership history;
+- append-only ownership-retraction history;
 - target-verification history;
 - confirmed server-snapshot history;
 - confirmed-presence facts;
 - qualifying full-map confirmation facts.
 
-Version 1 does not persist:
+Version 2 does not persist:
 
 - season packages, rules, structure values, phases, or map definitions;
 - union identities or presentation metadata;
@@ -54,26 +55,15 @@ integration remain separate work. Until that integration is completed,
 
 ## Transitional ownership boundary
 
-The current map editor writes and persists Server State Service ownership overrides. The canonical strategic runtime separately exposes immutable ownership-record histories.
+Canonical ownership records and append-only ownership retractions are the authoritative ownership history. The Server State Service ownership map is a derived projection rebuilt from that history.
 
-These must not both be treated as authoritative.
-
-Until map editing is migrated to canonical ownership records:
-
-- canonical strategic ownership histories must remain empty in the live application;
-- the existing Server State Service remains the temporary runtime authority for map ownership;
-- no automatic conversion from the legacy ownership map may invent evidence, review, observation, or confirmation history.
-
-After migration:
-
-- confirmed canonical ownership records and snapshots become authoritative;
-- the displayed map becomes a projection of confirmed canonical state;
-- the legacy ownership persistence envelope is retired or migrated explicitly;
-- no dual-write period may be introduced without a documented reconciliation rule.
+- Legacy ownership state may be read only through the explicit migration and startup compatibility path.
+- Missing ownership keys, explicit null or unclaimed values, and resolved ownership values remain distinct states and must not be collapsed during projection or migration.
+- No independent dual-write authority is permitted; canonical history remains the sole ownership authority.
 
 ## Logical storage identity
 
-Version 1 defines exactly one current strategic envelope per `seasonId`.
+Version 2 defines exactly one current strategic envelope per `seasonId`.
 
 The logical storage key is:
 
@@ -83,11 +73,11 @@ strategic-domain / seasonId
 
 Named slots, environments, branches, and multiple concurrent envelopes are future contract versions.
 
-## Canonical version 1 envelope
+## Canonical version 2 envelope
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "seasonId": "season-1",
   "savedAt": "2026-07-30T22:30:00.000Z",
   "state": {
@@ -98,6 +88,7 @@ Named slots, environments, branches, and multiple concurrent envelopes are futur
     "serverObservations": [],
     "territoryOwnershipRecords": [],
     "structureOwnershipRecords": [],
+    "ownershipRetractions": [],
     "targetVerifications": [],
     "confirmedSnapshots": [],
     "confirmedPresenceFacts": [],
@@ -110,10 +101,10 @@ Named slots, environments, branches, and multiple concurrent envelopes are futur
 
 Top level:
 
-- `schemaVersion`: integer `1`.
+- `schemaVersion`: integer `2`.
 - `seasonId`: non-empty, non-whitespace string.
 - `savedAt`: canonical UTC timestamp in `YYYY-MM-DDTHH:mm:ss.sssZ` form.
-- `state`: plain object containing every version 1 state collection.
+- `state`: plain object containing every version 2 state collection.
 
 State collections:
 
@@ -124,6 +115,7 @@ State collections:
 - `serverObservations`
 - `territoryOwnershipRecords`
 - `structureOwnershipRecords`
+- `ownershipRetractions`
 - `targetVerifications`
 - `confirmedSnapshots`
 - `confirmedPresenceFacts`
@@ -131,7 +123,7 @@ State collections:
 
 Every state collection is required and must be an array. Empty arrays are valid.
 
-Unknown top-level or `state` fields are rejected in version 1.
+Unknown top-level or `state` fields are rejected in version 2.
 
 ## Canonical service mapping
 
@@ -144,6 +136,7 @@ Unknown top-level or `state` fields are rejected in version 1.
 | `serverObservations` | Server Observation Service |
 | `territoryOwnershipRecords` | Ownership Record Service |
 | `structureOwnershipRecords` | Ownership Record Service |
+| `ownershipRetractions` | Ownership Retraction Service |
 | `targetVerifications` | Target Verification Service |
 | `confirmedSnapshots` | Confirmed Server Snapshot Service |
 | `confirmedPresenceFacts` | Activity Fact History Service |
@@ -208,11 +201,13 @@ A hosted implementation may store the collections as normalized database records
 
 Authentication determines identity. Authorization determines which domain actions that identity may perform. Neither belongs inside the persistence envelope.
 
-## Versioning
+## Versioning and migration
 
-- `schemaVersion` must equal integer `1`.
+- `schemaVersion` must equal integer `2` for the canonical persisted envelope.
+- Version `1` envelopes are accepted as a legacy input and migrated to version `2` by adding an empty `state.ownershipRetractions` collection and changing `schemaVersion` to `2`.
+- The v1 migration is structural only. It does not invent retractions, ownership facts, evidence, review state, or projection values.
+- Migrated state is validated under the complete version 2 contract before runtime replacement or save.
 - Other versions fail as unsupported.
-- Version 1 defines no migration behavior.
 - Breaking field or semantic changes require a new schema version.
 - Future optional extension data must not be added outside a versioned contract.
 
@@ -227,4 +222,4 @@ Authentication determines identity. Authorization determines which domain action
 - Autosave/debounce/manual-save policy for strategic state.
 - Strategic persistence bootstrap integration.
 
-No unresolved version 1 envelope-shape questions remain.
+No unresolved version 2 envelope-shape questions remain.

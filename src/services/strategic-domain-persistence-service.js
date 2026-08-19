@@ -10,6 +10,7 @@
   const STATE_FIELDS = [
     "relations", "nativeAssignments", "activeStatuses", "combatStrengthObservations",
     "serverObservations", "territoryOwnershipRecords", "structureOwnershipRecords",
+    "ownershipRetractions",
     "targetVerifications", "confirmedSnapshots", "confirmedPresenceFacts",
     "qualifyingFullMapConfirmations"
   ];

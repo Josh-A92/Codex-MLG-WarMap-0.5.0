@@ -15,7 +15,7 @@ const classifier = createLegacyStateClassifier({
 function strategicState(owner = "union-0001") {
   return {
     relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [],
-    serverObservations: [], structureOwnershipRecords: [], targetVerifications: [],
+    serverObservations: [], structureOwnershipRecords: [], ownershipRetractions: [], targetVerifications: [],
     confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: [],
     territoryOwnershipRecords: owner === undefined ? [] : [{
       ownershipRecordId: "ownership-1",

@@ -52,7 +52,7 @@ function targetCatalog() {
 }
 
 function createHistory() {
-  return createOwnershipRecordService({
+  const history = createOwnershipRecordService({
     initialTerritoryRecords: [territoryRecord()],
     initialStructureRecords: [],
     validateTerritoryOwnershipRecord,
@@ -61,6 +61,8 @@ function createHistory() {
     validateStructureOwnershipHistory,
     clock: () => new Date(SAVED_AT)
   });
+  history.listRetractions = () => [];
+  return history;
 }
 
 function createAudit() {
@@ -100,11 +102,12 @@ function createStateEnvelope(history, serverState, audit) {
   return {
     union: { identities: [{ unionId: "union-1" }] },
     strategic: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       seasonId: SEASON_ID,
       state: {
         territoryOwnershipRecords: history.listTerritoryRecords(),
-        structureOwnershipRecords: history.listStructureRecords()
+        structureOwnershipRecords: history.listStructureRecords(),
+        ownershipRetractions: history.listRetractions()
       }
     },
     evidence: { assets: [], evidenceRecords: [] },

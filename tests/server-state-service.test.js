@@ -626,8 +626,8 @@ runTest("renderer routes ownership through the single generation coordinator", (
 
   assert.strictEqual(executeMatches.length, 1);
   assert.strictEqual(refreshCardsMatches.length, 2);
-  assert.ok(/mapOwnershipCoordinator\.setStructureOwnership\(localActor/.test(changeHandlerSource));
-  assert.ok(/mapOwnershipCoordinator\.setTerritoryOwnership\(localActor/.test(changeHandlerSource));
+  assert.ok(/executeOwnershipCapture\(captureSpec\)/.test(changeHandlerSource));
+  assert.ok(/registerOwnershipCaptureOperation\(captureSpec, captureResult\)/.test(changeHandlerSource));
   assert.ok(/applicationPersistenceFacade\.execute\(/.test(changeHandlerSource));
   assert.strictEqual(/ownershipService\.setTileOwner/.test(changeHandlerSource), false);
 

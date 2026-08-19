@@ -74,6 +74,20 @@ function setup(overrides = {}) {
 
   const evidenceById = new Map();
   const evidenceState = participant({ evidenceById: {} });
+    const retractionState = participant([]);
+    retractionState.listRetractions = function listRetractions(filter) {
+      return this.value.filter((record) => {
+        if (filter && filter.seasonId && record.seasonId !== filter.seasonId) return false;
+        if (filter && filter.serverId && record.serverId !== filter.serverId) return false;
+        return true;
+      }).map((record) => structuredClone(record));
+    };
+    retractionState.addManualRetraction = function addManualRetraction(record) {
+      this.value.push(structuredClone(record));
+      calls.push(["retraction", record]);
+      return structuredClone(record);
+    };
+
   evidenceState.getEvidenceRecord = function getEvidenceRecord(evidenceId) {
     return evidenceById.has(evidenceId) ? structuredClone(evidenceById.get(evidenceId)) : null;
   };
@@ -183,7 +197,7 @@ function setup(overrides = {}) {
   };
 
   const atomic = createAtomicOperationExecutor({
-    participants: [relationState, ownershipState, verificationState, projectionState, evidenceState]
+    participants: [relationState, ownershipState, retractionState, verificationState, projectionState, evidenceState]
   });
 
   const coordinator = createMapOwnershipCoordinator({
@@ -191,6 +205,7 @@ function setup(overrides = {}) {
     serverIntelligenceManagementService: management,
     targetVerificationService: verificationState,
     ownershipRecordService: ownershipState,
+    ownershipRetractionService: retractionState,
     evidenceRecordService: evidenceState,
     resolveEvidenceScope(record) {
       return structuredClone(record.scope);
@@ -215,6 +230,11 @@ function setup(overrides = {}) {
     executeAtomically: atomic.executeAtomically,
     createId() {
       return `verification-${verificationState.value.length + 1}`;
+    },
+    clock() {
+      return overrides.clock
+        ? overrides.clock()
+        : new Date("2026-08-19T10:00:00.000Z");
     }
   });
 
@@ -230,6 +250,69 @@ function setup(overrides = {}) {
 }
 
 const actor = { actorId: "desktop-user" };
+
+async function captureTerritory(context, input) {
+  return context.coordinator.setTerritoryOwnership(actor, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    ...input,
+    evidenceIds: []
+  });
+}
+
+async function captureStructure(context, input) {
+  return context.coordinator.setStructureOwnership(actor, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    ...input,
+    evidenceIds: []
+  });
+}
+
+test("production coordinator unwinds A to B to C retractions and omits unclaimed targets", async () => {
+  const context = setup();
+  const a = await captureTerritory(context, { row: 1, col: 1, ownerUnionId: "union-a", eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" } });
+  const b = await captureTerritory(context, { row: 1, col: 1, ownerUnionId: "union-b", eventAt: { precision: "exact", at: "2026-08-19T09:01:00.000Z" } });
+  const c = await captureTerritory(context, { row: 1, col: 1, ownerUnionId: "union-c", eventAt: { precision: "exact", at: "2026-08-19T09:02:00.000Z" } });
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-c");
+
+  await context.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", row: 1, col: 1, retractedRecordId: c.record.ownershipRecordId, reason: "undo c", transactionId: "tx-c" });
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-b");
+  await context.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", row: 1, col: 1, retractedRecordId: b.record.ownershipRecordId, reason: "undo b", transactionId: "tx-b" });
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-a");
+  await context.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", row: 1, col: 1, retractedRecordId: a.record.ownershipRecordId, reason: "undo a", transactionId: "tx-a" });
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(context.projectionState.value["server-366"], "1-1"), false);
+  assert.strictEqual(context.calls.find((entry) => entry[0] === "retraction")[1].recordedAt, "2026-08-19T10:00:00.000Z");
+});
+
+test("coordinator rejects a clock that does not return a valid Date", async () => {
+  const context = setup({ clock: () => "2026-08-19T10:00:00.000Z" });
+  const capture = await captureTerritory(context, { row: 1, col: 1, ownerUnionId: "union-a", eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" } });
+  await assert.rejects(
+    () => context.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", row: 1, col: 1, retractedRecordId: capture.record.ownershipRecordId, reason: "undo", transactionId: "tx" }),
+    (error) => error instanceof MapOwnershipCoordinatorError && error.code === "invalid_clock"
+  );
+});
+
+test("production coordinator unwinds strategic nodes and retains structure-underlying territory facts", async () => {
+  const strategic = setup();
+  const a = await captureTerritory(strategic, { territoryRef: { type: "strategic_node", nodeId: "node-a" }, ownerUnionId: "union-a", eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" } });
+  const b = await captureTerritory(strategic, { territoryRef: { type: "strategic_node", nodeId: "node-a" }, ownerUnionId: "union-b", eventAt: { precision: "exact", at: "2026-08-19T09:01:00.000Z" } });
+  const c = await captureTerritory(strategic, { territoryRef: { type: "strategic_node", nodeId: "node-a" }, ownerUnionId: "union-c", eventAt: { precision: "exact", at: "2026-08-19T09:02:00.000Z" } });
+  await strategic.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", territoryRef: { type: "strategic_node", nodeId: "node-a" }, retractedRecordId: c.record.ownershipRecordId, reason: "undo c", transactionId: "tx-c" });
+  assert.strictEqual(strategic.projectionState.value["server-366"][JSON.stringify(["strategic_node", "node-a"])], "union-b");
+  await strategic.coordinator.retractTerritoryOwnership(actor, { seasonId: "season-1", serverId: "server-366", territoryRef: { type: "strategic_node", nodeId: "node-a" }, retractedRecordId: b.record.ownershipRecordId, reason: "undo b", transactionId: "tx-b" });
+  assert.strictEqual(strategic.projectionState.value["server-366"][JSON.stringify(["strategic_node", "node-a"])], "union-a");
+
+  const structure = setup();
+  const territory = await captureTerritory(structure, { row: 4, col: 4, ownerUnionId: "union-base", eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" } });
+  const captured = await captureStructure(structure, { structureId: "town-1", ownerUnionId: "union-structure", eventAt: { precision: "exact", at: "2026-08-19T09:01:00.000Z" } });
+  assert.strictEqual(structure.projectionState.value["server-366"]["4-4"], "union-structure");
+  await structure.coordinator.retractStructureOwnership(actor, { seasonId: "season-1", serverId: "server-366", structureId: "town-1", retractedRecordId: captured.record.structureOwnershipId, reason: "undo structure", transactionId: "tx-structure" });
+  assert.strictEqual(structure.projectionState.value["server-366"]["4-4"], "union-base");
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(structure.projectionState.value["server-366"], "4-5"), false);
+  assert.ok(territory.record.ownershipRecordId);
+});
 
 test("captures normal_map_cell ownership with evidence-backed exact event time", async () => {
   const context = setup();

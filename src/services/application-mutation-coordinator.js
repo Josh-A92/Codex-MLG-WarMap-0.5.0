@@ -64,10 +64,20 @@
       for (const participant of participants) snapshots.push(await participant.capture());
 
       try {
-        const result = await mutation();
+        let transactionId = null;
         if (auditIntent) {
           if (!auditRecordService || !createTransactionId) fail("invalid_audit", "Audit intent requires auditRecordService and createTransactionId.");
-          await auditRecordService.append({ ...auditIntent, transactionId: createTransactionId(), sequence: 1 });
+          if (Object.prototype.hasOwnProperty.call(auditIntent, "transactionId")) {
+            fail("forged_audit_metadata", "auditIntent.transactionId is system-controlled.");
+          }
+          transactionId = createTransactionId();
+          if (typeof transactionId !== "string" || transactionId.trim() === "") {
+            fail("invalid_dependency", "createTransactionId must return a non-empty string.");
+          }
+        }
+        const result = await mutation(transactionId);
+        if (auditIntent) {
+          await auditRecordService.append({ ...auditIntent, transactionId, sequence: 1 });
         }
         await durableCommit(result);
         return result;

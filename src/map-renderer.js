@@ -32,6 +32,7 @@ let seasonAdministrationService = null;
 let seasonContext = null;
 let strategicNodeNetworkProjectionService = null;
 let strategicNodeNetworkSvgRenderer = null;
+let sessionOperationHistoryService = null;
 
 let mapDataUrl = null;
 let unionsDataUrl = null;
@@ -2945,6 +2946,29 @@ function buildTerritoryEditor(item) {
   submitRow.appendChild(submitButton);
   form.appendChild(submitRow);
 
+  const operationRow = document.createElement("div");
+  operationRow.className = "territory-editor-row";
+  const operationSpacer = document.createElement("span");
+  operationSpacer.className = "selection-label";
+  operationSpacer.textContent = "";
+  const operationControls = document.createElement("div");
+  operationControls.className = "data-management-inline-actions";
+  const undoButton = document.createElement("button");
+  undoButton.type = "button";
+  undoButton.className = "data-management-secondary-action";
+  undoButton.setAttribute("data-ownership-undo", "true");
+  undoButton.textContent = "Undo last capture";
+  const redoButton = document.createElement("button");
+  redoButton.type = "button";
+  redoButton.className = "data-management-secondary-action";
+  redoButton.setAttribute("data-ownership-redo", "true");
+  redoButton.textContent = "Redo capture";
+  operationControls.appendChild(undoButton);
+  operationControls.appendChild(redoButton);
+  operationRow.appendChild(operationSpacer);
+  operationRow.appendChild(operationControls);
+  form.appendChild(operationRow);
+
   territorySection.appendChild(form);
   if (selectionState.errorMessage) {
     territorySection.appendChild(createDataManagementElement(
@@ -2955,6 +2979,7 @@ function buildTerritoryEditor(item) {
   }
   selectionPanel.appendChild(territorySection);
   updateOwnershipEventTimeRows(selectionPanel);
+  updateOwnershipOperationButtons(selectionPanel);
 }
 
 function getStructureFootprint(structure) {
@@ -3045,6 +3070,160 @@ function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategi
       correctionReason: correction ? correction.reason : null
     }
   };
+}
+
+function createOwnershipRedoAuditIntent(targetIdentity, ownerId, eventAt, evidenceIds) {
+  return {
+    actionType: "ownership_redone",
+    targetType: "ownership_record",
+    targetId: targetIdentity,
+    seasonId: seasonIdentity.seasonId,
+    serverId: appState.activeServer,
+    actorId: localActor.actorId,
+    details: {
+      ownerUnionId: ownerId,
+      eventAt,
+      evidenceIds: evidenceIds.slice()
+    }
+  };
+}
+
+function createOwnershipRetractionAuditIntent(targetIdentity, retractedRecordId, reason) {
+  return {
+    actionType: "ownership_retracted",
+    targetType: "ownership_record",
+    targetId: targetIdentity,
+    seasonId: seasonIdentity.seasonId,
+    serverId: appState.activeServer,
+    actorId: localActor.actorId,
+    details: {
+      retractedRecordId,
+      reason
+    }
+  };
+}
+
+function requestOwnershipUndoReason() {
+  const promptValue = typeof globalThis !== "undefined" && typeof globalThis.prompt === "function"
+    ? globalThis.prompt("Undo reason (required):", "")
+    : "";
+  const reason = typeof promptValue === "string" ? promptValue.trim() : "";
+  if (reason === "") throw new Error("Undo reason is required.");
+  return reason;
+}
+
+function executeOwnershipCapture(captureSpec) {
+  if (captureSpec.kind === "structure") {
+    return mapOwnershipCoordinator.setStructureOwnership(localActor, captureSpec.input);
+  }
+  return mapOwnershipCoordinator.setTerritoryOwnership(localActor, captureSpec.input);
+}
+
+function createCaptureSpec(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds) {
+  if (isStructure) {
+    return {
+      kind: "structure",
+      input: {
+        seasonId: seasonIdentity.seasonId,
+        serverId: appState.activeServer,
+        structureId: selectedItem.id,
+        ownerUnionId: ownerId,
+        eventAt,
+        evidenceIds
+      },
+      targetIdentity: getOwnershipTargetIdentity(selectedItem, true, false)
+    };
+  }
+  if (isStrategicNode) {
+    return {
+      kind: "territory",
+      input: {
+        seasonId: seasonIdentity.seasonId,
+        serverId: appState.activeServer,
+        territoryRef: { type: "strategic_node", nodeId: selectedItem.nodeId },
+        ownerUnionId: ownerId,
+        eventAt,
+        evidenceIds
+      },
+      targetIdentity: getOwnershipTargetIdentity(selectedItem, false, true)
+    };
+  }
+  return {
+    kind: "territory",
+    input: {
+      seasonId: seasonIdentity.seasonId,
+      serverId: appState.activeServer,
+      row: Number(selectedItem.row),
+      col: Number(selectedItem.col),
+      ownerUnionId: ownerId,
+      eventAt,
+      evidenceIds
+    },
+    targetIdentity: getOwnershipTargetIdentity(selectedItem, false, false)
+  };
+}
+
+function updateOwnershipOperationButtons(container) {
+  if (!container || !sessionOperationHistoryService) return;
+  const undoButton = container.querySelector("[data-ownership-undo='true']");
+  const redoButton = container.querySelector("[data-ownership-redo='true']");
+  const state = sessionOperationHistoryService.getState();
+  if (undoButton) undoButton.disabled = !state.canUndo;
+  if (redoButton) redoButton.disabled = !state.canRedo;
+}
+
+function registerOwnershipCaptureOperation(spec, captureResult) {
+  if (!sessionOperationHistoryService || !captureResult || !captureResult.record) return;
+  const operationState = {
+    currentCaptureRecordId: captureResult.record.ownershipRecordId || captureResult.record.structureOwnershipId
+  };
+  const operationId = createRuntimeId("ownership_operation");
+  const targetKind = spec.kind === "structure" ? "structure" : "territory";
+
+  sessionOperationHistoryService.record({
+    operationId,
+    undo: async () => {
+      const reason = requestOwnershipUndoReason();
+      const auditIntent = createOwnershipRetractionAuditIntent(spec.targetIdentity, operationState.currentCaptureRecordId, reason);
+      return applicationPersistenceFacade.execute((transactionId) => {
+        if (targetKind === "structure") {
+          return mapOwnershipCoordinator.retractStructureOwnership(localActor, {
+            seasonId: seasonIdentity.seasonId,
+            serverId: appState.activeServer,
+            structureId: spec.input.structureId,
+            retractedRecordId: operationState.currentCaptureRecordId,
+            reason,
+            transactionId
+          });
+        }
+        return mapOwnershipCoordinator.retractTerritoryOwnership(localActor, {
+          seasonId: seasonIdentity.seasonId,
+          serverId: appState.activeServer,
+          ...(spec.input.territoryRef
+            ? { territoryRef: structuredClone(spec.input.territoryRef) }
+            : { row: Number(spec.input.row), col: Number(spec.input.col) }),
+          retractedRecordId: operationState.currentCaptureRecordId,
+          reason,
+          transactionId
+        });
+      }, auditIntent);
+    },
+    redo: async () => {
+      const auditIntent = createOwnershipRedoAuditIntent(spec.targetIdentity, spec.input.ownerUnionId, spec.input.eventAt, spec.input.evidenceIds || []);
+      const result = await applicationPersistenceFacade.execute(
+        () => executeOwnershipCapture({ kind: spec.kind, input: structuredClone(spec.input) }),
+        auditIntent
+      );
+      const nextRecordId = result && result.record
+        ? (result.record.ownershipRecordId || result.record.structureOwnershipId)
+        : null;
+      if (typeof nextRecordId !== "string" || nextRecordId.trim() === "") {
+        throw new Error("Ownership redo did not return a capture record ID.");
+      }
+      operationState.currentCaptureRecordId = nextRecordId;
+      return result;
+    }
+  });
 }
 
 async function handleOwnershipEvidenceImport(event) {
@@ -3196,6 +3375,7 @@ async function handleSelectionPanelSubmit(event) {
   try {
     const eventAt = normalizeEventAtFromForm(formData);
     const evidenceIds = parseEvidenceIds(formData.get("evidenceIds"));
+    const captureSpec = createCaptureSpec(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds);
     const correctionRecordId = form.getAttribute("data-correction-of");
     const correctionReason = String(formData.get("correctionReason") || "").trim();
     const correction = correctionRecordId && eventAt.precision === "exact"
@@ -3213,43 +3393,15 @@ async function handleSelectionPanelSubmit(event) {
       evidenceIds,
       correction
     );
-    await applicationPersistenceFacade.execute(async () => {
-      if (isStructure) {
-        await mapOwnershipCoordinator.setStructureOwnership(localActor, {
-          seasonId: seasonIdentity.seasonId,
-          serverId: appState.activeServer,
-          structureId: selectedItem.id,
-          ownerUnionId: ownerId,
-          eventAt,
-          evidenceIds
-        });
-      } else if (isStrategicNode) {
-        await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
-          seasonId: seasonIdentity.seasonId,
-          serverId: appState.activeServer,
-          territoryRef: {
-            type: "strategic_node",
-            nodeId: selectedItem.nodeId
-          },
-          ownerUnionId: ownerId,
-          eventAt,
-          evidenceIds
-        });
-      } else {
-        await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
-          seasonId: seasonIdentity.seasonId,
-          serverId: appState.activeServer,
-          row: Number(selectedItem.row),
-          col: Number(selectedItem.col),
-          ownerUnionId: ownerId,
-          eventAt,
-          evidenceIds
-        });
-      }
-    }, auditIntent);
+    const captureResult = await applicationPersistenceFacade.execute(
+      () => executeOwnershipCapture(captureSpec),
+      auditIntent
+    );
+    registerOwnershipCaptureOperation(captureSpec, captureResult);
 
     refreshOwnershipView();
     refreshCommandCentreCards();
+    updateOwnershipOperationButtons(selectionPanel);
   } catch (error) {
     refreshOwnershipView();
     refreshCommandCentreCards();
@@ -3268,13 +3420,40 @@ async function handleSelectionPanelSubmit(event) {
   }
 }
 
+async function handleOwnershipOperationClick(event) {
+  const undoButton = event.target.closest("[data-ownership-undo='true']");
+  const redoButton = event.target.closest("[data-ownership-redo='true']");
+  if (!undoButton && !redoButton) return false;
+  event.preventDefault();
+  if (!sessionOperationHistoryService) return true;
+  try {
+    if (undoButton) await sessionOperationHistoryService.undo();
+    else await sessionOperationHistoryService.redo();
+    refreshOwnershipView();
+    refreshCommandCentreCards();
+    updateOwnershipOperationButtons(selectionPanel);
+  } catch (error) {
+    selectionState.errorMessage = error && error.message
+      ? error.message
+      : "Unable to complete ownership operation.";
+    renderSelectionPanel(selectionState.selectedItem);
+    console.error("Unable to apply ownership undo/redo", error);
+  }
+  return true;
+}
+
+async function handleSelectionPanelClick(event) {
+  const handled = await handleOwnershipOperationClick(event);
+  if (!handled) await handleOwnershipEvidenceImport(event);
+}
+
 function attachSelectionPanelHandlers() {
   if (!selectionPanel) {
     return;
   }
 
   selectionPanel.addEventListener("submit", handleSelectionPanelSubmit);
-  selectionPanel.addEventListener("click", handleOwnershipEvidenceImport);
+  selectionPanel.addEventListener("click", handleSelectionPanelClick);
   selectionPanel.addEventListener("change", () => {
     updateOwnershipEventTimeRows(selectionPanel);
   });
@@ -4057,6 +4236,9 @@ function initializeDataManagementRuntime(mapData) {
   mapOwnershipCoordinator = dataManagementRuntime.mapOwnershipCoordinator;
   selectedMapTargetViewService = dataManagementRuntime.selectedMapTargetViewService;
   localActor = trustedLocalActorFactory("desktop-user");
+  if (typeof createSessionOperationHistoryService === "function") {
+    sessionOperationHistoryService = createSessionOperationHistoryService({ limit: 40 });
+  }
   appState.dataManagementRuntime = dataManagementRuntime;
 }
 
@@ -4064,6 +4246,7 @@ function createEmptyStrategicState() {
   return {
     relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [],
     serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [],
+    ownershipRetractions: [],
     targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: []
   };
 }
@@ -4100,6 +4283,7 @@ function initializeApplicationPersistence() {
     strategicDomainRuntime.combatStrengthObservationService,
     strategicDomainRuntime.serverObservationService,
     strategicDomainRuntime.ownershipRecordService,
+    strategicDomainRuntime.ownershipRetractionService,
     strategicDomainRuntime.targetVerificationService,
     strategicDomainRuntime.confirmedSnapshotService,
     strategicDomainRuntime.activityFactHistoryService,

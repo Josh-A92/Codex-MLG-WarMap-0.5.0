@@ -19,14 +19,14 @@ const strategicFiles = [
   "union-matching-service", "union-server-season-relation-service", "native-union-assignment-validator", "native-union-assignment-service",
   "active-union-status-validator", "active-union-status-evaluator", "active-union-status-service", "combat-strength-observation-validator",
   "combat-strength-observation-service", "server-observation-validator", "server-observation-service", "ownership-record-validator",
-  "ownership-record-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
+  "ownership-record-service", "ownership-retraction-validator", "ownership-retraction-service", "target-verification-validator", "target-verification-service", "confirmed-server-snapshot-validator",
   "confirmed-server-snapshot-service", "confirmed-server-snapshot-coordinator", "snapshot-activity-fact-resolver", "activity-fact-history-service",
   "active-union-status-update-coordinator", "active-union-status-projection-service", "union-server-season-view-service",
   "union-server-season-intelligence-view-service", "server-intelligence-view-service", "server-data-completeness-service",
   "confirmed-snapshot-change-service", "server-history-service", "union-registry-service"
 ];
 const modules = createStrategicDomainModuleRegistry(strategicFiles.reduce((all, name) => Object.assign(all, require(`../src/services/${name}.js`)), {}));
-const emptyState = { relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [], serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [], targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: [] };
+const emptyState = { relations: [], nativeAssignments: [], activeStatuses: [], combatStrengthObservations: [], serverObservations: [], territoryOwnershipRecords: [], structureOwnershipRecords: [], ownershipRetractions: [], targetVerifications: [], confirmedSnapshots: [], confirmedPresenceFacts: [], qualifyingFullMapConfirmations: [] };
 
 async function createRealSnapshot() {
   const unionRegistryService = createUnionRegistryService(unions.unions);

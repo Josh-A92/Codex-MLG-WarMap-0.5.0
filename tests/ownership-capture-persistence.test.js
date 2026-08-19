@@ -20,11 +20,20 @@ async function run() {
     return this.value.territory.filter((record) => (
       record.seasonId === filter.seasonId
       && record.serverId === filter.serverId
-      && record.reviewState === filter.reviewState
+      && (filter.reviewState === undefined || record.reviewState === filter.reviewState)
     )).map((record) => structuredClone(record));
   };
   ownershipState.listStructureRecords = function listStructureRecords() {
     return [];
+  };
+
+  const retractionState = participant([]);
+  retractionState.listRetractions = function listRetractions() {
+    return this.value.map((record) => structuredClone(record));
+  };
+  retractionState.addManualRetraction = function addManualRetraction(record) {
+    this.value.push(structuredClone(record));
+    return structuredClone(record);
   };
 
   const verificationState = participant([]);
@@ -41,6 +50,12 @@ async function run() {
   const evidenceState = participant({});
   evidenceState.getEvidenceRecord = function getEvidenceRecord() {
     return null;
+  };
+
+  const auditState = participant([]);
+  auditState.append = function append(record) {
+    this.value.push(structuredClone(record));
+    return structuredClone(record);
   };
 
   const management = {
@@ -66,7 +81,7 @@ async function run() {
   };
 
   const domainAtomic = createAtomicOperationExecutor({
-    participants: [relationState, ownershipState, verificationState, projectionState, evidenceState]
+    participants: [relationState, ownershipState, retractionState, verificationState, projectionState, evidenceState]
   });
 
   const captureCoordinator = createMapOwnershipCoordinator({
@@ -74,6 +89,7 @@ async function run() {
     serverIntelligenceManagementService: management,
     targetVerificationService: verificationState,
     ownershipRecordService: ownershipState,
+    ownershipRetractionService: retractionState,
     evidenceRecordService: evidenceState,
     resolveEvidenceScope() {
       return { seasonId: "season-1", serverId: "server-366" };
@@ -91,11 +107,16 @@ async function run() {
     executeAtomically: domainAtomic.executeAtomically,
     createId() {
       return "verification-1";
+    },
+    clock() {
+      return new Date("2026-08-19T10:00:00.000Z");
     }
   });
 
   const persistenceCoordinator = createApplicationMutationCoordinator({
-    participants: [relationState, ownershipState, verificationState, projectionState, evidenceState]
+    participants: [relationState, ownershipState, retractionState, verificationState, projectionState, evidenceState, auditState],
+    auditRecordService: auditState,
+    createTransactionId: () => "generated-retraction-transaction"
   });
 
   await assert.rejects(
@@ -117,8 +138,47 @@ async function run() {
   );
 
   assert.deepStrictEqual(ownershipState.value, { territory: [], structures: [] });
+  assert.deepStrictEqual(retractionState.value, []);
   assert.deepStrictEqual(verificationState.value, []);
   assert.deepStrictEqual(projectionState.value, { "server-366": {} });
+
+  const captured = await captureCoordinator.setTerritoryOwnership({ actorId: "desktop-user" }, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    row: 1,
+    col: 1,
+    ownerUnionId: "union-1",
+    eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" },
+    evidenceIds: []
+  });
+  const retractionInput = {
+    seasonId: "season-1",
+    serverId: "server-366",
+    row: 1,
+    col: 1,
+    retractedRecordId: captured.record.ownershipRecordId,
+    reason: "undo capture"
+  };
+  await assert.rejects(
+    () => persistenceCoordinator.execute(
+      (transactionId) => captureCoordinator.retractTerritoryOwnership({ actorId: "desktop-user" }, { ...retractionInput, transactionId }),
+      async () => { throw new Error("retraction generation commit failed"); },
+      { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "normal_map_cell:1:1", details: {} }
+    ),
+    /retraction generation commit failed/
+  );
+  assert.deepStrictEqual(retractionState.value, []);
+  assert.deepStrictEqual(auditState.value, []);
+  assert.strictEqual(projectionState.value["server-366"]["1-1"], "union-1");
+
+  await persistenceCoordinator.execute(
+    (transactionId) => captureCoordinator.retractTerritoryOwnership({ actorId: "desktop-user" }, { ...retractionInput, transactionId }),
+    async () => {},
+    { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "normal_map_cell:1:1", details: {} }
+  );
+  assert.strictEqual(retractionState.value[0].transactionId, "generated-retraction-transaction");
+  assert.strictEqual(auditState.value[0].transactionId, retractionState.value[0].transactionId);
+  assert.strictEqual(projectionState.value["server-366"]["1-1"], undefined);
   console.log("PASS ownership capture rolls back on durable persistence failure");
 }
 

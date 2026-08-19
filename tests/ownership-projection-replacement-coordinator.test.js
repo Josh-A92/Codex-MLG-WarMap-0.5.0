@@ -20,7 +20,7 @@ function setup({ resolvedResult = result([territory(1, 1)]), stored = { "9-9": n
   const audit = { appends: 0, captureTransactionState() { return this.appends; }, restoreTransactionState(snapshot) { this.appends = snapshot; } };
   let commits = 0;
   const mutation = createApplicationMutationCoordinator({ participants: [serverState, audit] });
-  const history = { listTerritoryRecords: () => [], listStructureRecords: () => [] };
+  const history = { listTerritoryRecords: () => [], listStructureRecords: () => [], listRetractions: () => [] };
   const resolver = { resolve() { if (resolveError) throw Object.assign(new Error(resolveError), { code: resolveError }); return clone(resolvedResult); } };
   const serverStateInterface = {
     getSeasonId: () => serverState.getSeasonId(),
