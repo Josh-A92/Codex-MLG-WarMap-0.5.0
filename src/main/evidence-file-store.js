@@ -33,6 +33,7 @@ function pngMetadata(bytes) {
       || bytes.subarray(0, 8).toString("hex") !== signature
       || bytes.readUInt32BE(8) !== 13
       || bytes.subarray(12, 16).toString("ascii") !== "IHDR"
+      || bytes.readUInt32BE(bytes.length - 12) !== 0
       || bytes.subarray(bytes.length - 8, bytes.length - 4).toString("ascii") !== "IEND") return null;
   const width = bytes.readUInt32BE(16);
   const height = bytes.readUInt32BE(20);
@@ -40,7 +41,8 @@ function pngMetadata(bytes) {
 }
 
 function jpegMetadata(bytes) {
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8
+      || bytes[bytes.length - 2] !== 0xff || bytes[bytes.length - 1] !== 0xd9) return null;
   let offset = 2;
   while (offset + 3 < bytes.length) {
     if (bytes[offset] !== 0xff) { offset += 1; continue; }

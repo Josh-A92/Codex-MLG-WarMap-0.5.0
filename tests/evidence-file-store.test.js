@@ -57,6 +57,14 @@ function jpeg(width, height) {
     const invalid = path.join(root, "fake.png");
     await fs.promises.writeFile(invalid, "not an image");
     await assert.rejects(store.importFile({ sourcePath: invalid }), (error) => error.code === "unsupported_media");
+    const truncatedJpeg = path.join(root, "truncated.jpg");
+    await fs.promises.writeFile(truncatedJpeg, jpeg(20, 10).subarray(0, jpeg(20, 10).length - 2));
+    await assert.rejects(store.importFile({ sourcePath: truncatedJpeg }), (error) => error.code === "unsupported_media");
+    const malformedPng = png(20, 10);
+    malformedPng.writeUInt32BE(1, malformedPng.length - 12);
+    const malformedPngPath = path.join(root, "malformed-iend.png");
+    await fs.promises.writeFile(malformedPngPath, malformedPng);
+    await assert.rejects(store.importFile({ sourcePath: malformedPngPath }), (error) => error.code === "unsupported_media");
     await assert.rejects(store.importFile({ sourcePath: path.join(root, "missing.png") }), (error) => error.code === "source_unavailable");
     await assert.rejects(store.importFile({ sourcePath: sourcePng, storageRef: "../escape" }), (error) => error.code === "invalid_input");
     console.log("PASS rejects missing, forged, and unsupported inputs");
