@@ -2,6 +2,8 @@ const assert = require("assert");
 const { createMapOwnershipCoordinator } = require("../src/services/map-ownership-coordinator.js");
 const { createAtomicOperationExecutor } = require("../src/services/atomic-operation-executor.js");
 const { createApplicationMutationCoordinator } = require("../src/services/application-mutation-coordinator.js");
+const { createApplicationAuditRecordService } = require("../src/services/application-audit-record-service.js");
+const { validateAuditRecord, validateAuditHistory } = require("../src/services/application-audit-record-validator.js");
 
 function participant(initialValue) {
   return {
@@ -41,6 +43,23 @@ async function run() {
     this.value.push(structuredClone(record));
     return structuredClone(record);
   };
+  verificationState.getCurrentVerification = function getCurrentVerification(serverId, seasonId, targetRef) {
+    const record = this.value.find((entry) => (
+      entry.serverId === serverId
+      && entry.seasonId === seasonId
+      && entry.reviewState === "confirmed"
+      && entry.supersededBy === null
+      && JSON.stringify(entry.targetRef) === JSON.stringify(targetRef)
+    ));
+    return record ? structuredClone(record) : null;
+  };
+  verificationState.correctVerification = function correctVerification(verificationId, replacement) {
+    const current = this.value.find((entry) => entry.verificationId === verificationId);
+    current.reviewState = "superseded";
+    current.supersededBy = replacement.verificationId;
+    this.value.push(structuredClone(replacement));
+    return structuredClone(replacement);
+  };
 
   const projectionState = participant({ "server-366": {} });
   projectionState.replaceTerritoryOwnership = function replaceTerritoryOwnership(next) {
@@ -52,11 +71,14 @@ async function run() {
     return null;
   };
 
-  const auditState = participant([]);
-  auditState.append = function append(record) {
-    this.value.push(structuredClone(record));
-    return structuredClone(record);
-  };
+  let auditId = 0;
+  const auditState = createApplicationAuditRecordService({
+    initialRecords: [],
+    validateAuditRecord,
+    validateAuditHistory,
+    createAuditId: () => `audit-${++auditId}`,
+    clock: () => new Date("2026-08-19T10:00:00.000Z")
+  });
 
   const management = {
     addKnownUnion() {},
@@ -118,6 +140,15 @@ async function run() {
     auditRecordService: auditState,
     createTransactionId: () => "generated-retraction-transaction"
   });
+  const auditIntent = (actionType) => ({
+    actionType,
+    targetType: "ownership_record",
+    targetId: "normal_map_cell:1:1",
+    seasonId: "season-1",
+    serverId: "server-366",
+    actorId: "desktop-user",
+    details: { reason: "undo capture" }
+  });
 
   await assert.rejects(
     () => persistenceCoordinator.execute(
@@ -163,22 +194,95 @@ async function run() {
     () => persistenceCoordinator.execute(
       (transactionId) => captureCoordinator.retractTerritoryOwnership({ actorId: "desktop-user" }, { ...retractionInput, transactionId }),
       async () => { throw new Error("retraction generation commit failed"); },
-      { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "normal_map_cell:1:1", details: {} }
+      auditIntent("ownership_retracted")
     ),
     /retraction generation commit failed/
   );
   assert.deepStrictEqual(retractionState.value, []);
-  assert.deepStrictEqual(auditState.value, []);
+  assert.deepStrictEqual(auditState.listRecords(), []);
   assert.strictEqual(projectionState.value["server-366"]["1-1"], "union-1");
 
   await persistenceCoordinator.execute(
     (transactionId) => captureCoordinator.retractTerritoryOwnership({ actorId: "desktop-user" }, { ...retractionInput, transactionId }),
     async () => {},
-    { actionType: "ownership_retracted", targetType: "ownership_record", targetId: "normal_map_cell:1:1", details: {} }
+    auditIntent("ownership_retracted")
   );
   assert.strictEqual(retractionState.value[0].transactionId, "generated-retraction-transaction");
-  assert.strictEqual(auditState.value[0].transactionId, retractionState.value[0].transactionId);
+  assert.strictEqual(auditState.listRecords()[0].transactionId, retractionState.value[0].transactionId);
+  assert.strictEqual(validateAuditRecord({
+    ...auditState.listRecords()[0],
+    auditId: "audit-redo",
+    actionType: "ownership_redone"
+  }).valid, true);
   assert.strictEqual(projectionState.value["server-366"]["1-1"], undefined);
+
+  const conflictBase = {
+    ...structuredClone(captured.record),
+    reviewState: "confirmed",
+    supersededBy: null
+  };
+  ownershipState.value.territory = [
+    { ...structuredClone(conflictBase), ownershipRecordId: "conflict-a", ownerUnionId: "union-a" },
+    {
+      ...structuredClone(conflictBase),
+      ownershipRecordId: "conflict-b",
+      ownerUnionId: "union-b",
+      eventAt: { precision: "exact", at: "2026-08-19T09:30:00.000Z" },
+      effectiveAt: "2026-08-19T09:30:00.000Z",
+      reviewedAt: "2026-08-19T10:30:00.000Z"
+    }
+  ];
+  retractionState.value = [];
+  projectionState.value = { "server-366": { "1-1": "stale-owner" } };
+  const conflictPersistence = createApplicationMutationCoordinator({
+    participants: [relationState, ownershipState, retractionState, verificationState, projectionState, evidenceState, auditState],
+    auditRecordService: auditState,
+    createTransactionId: () => "generated-conflict-transaction"
+  });
+  const conflictInput = {
+    seasonId: "season-1",
+    serverId: "server-366",
+    kind: "territory",
+    retainedRecordId: "conflict-a",
+    reason: "Conflict B was a duplicate import."
+  };
+  const conflictAudit = {
+    actionType: "ownership_conflict_resolved",
+    targetType: "ownership_record",
+    targetId: "ownership-conflict:normal_map_cell:1:1",
+    seasonId: "season-1",
+    serverId: "server-366",
+    actorId: "desktop-user",
+    details: { retainedRecordId: "conflict-a", retractedRecordId: "conflict-b", reason: conflictInput.reason }
+  };
+  await assert.rejects(
+    conflictPersistence.execute(
+      (transactionId) => captureCoordinator.resolveOwnershipConflict(
+        { actorId: "desktop-user" },
+        { ...conflictInput, transactionId }
+      ),
+      async () => { throw new Error("conflict generation commit failed"); },
+      conflictAudit
+    ),
+    /conflict generation commit failed/
+  );
+  assert.deepStrictEqual(retractionState.value, []);
+  assert.strictEqual(projectionState.value["server-366"]["1-1"], "stale-owner");
+  assert.strictEqual(auditState.listRecords().length, 1);
+
+  await conflictPersistence.execute(
+    (transactionId) => captureCoordinator.resolveOwnershipConflict(
+      { actorId: "desktop-user" },
+      { ...conflictInput, transactionId }
+    ),
+    async () => {},
+    conflictAudit
+  );
+  assert.strictEqual(retractionState.value[0].transactionId, "generated-conflict-transaction");
+  assert.strictEqual(projectionState.value["server-366"]["1-1"], "union-a");
+  const conflictAuditRecord = auditState.listRecords().find((record) => record.actionType === "ownership_conflict_resolved");
+  assert.ok(conflictAuditRecord);
+  assert.strictEqual(conflictAuditRecord.transactionId, retractionState.value[0].transactionId);
   console.log("PASS ownership capture rolls back on durable persistence failure");
 }
 

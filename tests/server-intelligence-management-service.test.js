@@ -10,6 +10,7 @@ function test(name, fn) { tests.push({ name, fn }); }
 function setup(overrides = {}) {
   const calls = [];
   let id = 0;
+  const observations = new Map();
   const dependencies = {
     authorizationPolicyService: {
       requireAuthorized(actor, capability, scope) {
@@ -39,7 +40,16 @@ function setup(overrides = {}) {
       addObservation(value) { calls.push(["combat", value]); return value; }
     },
     serverObservationService: {
-      addObservation(value) { calls.push(["observation", value]); return value; }
+      addObservation(value) { observations.set(value.observationId, structuredClone(value)); calls.push(["observation", value]); return value; },
+      getObservation(observationId) { return observations.has(observationId) ? structuredClone(observations.get(observationId)) : null; },
+      correctConfirmed(observationId, replacement) {
+        const current = observations.get(observationId);
+        const superseded = { ...current, reviewState: "superseded", supersededBy: replacement.observationId };
+        observations.set(observationId, superseded);
+        observations.set(replacement.observationId, structuredClone(replacement));
+        calls.push(["observationCorrection", observationId, replacement]);
+        return { superseded, replacement };
+      }
     },
     ownershipRecordService: {
       addConfirmedManualTerritoryRecord(value) { calls.push(["territory", value]); return value; },
@@ -126,6 +136,44 @@ test("records a confirmed manual server observation", () => {
   assert.strictEqual(result.observationId, "server_observation-1");
   assert.deepStrictEqual(result.evidenceIds, ["evidence-1"]);
   assert.strictEqual(result.actorId, "operator-1");
+});
+
+test("corrects a confirmed factual server note with a required reason", () => {
+  const { calls, service } = setup();
+  const original = service.recordManualServerObservation(actor, {
+    seasonId: "season-1", serverId: "366", text: "Eastern sector was obscured."
+  });
+  const result = service.correctManualServerObservation(actor, {
+    seasonId: "season-1",
+    serverId: "366",
+    observationId: original.observationId,
+    text: "Eastern sector is now visible.",
+    reason: "Corrected after reviewing a clearer screenshot."
+  });
+  assert.strictEqual(result.superseded.supersededBy, result.replacement.observationId);
+  assert.strictEqual(result.replacement.text, "Eastern sector is now visible.");
+  assert.strictEqual(result.replacement.observedAt, original.observedAt);
+  assert.strictEqual(calls.filter((call) => call[0] === "observationCorrection").length, 1);
+  assert.throws(
+    () => service.correctManualServerObservation(actor, {
+      seasonId: "season-1", serverId: "366", observationId: result.replacement.observationId,
+      text: "Changed", reason: " "
+    }),
+    (error) => error.code === "invalid_input"
+  );
+  assert.throws(
+    () => service.recordManualServerObservation(actor, {
+      seasonId: "season-1", serverId: "366", text: "x".repeat(2001)
+    }),
+    (error) => error.code === "invalid_input" && /at most 2000/.test(error.message)
+  );
+  assert.throws(
+    () => service.correctManualServerObservation(actor, {
+      seasonId: "season-1", serverId: "366", observationId: result.replacement.observationId,
+      text: "Changed", reason: "x".repeat(1001)
+    }),
+    (error) => error.code === "invalid_input" && /at most 1000/.test(error.message)
+  );
 });
 
 test("records territory and logical structure ownership independently", () => {

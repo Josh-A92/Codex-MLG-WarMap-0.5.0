@@ -20,6 +20,9 @@
   const OBSERVATION_FIELDS = new Set([
     "seasonId", "serverId", "text", "observedAt", "evidenceIds"
   ]);
+  const OBSERVATION_CORRECTION_FIELDS = new Set([
+    "seasonId", "serverId", "observationId", "text", "reason", "observedAt", "evidenceIds"
+  ]);
   const TERRITORY_FIELDS = new Set([
     "seasonId", "serverId", "territoryRef", "ownerUnionId", "ownershipState",
     "effectiveAt", "eventAt", "evidenceIds"
@@ -28,6 +31,8 @@
     "seasonId", "serverId", "structureId", "ownerUnionId", "ownershipState",
     "effectiveAt", "eventAt", "evidenceIds"
   ]);
+  const MAX_OBSERVATION_TEXT_LENGTH = 2000;
+  const MAX_CORRECTION_REASON_LENGTH = 1000;
 
   class ServerIntelligenceManagementServiceError extends Error {
     constructor(code, message) {
@@ -84,6 +89,14 @@
       fail("invalid_input", `Server Intelligence Management Service requires ${path} to be non-empty.`);
     }
     return value;
+  }
+
+  function requireBoundedString(value, path, maxLength) {
+    const normalized = requireString(value, path);
+    if (normalized.length > maxLength) {
+      fail("invalid_input", `Server Intelligence Management Service requires ${path} to be at most ${maxLength} characters.`);
+    }
+    return normalized;
   }
 
   function requireOptionalString(value, path) {
@@ -150,7 +163,7 @@
     const serverObservations = bindInterface(
       options.serverObservationService,
       "options.serverObservationService",
-      ["addObservation"]
+      ["addObservation", "getObservation", "correctConfirmed"]
     );
     const ownership = bindInterface(
       options.ownershipRecordService,
@@ -298,7 +311,7 @@
         observationId: nextId("server_observation"),
         serverId: scope.serverId,
         seasonId: scope.seasonId,
-        text: scope.value.text,
+        text: requireBoundedString(scope.value.text, "input.text", MAX_OBSERVATION_TEXT_LENGTH),
         observedAt: requireOptionalString(scope.value.observedAt, "input.observedAt") || recordedAt,
         sourceType: "manual_entry",
         evidenceIds: evidenceIds(scope.value.evidenceIds),
@@ -308,6 +321,42 @@
         reviewedAt: recordedAt,
         supersededBy: null
       });
+    }
+
+    function correctManualServerObservation(actor, input) {
+      const scope = normalizeScope(
+        input,
+        OBSERVATION_CORRECTION_FIELDS,
+        new Set(["seasonId", "serverId", "observationId", "text", "reason"])
+      );
+      const decision = authorize(actor, scope.seasonId, scope.serverId);
+      const observationId = requireString(scope.value.observationId, "input.observationId");
+      requireBoundedString(scope.value.reason, "input.reason", MAX_CORRECTION_REASON_LENGTH);
+      const current = serverObservations.getObservation(observationId);
+      if (!current
+          || current.seasonId !== scope.seasonId
+          || current.serverId !== scope.serverId
+          || current.reviewState !== "confirmed") {
+        fail("invalid_correction", "Server Intelligence Management Service requires a current confirmed observation in the requested scope.");
+      }
+      const recordedAt = now();
+      const replacement = {
+        observationId: nextId("server_observation"),
+        serverId: scope.serverId,
+        seasonId: scope.seasonId,
+        text: requireBoundedString(scope.value.text, "input.text", MAX_OBSERVATION_TEXT_LENGTH),
+        observedAt: requireOptionalString(scope.value.observedAt, "input.observedAt") || current.observedAt,
+        sourceType: "manual_entry",
+        evidenceIds: evidenceIds(scope.value.evidenceIds === undefined ? current.evidenceIds : scope.value.evidenceIds),
+        actorId: decision.actorId,
+        reviewState: "confirmed",
+        reviewerId: decision.actorId,
+        reviewedAt: recordedAt,
+        supersededBy: null,
+        eventAt: clone(current.eventAt || { precision: "unknown" })
+      };
+      if (current.ruleVersionRef !== undefined) replacement.ruleVersionRef = clone(current.ruleVersionRef);
+      return serverObservations.correctConfirmed(observationId, replacement);
     }
 
     function buildManualOwnership(actor, input, kind) {
@@ -372,6 +421,7 @@
       recordManualNativeAssignment,
       recordManualCombatStrength,
       recordManualServerObservation,
+      correctManualServerObservation,
       recordManualTerritoryOwnership,
       recordManualStructureOwnership
     });

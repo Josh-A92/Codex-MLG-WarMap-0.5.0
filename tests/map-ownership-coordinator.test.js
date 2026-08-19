@@ -59,6 +59,24 @@ function setup(overrides = {}) {
     calls.push(["verification", record]);
     return structuredClone(record);
   };
+  verificationState.getCurrentVerification = function getCurrentVerification(serverId, seasonId, targetRef) {
+    const record = this.value.find((entry) => (
+      entry.serverId === serverId
+      && entry.seasonId === seasonId
+      && entry.reviewState === "confirmed"
+      && entry.supersededBy === null
+      && JSON.stringify(entry.targetRef) === JSON.stringify(targetRef)
+    ));
+    return record ? structuredClone(record) : null;
+  };
+  verificationState.correctVerification = function correctVerification(verificationId, replacement) {
+    const current = this.value.find((entry) => entry.verificationId === verificationId);
+    current.reviewState = "superseded";
+    current.supersededBy = replacement.verificationId;
+    this.value.push(structuredClone(replacement));
+    calls.push(["verificationCorrection", verificationId, replacement]);
+    return structuredClone(replacement);
+  };
 
   const projectionState = participant({
     "server-366": { "1-1": "union-old", "2-2": null },
@@ -101,6 +119,7 @@ function setup(overrides = {}) {
 
   let territoryCounter = 0;
   let structureCounter = 0;
+  let generatedId = 0;
 
   function supersedeCurrentTerritory(nextRecord) {
     const next = ownershipState.value.territory.map((record) => {
@@ -228,8 +247,9 @@ function setup(overrides = {}) {
       ]
     },
     executeAtomically: atomic.executeAtomically,
-    createId() {
-      return `verification-${verificationState.value.length + 1}`;
+    createId(kind) {
+      generatedId += 1;
+      return `${kind}-${generatedId}`;
     },
     clock() {
       return overrides.clock
@@ -242,6 +262,7 @@ function setup(overrides = {}) {
     calls,
     relationState,
     ownershipState,
+    retractionState,
     verificationState,
     projectionState,
     evidenceById,
@@ -250,6 +271,27 @@ function setup(overrides = {}) {
 }
 
 const actor = { actorId: "desktop-user" };
+
+function confirmedTerritoryRecord(ownershipRecordId, ownerUnionId, at, overrides = {}) {
+  return {
+    ownershipRecordId,
+    seasonId: "season-1",
+    serverId: "server-366",
+    territoryRef: { type: "normal_map_cell", row: 1, col: 1 },
+    ownerUnionId,
+    ownershipState: "owned",
+    sourceType: "manual_entry",
+    eventAt: { precision: "exact", at },
+    effectiveAt: at,
+    evidenceIds: [],
+    actorId: "desktop-user",
+    reviewerId: "desktop-user",
+    reviewState: "confirmed",
+    reviewedAt: at,
+    supersededBy: null,
+    ...overrides
+  };
+}
 
 async function captureTerritory(context, input) {
   return context.coordinator.setTerritoryOwnership(actor, {
@@ -335,6 +377,46 @@ test("captures normal_map_cell ownership with evidence-backed exact event time",
   });
   assert.deepStrictEqual(context.verificationState.value[0].evidenceIds, ["evidence-1", "evidence-2"]);
   assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-1");
+});
+
+test("redo-compatible capture supersedes the surviving current target verification", async () => {
+  const context = setup();
+  const eventAt = { precision: "exact", at: "2026-08-19T09:55:00.000Z" };
+  const first = await captureTerritory(context, {
+    row: 1,
+    col: 1,
+    ownerUnionId: "union-1",
+    eventAt
+  });
+
+  await context.coordinator.retractTerritoryOwnership(actor, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    row: 1,
+    col: 1,
+    retractedRecordId: first.record.ownershipRecordId,
+    reason: "Undo capture before redo",
+    transactionId: "redo-compatible-undo"
+  });
+  const redone = await captureTerritory(context, {
+    row: 1,
+    col: 1,
+    ownerUnionId: "union-1",
+    eventAt
+  });
+
+  assert.strictEqual(context.verificationState.value.length, 2);
+  assert.strictEqual(context.verificationState.value[0].reviewState, "superseded");
+  assert.strictEqual(
+    context.verificationState.value[0].supersededBy,
+    context.verificationState.value[1].verificationId
+  );
+  assert.strictEqual(context.verificationState.value[1].reviewState, "confirmed");
+  assert.strictEqual(
+    context.verificationState.value[1].verifiedOwnershipRef.recordId,
+    redone.record.ownershipRecordId
+  );
+  assert.ok(context.calls.some((entry) => entry[0] === "verificationCorrection"));
 });
 
 test("captures strategic_node ownership targets", async () => {
@@ -466,6 +548,99 @@ test("rebuilds projection from authoritative structure history", async () => {
   assert.strictEqual(oldRecord.reviewState, "superseded");
   assert.strictEqual(oldRecord.supersededBy, replacement.structureOwnershipId);
   assert.strictEqual(replacement.reviewState, "confirmed");
+});
+
+test("inspects and resolves the exact current ownership conflict through append-only retraction", async () => {
+  const context = setup({
+    initialTerritoryRecords: [
+      confirmedTerritoryRecord("terminal-a", "union-a", "2026-08-19T09:00:00.000Z"),
+      confirmedTerritoryRecord("terminal-b", "union-b", "2026-08-19T10:00:00.000Z"),
+      confirmedTerritoryRecord("terminal-c", "union-c", "2026-08-19T11:00:00.000Z")
+    ]
+  });
+  const conflict = context.coordinator.inspectOwnershipConflict({ seasonId: "season-1", serverId: "server-366" });
+  assert.deepStrictEqual(conflict.recordIds, ["terminal-a", "terminal-b", "terminal-c"]);
+  assert.strictEqual(conflict.kind, "territory");
+
+  const result = await context.coordinator.resolveOwnershipConflict(actor, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    kind: "territory",
+    retainedRecordId: "terminal-a",
+    reason: "Terminal B was imported twice and is not authoritative.",
+    transactionId: "transaction-conflict-1"
+  });
+  assert.strictEqual(result.retainedRecordId, "terminal-a");
+  assert.deepStrictEqual(result.retractions.map((record) => record.retractedRecordId), ["terminal-b", "terminal-c"]);
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-a");
+  assert.strictEqual(context.coordinator.inspectOwnershipConflict({ seasonId: "season-1", serverId: "server-366" }), null);
+  await assert.rejects(
+    context.coordinator.resolveOwnershipConflict(actor, {
+      seasonId: "season-1", serverId: "server-366", kind: "territory",
+      retainedRecordId: "terminal-a",
+      reason: "stale retry", transactionId: "transaction-conflict-2"
+    }),
+    (error) => error.code === "stale_conflict"
+  );
+
+  context.ownershipState.value.structures = ["structure-a", "structure-b"].map((structureOwnershipId, index) => ({
+    structureOwnershipId,
+    seasonId: "season-1",
+    serverId: "server-366",
+    structureId: "town-1",
+    ownerUnionId: index === 0 ? "union-a" : "union-b",
+    ownershipState: "owned",
+    sourceType: "manual_entry",
+    eventAt: { precision: "exact", at: `2026-08-19T1${index}:00:00.000Z` },
+    effectiveAt: `2026-08-19T1${index}:00:00.000Z`,
+    evidenceIds: [],
+    actorId: "desktop-user",
+    reviewerId: "desktop-user",
+    reviewState: "confirmed",
+    reviewedAt: `2026-08-19T1${index}:05:00.000Z`,
+    supersededBy: null
+  }));
+  const structureConflict = context.coordinator.inspectOwnershipConflict({ seasonId: "season-1", serverId: "server-366" });
+  assert.strictEqual(structureConflict.kind, "structure");
+  await context.coordinator.resolveOwnershipConflict(actor, {
+    seasonId: "season-1", serverId: "server-366", kind: "structure",
+    retainedRecordId: "structure-b", reason: "Structure B is authoritative.",
+    transactionId: "transaction-conflict-3"
+  });
+  assert.strictEqual(context.projectionState.value["server-366"]["4-4"], "union-b");
+  assert.strictEqual(context.projectionState.value["server-366"]["4-5"], "union-b");
+});
+
+test("conflict recovery retains an effective predecessor exposed by retraction", async () => {
+  const context = setup({
+    initialTerritoryRecords: [
+      confirmedTerritoryRecord("chain-a", "union-a", "2026-08-19T08:00:00.000Z", {
+        reviewState: "superseded", supersededBy: "chain-b"
+      }),
+      confirmedTerritoryRecord("chain-b", "union-b", "2026-08-19T09:00:00.000Z"),
+      confirmedTerritoryRecord("independent-c", "union-c", "2026-08-19T10:00:00.000Z")
+    ]
+  });
+  context.retractionState.value = [{
+    retractionId: "existing-retraction",
+    seasonId: "season-1",
+    serverId: "server-366",
+    targetKind: "territory_ownership_record",
+    retractedRecordId: "chain-b",
+    actorId: "desktop-user",
+    reason: "Undo chain B",
+    recordedAt: "2026-08-19T11:00:00.000Z",
+    transactionId: "existing-transaction",
+    sourceType: "manual_retraction"
+  }];
+  const conflict = context.coordinator.inspectOwnershipConflict({ seasonId: "season-1", serverId: "server-366" });
+  assert.deepStrictEqual(conflict.recordIds, ["chain-a", "independent-c"]);
+  await context.coordinator.resolveOwnershipConflict(actor, {
+    seasonId: "season-1", serverId: "server-366", kind: "territory",
+    retainedRecordId: "chain-a", reason: "The restored predecessor is authoritative.",
+    transactionId: "chain-conflict-resolution"
+  });
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-a");
 });
 
 test("rolls back history and projection changes when projection replacement fails", async () => {

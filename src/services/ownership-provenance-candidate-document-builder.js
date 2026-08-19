@@ -59,9 +59,12 @@
       const provenance = input.provenanceDocument;
       if (provenance.documentId !== provenanceId || provenance.documentType !== PROVENANCE_DOCUMENT_TYPE || provenance.seasonId !== seasonId || provenance.baseMapId !== baseMapId) fail("provenance_scope_mismatch", "Provenance document ID, type, season, or base-map scope does not match the committed generation.");
       if (!Array.isArray(provenance.records)) fail("invalid_provenance_document", "provenanceDocument.records must be an array.");
+      const sourceById = new Map((Array.isArray(input.snapshot.documents) ? input.snapshot.documents : []).map((document) => [document.documentId, document]));
       const documents = manifestDocuments.map((document) => document.type === PROVENANCE_DOCUMENT_TYPE || document.documentId === provenanceId
         ? { documentId: provenanceId, scope: projectionScope, type: PROVENANCE_DOCUMENT_TYPE, value: clone(provenance) }
-        : { documentId: document.documentId, scope: document.scope, type: document.type, reference: { fileName: document.fileName, sha256: document.sha256 } });
+        : input.snapshot.sourceKind === "legacy_migration"
+          ? { documentId: document.documentId, scope: document.scope, type: document.type, value: clone(sourceById.get(document.documentId) && sourceById.get(document.documentId).value) }
+          : { documentId: document.documentId, scope: document.scope, type: document.type, reference: { fileName: document.fileName, sha256: document.sha256 } });
       if (existing.length === 0) documents.push({ documentId: provenanceId, scope: projectionScope, type: PROVENANCE_DOCUMENT_TYPE, value: clone(provenance) });
       if (documents.filter((document) => document.documentId === provenanceId).length !== 1) fail("duplicate_provenance_document", "Candidate must contain exactly one provenance document.");
       return freeze(clone({ documents }));

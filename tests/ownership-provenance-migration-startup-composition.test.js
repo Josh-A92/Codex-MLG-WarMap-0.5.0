@@ -25,6 +25,7 @@ const { serializeUnionRegistry, deserializeUnionRegistryEnvelope } = require("..
 const { serializeStrategicDomainRuntime, deserializeStrategicDomainEnvelope } = require("../src/services/strategic-domain-state-serializer.js");
 const { createEvidenceDomainStateSerializer } = require("../src/services/evidence-domain-state-serializer.js");
 const { serializeServerState, deserializePersistenceEnvelope } = require("../src/services/persistence-state-serializer.js");
+const { createLegacyStateClassifier } = require("../src/services/legacy-state-classifier.js");
 
 const context = { seasonId: "season-1", baseMapId: "season1-map" };
 const targetCatalog = { territoryKeys: [{ row: 1, col: 1 }, { row: 1, col: 2 }], structures: [] };
@@ -110,6 +111,79 @@ async function withDirectory(callback) { const directory = await fs.promises.mkd
     const result = await startup.resolve();
     assert.deepStrictEqual(result, { status: "legacy_required", persistenceMode: "legacy", generation: null, reason: "no_committed_generation", diagnostics: [] });
     console.log("PASS composed missing generation skips migration");
+  });
+  await withDirectory(async (directory) => {
+    const store = createGenerationStore({ baseDirectory: directory, fileSystem: fsAdapter() });
+    const source = freshServices();
+    await source.services.seasonAdministrationService.initialize();
+    const savedAt = "2026-08-13T00:00:00.000Z";
+    const evidenceModulesValue = evidenceModules();
+    const evidenceSerializer = createEvidenceDomainStateSerializer({ validateEvidenceAssetHistory: evidenceModulesValue.validateEvidenceAssetHistory, validateEvidenceRecordHistory: evidenceModulesValue.validateEvidenceRecordHistory });
+    const dataManagementEnvelope = {
+      schemaVersion: 1,
+      seasonId: context.seasonId,
+      savedAt,
+      unionRegistry: serializeUnionRegistry(source.services.unionRegistryService, savedAt),
+      strategicDomain: serializeStrategicDomainRuntime(source.services.strategicDomainRuntime, context.seasonId, savedAt),
+      evidenceDomain: evidenceSerializer.serializeRuntime(source.services.evidenceDomainRuntime, savedAt)
+    };
+    const serverStateEnvelope = serializeServerState(source.services.serverStateService, savedAt);
+    serverStateEnvelope.servers = serverStateEnvelope.servers.map((server) => server.id === "server-366"
+      ? { ...server, ownership: { ...server.ownership, "1-1": "legacy-forged-owner" } }
+      : server);
+    const classifier = createLegacyStateClassifier({
+      deserializeDataManagementEnvelope: (envelope) => ({
+        seasonId: envelope.seasonId,
+        unionRegistry: deserializeUnionRegistryEnvelope(envelope.unionRegistry),
+        strategicDomain: deserializeStrategicDomainEnvelope(envelope.strategicDomain),
+        evidenceDomain: evidenceSerializer.deserializeEnvelope(envelope.evidenceDomain)
+      }),
+      deserializeServerStateEnvelope: deserializePersistenceEnvelope
+    });
+    const classification = classifier.classify({
+      seasonId: context.seasonId,
+      baseMapId: context.baseMapId,
+      dataManagementEnvelope,
+      serverStateEnvelope,
+      unionRegistryEnvelopes: [dataManagementEnvelope.unionRegistry]
+    });
+    assert.strictEqual(classification.status, "rebuildable_projection");
+    const legacyInput = {
+      seasonId: context.seasonId,
+      baseMapId: context.baseMapId,
+      classification,
+      dataManagementEnvelope,
+      serverStateEnvelope,
+      seasonAdministrationEnvelope: source.services.seasonAdministrationService.captureTransactionState(),
+      applicationAuditEnvelope: { schemaVersion: 1, records: [] },
+      unionRegistryEnvelopes: [dataManagementEnvelope.unionRegistry]
+    };
+    const beforeLegacy = JSON.stringify(legacyInput);
+    const adopted = await createOwnershipProvenanceMigrationStartupComposition({ ...compositionOptions(store), legacyInput }).resolve();
+    assert.strictEqual(adopted.status, "published");
+    assert.strictEqual(adopted.persistenceMode, "generation");
+    const reopened = await store.loadCommittedGeneration();
+    const projection = reopened.documents.find((document) => document.type === "server-state").value;
+    const server366 = projection.servers.find((server) => server.id === "server-366");
+    assert.strictEqual(server366.ownership["1-1"], "union-0001");
+    const provenance = reopened.documents.find((document) => document.type === "ownership-history-provenance").value;
+    assert.strictEqual(provenance.records[0].sourceKind, "legacy_migration");
+    assert.deepStrictEqual(provenance.records[0].sourceDocumentIds, ["projection-season-1-season1-map", "strategic-season-1"]);
+    assert.strictEqual(JSON.stringify(legacyInput), beforeLegacy);
+    const repeated = await createOwnershipProvenanceMigrationStartupComposition(compositionOptions(store)).resolve();
+    assert.strictEqual(repeated.status, "already_proven");
+    assert.strictEqual((await store.loadCommittedGeneration()).manifest.generation, 1);
+
+    const failedDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), "warmap-legacy-adoption-failure-"));
+    try {
+      const failedStore = createGenerationStore({ baseDirectory: failedDirectory, fileSystem: fsAdapter() });
+      const failed = await createOwnershipProvenanceMigrationStartupComposition({ ...compositionOptions(failedStore, { refuseOnVerify: true }), legacyInput }).resolve();
+      assert.strictEqual(failed.status, "verification_failed");
+      assert.strictEqual((await failedStore.loadCommittedGeneration()).status, "missing");
+    } finally {
+      await fs.promises.rm(failedDirectory, { recursive: true, force: true });
+    }
+    console.log("PASS rebuildable legacy projection is adopted into one verified generation and retries idempotently");
   });
   await withDirectory(async (directory) => {
     const store = await createInitialGeneration(directory);

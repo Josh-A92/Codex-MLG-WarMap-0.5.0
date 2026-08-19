@@ -195,7 +195,10 @@
       executeAtomically:
         mapOwnershipAtomicExecutor.executeAtomically.bind(mapOwnershipAtomicExecutor),
       createId: input.createId,
-      clock: input.clock
+      clock: () => {
+        const value = input.clock();
+        return value instanceof Date ? new Date(value.getTime()) : new Date(value);
+      }
     });
     const selectedMapTargetViewService =
       modules.createSelectedMapTargetViewService({

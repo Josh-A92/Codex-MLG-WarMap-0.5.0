@@ -234,7 +234,11 @@ test("failed real union registration leaves no identity, relation, or native ass
     relationService: relations,
     nativeAssignmentService: failingNativeAssignments,
     combatStrengthObservationService: { addObservation() {} },
-    serverObservationService: { addObservation() {} },
+    serverObservationService: {
+      addObservation() {},
+      getObservation() { return null; },
+      correctConfirmed() {}
+    },
     ownershipRecordService: {
       addConfirmedManualTerritoryRecord() {},
       addConfirmedManualStructureRecord() {}

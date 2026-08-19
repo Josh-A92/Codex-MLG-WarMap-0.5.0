@@ -90,7 +90,8 @@
         targetCatalog,
         persistedProjection: { schemaVersion: serverStateDocument.schemaVersion, seasonId, baseMapId, savedAt: serverStateDocument.savedAt, servers: serverStateDocument.servers.map((server) => ({ ...clone(server), ownership: clone(serverState[server.id]) })) },
         provenanceState,
-        sourceDocumentIds
+        sourceDocumentIds,
+        sourceKind: input.snapshot.sourceKind || "existing_generation"
       }));
     }
     return Object.freeze({ adapt });

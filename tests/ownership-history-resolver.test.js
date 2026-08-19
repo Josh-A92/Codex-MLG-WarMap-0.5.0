@@ -87,6 +87,19 @@ test("resolves supersession with retraction chain and redo deterministically", (
   assert.strictEqual(resolve({ territoryRecords: withRedo, retractionRecords: [retraction({ retractedRecordId: "C" })] }).territories[0].recordId, "D");
 });
 
+test("retraction resolves an otherwise contradictory terminal history", () => {
+  const records = [
+    territory({ ownershipRecordId: "terminal-a", ownerUnionId: "union-a" }),
+    territory({ ownershipRecordId: "terminal-b", ownerUnionId: "union-b", reviewedAt: "2026-08-02T00:10:00Z", effectiveAt: "2026-08-02T00:00:00Z" })
+  ];
+  expectError(() => resolve({ territoryRecords: records }), "contradiction");
+  const resolved = resolve({
+    territoryRecords: records,
+    retractionRecords: [retraction({ retractedRecordId: "terminal-b", reason: "Resolve duplicate confirmed terminal" })]
+  });
+  assert.deepStrictEqual(resolved.territories.map((entry) => [entry.recordId, entry.ownerUnionId]), [["terminal-a", "union-a"]]);
+});
+
 test("fails closed for malformed retractions and wrong references", () => {
   const records = [territory({ ownershipRecordId: "A" })];
   expectError(() => resolve({ territoryRecords: records, retractionRecords: [retraction({ retractedRecordId: "missing" })] }), "invalid_history");

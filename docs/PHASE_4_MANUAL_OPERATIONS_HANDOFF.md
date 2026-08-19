@@ -2,7 +2,7 @@
 
 ## Current committed boundary
 
-Baseline after this work: `2915775`.
+Committed baseline before the current uncommitted slice: `dda19c9c5578b4a8b86abe79adb7a4794dc94e0c`.
 
 Completed Phase 4 slices:
 
@@ -14,7 +14,9 @@ Completed Phase 4 slices:
 - bounded events remain uncertainty and do not enter current projection;
 - authoritative history, verification, projection, audit, and generation commit share rollback boundaries;
 - exact replacement requires a correction reason and writes `ownership_corrected` audit details;
-- a bounded session-operation history foundation exists for queued undo/redo callbacks.
+- durable ownership undo/redo is wired through append-only retractions, audit, projection rebuild, and generation rollback;
+- factual server notes use confirmed observation history with bounded text, audited correction reasons, rollback, and reopen coverage;
+- contradictory territory, strategic-node, or structure terminals have a recovery-only UI that retains one selected record and append-only retracts every competing terminal atomically;
 - PNG/JPEG screenshot evidence is copied into hash-addressed managed storage through a fixed Electron IPC bridge;
 - the renderer can register the managed asset plus a confirmed manual evidence attachment in one durable application transaction and insert the resulting evidence-record ID into the ownership form.
 
@@ -25,12 +27,45 @@ End-of-slice evidence:
 - Electron opened without a startup error banner in first-run/no-active-season state;
 - working tree was clean after each commit.
 
+The current uncommitted Phase 4 slice raises the full suite to 122 test files and
+adds audited factual notes plus append-only ownership-conflict recovery. It also
+contains a protected legacy-to-generation adoption path covered by real-filesystem
+composition scenarios.
+
 An isolated fresh-profile Electron walkthrough also proved:
 
 - first-run Season 1 activation completes without a persistence-mode error;
 - the activated eight-server workspace displays the real ownership capture form and managed screenshot button;
 - closing and reopening the same isolated profile returns `legacy_ready` / `aligned` and restores all eight server workspaces;
 - no startup/bootstrap error banner appears on either launch.
+
+A later isolated active/archive walkthrough additionally proved:
+
+- a factual server note can be created and corrected through Data Management;
+- the corrected observation survives an Electron restart;
+- completing Season 1 archives the season through the normal UI;
+- archived observation history survives a further restart and is visible in
+  Data Management with disabled creation controls and no correction action; and
+- the normal user profile remains untouched.
+
+Two further isolated fresh-profile walkthroughs proved the live ownership path:
+
+- Now capture, inline-reason Undo, and fresh-record Redo complete through the
+  real renderer and persistence facade;
+- Redo supersedes the surviving target verification rather than creating a
+  same-instant duplicate;
+- native-dialog PNG import creates a managed hash-addressed file, one evidence
+  asset, and one linked evidence record;
+- the evidence ID is inserted into the capture form and persists on the
+  ownership record and target verification; and
+- the strict audit contract now recognizes the evidence-attachment action and
+  target vocabulary used by the renderer.
+
+That walkthrough exposed and fixed archived-history restoration gaps. Renderer
+context now falls back to the latest matching completed season for read-only
+panels, while main-process startup restores the latest completed legacy season
+when no season is active. Migration context remains active-season-only, so the
+fallback cannot authorize migration or writes.
 
 That walkthrough exposed and fixed two first-run persistence defects: the startup
 gate now accepts the readiness result's trusted `classification` field, and the
@@ -73,47 +108,25 @@ and moves an entry between stacks only after the callback succeeds. It does not:
 - commit generations;
 - decide what Unknown, Unclaimed, or absence means.
 
-Integration must register an operation only after its original durable commit.
-Each undo/redo callback must itself use the application persistence facade and
-write an explicit audit intent.
+Operations are registered only after their original durable commit. Undo appends
+a manual retraction; redo appends a fresh confirmed ownership record with a fresh
+record ID. Both callbacks use the application persistence facade, receive the
+coordinator-owned transaction ID, write explicit audit intents, rebuild the
+projection, and retain stack state when persistence fails. A first-capture undo
+therefore restores absence/package fallback without deleting authoritative
+history.
 
-### Blocking authority question
+## Factual server notes boundary
 
-Undoing a first-ever ownership capture has no prior exact ownership record. The
-current projection represents an explicit `null` as Unclaimed, while absence can
-fall back to package map state, and an exact `unknown` authoritative record is not
-separately representable in the projection. Therefore an implementation must not
-choose among these behaviours implicitly:
+Factual server notes now use the existing authoritative `ServerObservationService`
+history instead of extending the derived server-state projection. Operators can
+add a confirmed descriptive note or correct one with a required reason. Creation,
+correction, audit, rollback, serialization, and reopen are covered with real
+services. Archived seasons render the history read-only.
 
-1. append an exact Unknown compensating record and extend projection semantics;
-2. restore package fallback by deleting an immediate record (conflicts with the
-   append-only/audited history model unless explicitly authorized);
-3. refuse undo and require historical correction (does not satisfy first-action
-   immediate undo).
-
-This is an engineering/product authority decision required before wiring the
-session history to ownership controls. Established records continue to use the
-committed correction workflow.
-
-## Notes and objectives boundary
-
-`ServerStateService` currently preserves arbitrary initial server fields in
-memory, but `persistence-state-serializer.js` strictly allows only:
-
-```text
-id, label, ownership
-```
-
-Its transaction snapshot also captures only ownership. Adding notes/objectives
-to the renderer now would make them non-transactional and drop them on reopen.
-The next coherent slice must therefore:
-
-1. define strict note/objective record shapes and size limits;
-2. version or compatibly extend the server-state persistence document;
-3. include operational context in capture/restore transaction snapshots;
-4. update the application document codec restoration path;
-5. add edit, failure rollback, close/reopen, archived-read-only, and isolation tests;
-6. only then expose renderer controls.
+Objectives, priorities, recommendations, and planning directives remain explicit
+non-goals: WarMap records descriptive facts and must not become a strategic-task
+authority.
 
 ## Managed screenshot evidence boundary
 
@@ -144,19 +157,19 @@ identity differs after the read. These checks run before hashing or copying.
 
 ## Remaining Phase 4 sequence
 
-1. Resolve the first-capture undo compensation rule.
-2. Integrate session undo/redo through compensating durable operations and audit.
-3. Add the versioned notes/objectives persistence slice described above.
-4. Add operator conflict-resolution flow for contradictory evidence.
-5. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
+1. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
    its package is promoted from Draft through the existing readiness process.
-6. Run the Phase 4 release matrix, active-season evidence walkthrough, backup/restore checks, and
-   update the Completion Plan only after the Definition of Done is evidenced.
+2. Finish the remaining isolated contradictory-history walkthrough; run the Phase 4 release matrix and
+   backup/restore checks; then update the Completion Plan only after the
+   Definition of Done is evidenced.
 
-Contradictory exact ownership terminals currently fail closed inside the
-canonical history resolver before projection adoption. They therefore require a
-recovery-mode resolution design; they must not be routed through the ordinary
-proposal review queue or silently converted into a normal correction.
+Contradictory exact ownership terminals still fail closed when unresolved. The
+resolver applies validated append-only retractions before terminal conflict
+classification. The recovery-only Data Management action requires an explicit
+record to retain and reason, retracts every competing terminal in one transaction,
+rebuilds projection, and writes `ownership_conflict_resolved` audit history. It is
+not routed through the ordinary proposal review queue or converted into a normal
+correction.
 
 ## Explicit exclusions
 

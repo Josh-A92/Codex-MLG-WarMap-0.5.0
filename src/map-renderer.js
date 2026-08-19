@@ -180,6 +180,8 @@ const seasonSetupState = {
 const dataManagementState = {
   mode: "list",
   editingUnionId: null,
+  noteServerId: null,
+  editingObservationId: null,
   errorMessage: null,
   isSaving: false
 };
@@ -1564,6 +1566,195 @@ function renderUnionRegistryList(container, identities, nativeServerLabels) {
   container.appendChild(panel);
 }
 
+function getDataManagementSeasonServers() {
+  const activeSeason = seasonAdministrationService
+    && typeof seasonAdministrationService.getActiveSeason === "function"
+    ? seasonAdministrationService.getActiveSeason()
+    : null;
+  const completedSeasons = seasonAdministrationService
+    && typeof seasonAdministrationService.listCompletedSeasons === "function"
+    ? seasonAdministrationService.listCompletedSeasons()
+    : [];
+  const seasonContext = activeSeason && activeSeason.seasonId === seasonIdentity.seasonId
+    ? activeSeason
+    : completedSeasons.slice().reverse().find((season) => season.seasonId === seasonIdentity.seasonId);
+  if (!seasonContext || !Array.isArray(seasonContext.serverIds)) {
+    return Array.isArray(appState.servers) ? appState.servers : [];
+  }
+  const allowed = new Set(seasonContext.serverIds);
+  return (Array.isArray(appState.allServers) ? appState.allServers : [])
+    .filter((server) => allowed.has(server.id));
+}
+
+function renderServerNotes(container) {
+  const servers = getDataManagementSeasonServers();
+  if (servers.length === 0) return;
+  const selectedServer = servers.find((server) => server.id === dataManagementState.noteServerId) || servers[0];
+  dataManagementState.noteServerId = selectedServer.id;
+  const query = getDataManagementRuntimeService("dataManagementQueryService", ["getServerWorkspace"]);
+  const workspace = query.getServerWorkspace({
+    seasonId: seasonIdentity.seasonId,
+    serverId: selectedServer.id,
+    evaluatedAt: new Date().toISOString()
+  });
+  const history = (Array.isArray(workspace.serverObservationHistory) ? workspace.serverObservationHistory : [])
+    .slice()
+    .sort((left, right) => String(right.reviewedAt || right.observedAt).localeCompare(String(left.reviewedAt || left.observedAt)));
+  const editing = history.find((record) => record.observationId === dataManagementState.editingObservationId) || null;
+  const archived = seasonAdministrationService
+    && typeof seasonAdministrationService.isSeasonArchived === "function"
+    && seasonAdministrationService.isSeasonArchived(seasonIdentity.seasonId);
+
+  const panel = createDataManagementElement("section", "data-management-panel");
+  panel.setAttribute("data-server-notes-panel", "true");
+  panel.appendChild(createDataManagementElement("h3", "", "Factual server notes"));
+  panel.appendChild(createDataManagementElement(
+    "p",
+    "data-management-help",
+    archived
+      ? "Archived season notes are read-only."
+      : "Record concise descriptive observations. Do not enter objectives, priorities, or recommendations."
+  ));
+
+  const form = createDataManagementElement("form", "data-management-form");
+  form.setAttribute("data-data-management-form", "server-note");
+  if (editing) form.setAttribute("data-correction-of", editing.observationId);
+  appendDataManagementField(form, {
+    label: "Server",
+    name: "serverId",
+    type: "select",
+    value: selectedServer.id,
+    options: servers.map((server) => ({ value: server.id, label: server.label || server.id })),
+    action: "select-note-server"
+  });
+  const noteLabel = createDataManagementElement("label", "data-management-field");
+  noteLabel.appendChild(createDataManagementElement("span", "", editing ? "Corrected note" : "New note"));
+  const noteInput = document.createElement("textarea");
+  noteInput.name = "text";
+  noteInput.required = true;
+  noteInput.rows = 3;
+  noteInput.maxLength = 2000;
+  noteInput.value = editing ? editing.text : "";
+  noteInput.disabled = archived || dataManagementState.isSaving;
+  noteLabel.appendChild(noteInput);
+  form.appendChild(noteLabel);
+  if (editing) {
+    const reasonLabel = createDataManagementElement("label", "data-management-field");
+    reasonLabel.appendChild(createDataManagementElement("span", "", "Correction reason"));
+    const reasonInput = document.createElement("textarea");
+    reasonInput.name = "correctionReason";
+    reasonInput.required = true;
+    reasonInput.rows = 2;
+    reasonInput.maxLength = 1000;
+    reasonInput.disabled = archived || dataManagementState.isSaving;
+    reasonLabel.appendChild(reasonInput);
+    form.appendChild(reasonLabel);
+  }
+  const actions = createDataManagementElement("div", "data-management-form-actions");
+  const submit = createDataManagementElement("button", "data-management-primary-action", editing ? "Save correction" : "Add note");
+  submit.type = "submit";
+  submit.disabled = archived || dataManagementState.isSaving;
+  actions.appendChild(submit);
+  if (editing) {
+    const cancel = createDataManagementElement("button", "data-management-secondary-action", "Cancel correction");
+    cancel.type = "button";
+    cancel.setAttribute("data-data-management-action", "cancel-note-edit");
+    actions.appendChild(cancel);
+  }
+  form.appendChild(actions);
+  panel.appendChild(form);
+
+  const list = createDataManagementElement("div", "union-registry-list");
+  if (history.length === 0) list.appendChild(createDataManagementElement("p", "data-management-empty", "No factual notes recorded for this server."));
+  history.forEach((record) => {
+    const card = createDataManagementElement("article", `union-registry-card${record.reviewState === "superseded" ? " is-archived" : ""}`);
+    const body = createDataManagementElement("div", "union-registry-card-body");
+    body.appendChild(createDataManagementElement("span", "", record.text));
+    body.appendChild(createDataManagementElement("div", "union-registry-meta", `${record.reviewState} · ${record.observedAt}`));
+    card.appendChild(body);
+    if (!archived && record.reviewState === "confirmed") {
+      const controls = createDataManagementElement("div", "union-registry-actions");
+      const edit = createDataManagementElement("button", "data-management-secondary-action", "Correct");
+      edit.type = "button";
+      edit.setAttribute("data-data-management-action", "edit-server-note");
+      edit.setAttribute("data-observation-id", record.observationId);
+      edit.setAttribute("data-server-id", record.serverId);
+      controls.appendChild(edit);
+      card.appendChild(controls);
+    }
+    list.appendChild(card);
+  });
+  panel.appendChild(list);
+  container.appendChild(panel);
+}
+
+function renderOwnershipConflictRecovery(container) {
+  const servers = getDataManagementSeasonServers();
+  if (servers.length === 0 || !mapOwnershipCoordinator
+      || typeof mapOwnershipCoordinator.inspectOwnershipConflict !== "function") return;
+  const selectedServer = servers.find((server) => server.id === dataManagementState.noteServerId) || servers[0];
+  const conflict = mapOwnershipCoordinator.inspectOwnershipConflict({
+    seasonId: seasonIdentity.seasonId,
+    serverId: selectedServer.id
+  });
+  if (!conflict) return;
+  const archived = seasonAdministrationService
+    && typeof seasonAdministrationService.isSeasonArchived === "function"
+    && seasonAdministrationService.isSeasonArchived(seasonIdentity.seasonId);
+  const panel = createDataManagementElement("section", "data-management-panel data-management-panel--warning");
+  panel.setAttribute("data-ownership-conflict-panel", "true");
+  panel.appendChild(createDataManagementElement("h3", "", "Ownership conflict recovery"));
+  panel.appendChild(createDataManagementElement(
+    "p",
+    "data-management-help",
+    archived
+      ? "This archived season contains contradictory authoritative ownership history. Recovery is read-only."
+      : "Multiple confirmed terminal records claim the same target. Select the record to retain; every other terminal will be append-only retracted."
+  ));
+  const list = createDataManagementElement("div", "union-registry-list");
+  conflict.records.forEach((record) => {
+    const recordId = record.ownershipRecordId || record.structureOwnershipId;
+    const eventAt = record.eventAt && record.eventAt.at ? record.eventAt.at : record.effectiveAt;
+    const card = createDataManagementElement("article", "union-registry-card");
+    const body = createDataManagementElement("div", "union-registry-card-body");
+    body.appendChild(createDataManagementElement("strong", "", record.ownerUnionId || record.ownershipState));
+    body.appendChild(createDataManagementElement("span", "union-registry-meta", `${recordId} · ${eventAt || "event time unknown"}`));
+    card.appendChild(body);
+    list.appendChild(card);
+  });
+  panel.appendChild(list);
+
+  const form = createDataManagementElement("form", "data-management-form");
+  form.setAttribute("data-data-management-form", "ownership-conflict");
+  const retainedSelect = appendDataManagementField(form, {
+    label: "Authoritative record to retain",
+    name: "retainedRecordId",
+    type: "select",
+    value: conflict.recordIds[0],
+    options: conflict.records.map((record) => {
+      const recordId = record.ownershipRecordId || record.structureOwnershipId;
+      return { value: recordId, label: `${record.ownerUnionId || record.ownershipState} · ${recordId}` };
+    })
+  });
+  retainedSelect.disabled = archived || dataManagementState.isSaving;
+  const reasonLabel = createDataManagementElement("label", "data-management-field");
+  reasonLabel.appendChild(createDataManagementElement("span", "", "Resolution reason"));
+  const reason = document.createElement("textarea");
+  reason.name = "reason";
+  reason.required = true;
+  reason.rows = 3;
+  reason.maxLength = 1000;
+  reason.disabled = archived || dataManagementState.isSaving;
+  reasonLabel.appendChild(reason);
+  form.appendChild(reasonLabel);
+  const submit = createDataManagementElement("button", "data-management-primary-action", "Resolve conflict");
+  submit.type = "submit";
+  submit.disabled = archived || dataManagementState.isSaving;
+  form.appendChild(submit);
+  panel.appendChild(form);
+  container.appendChild(panel);
+}
+
 function renderDataManagement() {
   if (!dataManagementContent) return;
   dataManagementContent.replaceChildren();
@@ -1600,6 +1791,8 @@ function renderDataManagement() {
       editingIdentity ? nativeServerLabels.get(editingIdentity.unionId) : null
     );
     renderUnionRegistryList(dataManagementContent, identities, nativeServerLabels);
+    renderServerNotes(dataManagementContent);
+    renderOwnershipConflictRecovery(dataManagementContent);
   } catch (error) {
     dataManagementContent.appendChild(createDataManagementElement(
       "div",
@@ -1609,23 +1802,24 @@ function renderDataManagement() {
   }
 }
 
-async function runDataManagementMutation(mutation) {
+async function runDataManagementMutation(mutation, auditIntent) {
   if (dataManagementState.isSaving) return;
   dataManagementState.isSaving = true;
   dataManagementState.errorMessage = null;
   renderDataManagement();
 
   try {
-    await applicationPersistenceFacade.execute(mutation);
+    await applicationPersistenceFacade.execute(mutation, auditIntent);
     refreshUnionRegistryWorkspace();
     dataManagementState.mode = "list";
     dataManagementState.editingUnionId = null;
+    dataManagementState.editingObservationId = null;
     refreshOwnershipView();
     refreshCommandCentreCards();
   } catch (error) {
     dataManagementState.errorMessage = error && error.message
       ? error.message
-      : "Unable to save the union registry change.";
+      : "Unable to save the Data Management change.";
   } finally {
     dataManagementState.isSaving = false;
     renderDataManagement();
@@ -1633,6 +1827,85 @@ async function runDataManagementMutation(mutation) {
 }
 
 async function handleDataManagementSubmit(event) {
+  const conflictForm = event.target.closest("[data-data-management-form='ownership-conflict']");
+  if (conflictForm) {
+    event.preventDefault();
+    const serverId = dataManagementState.noteServerId || (appState.servers[0] && appState.servers[0].id);
+    const conflict = mapOwnershipCoordinator.inspectOwnershipConflict({ seasonId: seasonIdentity.seasonId, serverId });
+    if (!conflict) {
+      dataManagementState.errorMessage = "The ownership conflict is no longer current.";
+      renderDataManagement();
+      return;
+    }
+    const formData = new FormData(conflictForm);
+    const retainedRecordId = String(formData.get("retainedRecordId") || "");
+    const retractedRecordIds = conflict.recordIds.filter((recordId) => recordId !== retainedRecordId);
+    const reason = String(formData.get("reason") || "").trim();
+    if (retractedRecordIds.length === 0 || reason === "") {
+      dataManagementState.errorMessage = "Select the authoritative record and provide a resolution reason.";
+      renderDataManagement();
+      return;
+    }
+    await runDataManagementMutation(
+      (transactionId) => mapOwnershipCoordinator.resolveOwnershipConflict(localActor, {
+        seasonId: seasonIdentity.seasonId,
+        serverId,
+        kind: conflict.kind,
+        retainedRecordId,
+        reason,
+        transactionId
+      }),
+      {
+        actionType: "ownership_conflict_resolved",
+        targetType: "ownership_record",
+        targetId: `ownership-conflict:${conflict.kind}:${conflict.targetKey}`,
+        seasonId: seasonIdentity.seasonId,
+        serverId,
+        actorId: localActor.actorId,
+        details: { retainedRecordId, retractedRecordIds, reason, targetKey: conflict.targetKey }
+      }
+    );
+    return;
+  }
+  const noteForm = event.target.closest("[data-data-management-form='server-note']");
+  if (noteForm) {
+    event.preventDefault();
+    const formData = new FormData(noteForm);
+    const serverId = String(formData.get("serverId") || "");
+    const text = String(formData.get("text") || "").trim();
+    const correctionOf = noteForm.getAttribute("data-correction-of");
+    const correctionReason = String(formData.get("correctionReason") || "").trim();
+    if (correctionOf && correctionReason === "") {
+      dataManagementState.errorMessage = "Correction reason is required.";
+      renderDataManagement();
+      return;
+    }
+    const management = getDataManagementRuntimeService(
+      "serverIntelligenceManagementService",
+      [correctionOf ? "correctManualServerObservation" : "recordManualServerObservation"]
+    );
+    const auditIntent = {
+      actionType: correctionOf ? "server_observation_corrected" : "server_observation_confirmed",
+      targetType: "server_observation",
+      targetId: `server-note:${serverId}`,
+      seasonId: seasonIdentity.seasonId,
+      serverId,
+      actorId: localActor.actorId,
+      details: { text, correctionOf: correctionOf || null, correctionReason: correctionOf ? correctionReason : null }
+    };
+    await runDataManagementMutation(
+      () => correctionOf
+        ? management.correctManualServerObservation(localActor, {
+            seasonId: seasonIdentity.seasonId, serverId, observationId: correctionOf,
+            text, reason: correctionReason
+          })
+        : management.recordManualServerObservation(localActor, {
+            seasonId: seasonIdentity.seasonId, serverId, text, evidenceIds: []
+          }),
+      auditIntent
+    );
+    return;
+  }
   const form = event.target.closest("[data-data-management-form='union-registry']");
   if (!form) return;
   event.preventDefault();
@@ -1683,6 +1956,12 @@ async function handleDataManagementSubmit(event) {
 }
 
 function handleDataManagementInput(event) {
+  if (event.target.getAttribute("data-data-management-action") === "select-note-server") {
+    dataManagementState.noteServerId = event.target.value;
+    dataManagementState.editingObservationId = null;
+    renderDataManagement();
+    return;
+  }
   if (event.target.getAttribute("data-data-management-action") !== "preview-union") return;
   const form = event.target.closest("[data-data-management-form='union-registry']");
   const preview = form && form.querySelector(".union-pattern-preview--form");
@@ -1699,6 +1978,20 @@ function handleDataManagementClick(event) {
   if (!actionButton || actionButton.matches("input, select")) return;
   const action = actionButton.getAttribute("data-data-management-action");
   const unionId = actionButton.getAttribute("data-union-id");
+
+  if (action === "edit-server-note") {
+    dataManagementState.noteServerId = actionButton.getAttribute("data-server-id");
+    dataManagementState.editingObservationId = actionButton.getAttribute("data-observation-id");
+    dataManagementState.errorMessage = null;
+    renderDataManagement();
+    return;
+  }
+  if (action === "cancel-note-edit") {
+    dataManagementState.editingObservationId = null;
+    dataManagementState.errorMessage = null;
+    renderDataManagement();
+    return;
+  }
 
   if (action === "edit-union") {
     dataManagementState.mode = "edit";
@@ -2946,6 +3239,20 @@ function buildTerritoryEditor(item) {
   submitRow.appendChild(submitButton);
   form.appendChild(submitRow);
 
+  const undoReasonRow = document.createElement("label");
+  undoReasonRow.className = "territory-editor-row";
+  const undoReasonLabel = document.createElement("span");
+  undoReasonLabel.className = "selection-label";
+  undoReasonLabel.textContent = "Undo reason";
+  const undoReasonInput = document.createElement("textarea");
+  undoReasonInput.rows = 2;
+  undoReasonInput.maxLength = 1000;
+  undoReasonInput.setAttribute("data-ownership-undo-reason", "true");
+  undoReasonInput.placeholder = "Why is the last capture being undone?";
+  undoReasonRow.appendChild(undoReasonLabel);
+  undoReasonRow.appendChild(undoReasonInput);
+  form.appendChild(undoReasonRow);
+
   const operationRow = document.createElement("div");
   operationRow.className = "territory-editor-row";
   const operationSpacer = document.createElement("span");
@@ -3103,11 +3410,9 @@ function createOwnershipRetractionAuditIntent(targetIdentity, retractedRecordId,
   };
 }
 
-function requestOwnershipUndoReason() {
-  const promptValue = typeof globalThis !== "undefined" && typeof globalThis.prompt === "function"
-    ? globalThis.prompt("Undo reason (required):", "")
-    : "";
-  const reason = typeof promptValue === "string" ? promptValue.trim() : "";
+function requestOwnershipUndoReason(container) {
+  const input = container && container.querySelector("[data-ownership-undo-reason='true']");
+  const reason = input && typeof input.value === "string" ? input.value.trim() : "";
   if (reason === "") throw new Error("Undo reason is required.");
   return reason;
 }
@@ -3183,7 +3488,7 @@ function registerOwnershipCaptureOperation(spec, captureResult) {
   sessionOperationHistoryService.record({
     operationId,
     undo: async () => {
-      const reason = requestOwnershipUndoReason();
+      const reason = requestOwnershipUndoReason(selectionPanel);
       const auditIntent = createOwnershipRetractionAuditIntent(spec.targetIdentity, operationState.currentCaptureRecordId, reason);
       return applicationPersistenceFacade.execute((transactionId) => {
         if (targetKind === "structure") {
@@ -3427,7 +3732,11 @@ async function handleOwnershipOperationClick(event) {
   event.preventDefault();
   if (!sessionOperationHistoryService) return true;
   try {
-    if (undoButton) await sessionOperationHistoryService.undo();
+    if (undoButton) {
+      await sessionOperationHistoryService.undo();
+      const reasonInput = selectionPanel.querySelector("[data-ownership-undo-reason='true']");
+      if (reasonInput) reasonInput.value = "";
+    }
     else await sessionOperationHistoryService.redo();
     refreshOwnershipView();
     refreshCommandCentreCards();

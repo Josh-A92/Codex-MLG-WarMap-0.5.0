@@ -93,7 +93,7 @@
         if (fresh.services.ownershipHistoryProvenanceStateService && typeof fresh.services.ownershipHistoryProvenanceStateService.captureTransactionState === "function") {
           snapshot.ownershipHistoryProvenance = fresh.services.ownershipHistoryProvenanceStateService.captureTransactionState();
         }
-        return freeze(clone({ status: "loaded", state: snapshot }));
+        return freeze(clone({ status: "loaded", state: snapshot, sourceKind: input.sourceKind || "existing_generation" }));
       } catch (error) {
         if (error instanceof IsolatedApplicationGraphLoaderError) throw error;
         fail("graph_load_failed", "Isolated application graph could not be loaded.", error);

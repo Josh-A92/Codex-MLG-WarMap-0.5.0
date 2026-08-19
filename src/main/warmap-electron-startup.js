@@ -96,8 +96,21 @@ function contextFromCommitted(loaded) {
   if (projectedIds.size !== projectionValue.servers.length || active.serverIds.some((serverId) => !projectedIds.has(serverId))) fail("server_scope_mismatch", "Committed projection is missing an active server.");
   return freeze({ ...context, servers: { ...context.servers, seasonId: active.seasonId, baseMapId: context.baseMapId, servers: clone(projectionValue.servers) }, serverIds: active.serverIds.slice() });
 }
-function createComposition(generationStore, context) {
-  return createOwnershipProvenanceMigrationStartupComposition({ generationStore, seasonId: context.seasonId, baseMapId: context.baseMapId, resolveSeasonPackage: async (seasonId) => packageBySeason.get(seasonId) || null, createTargetCatalog: async () => targetCatalog(context), createFreshServices: async () => freshServices(context), createApplicationDocumentCodec, codecOptionsFactory: (fresh, serializer) => codecOptionsFactory(context, fresh, serializer), clock: () => new Date(), createTransactionId: () => `migration-${Date.now()}` });
+function createComposition(generationStore, context, legacyInput) {
+  return createOwnershipProvenanceMigrationStartupComposition({ generationStore, seasonId: context.seasonId, baseMapId: context.baseMapId, resolveSeasonPackage: async (seasonId) => packageBySeason.get(seasonId) || null, createTargetCatalog: async () => targetCatalog(context), createFreshServices: async () => freshServices(context), createApplicationDocumentCodec, codecOptionsFactory: (fresh, serializer) => codecOptionsFactory(context, fresh, serializer), clock: () => new Date(), createTransactionId: () => `migration-${Date.now()}`, ...(legacyInput ? { legacyInput } : {}) });
+}
+function legacySeasonIdFromAdministration(administration) {
+  if (!isRecord(administration)) return null;
+  if (isRecord(administration.activeSeason) && typeof administration.activeSeason.seasonId === "string") {
+    return administration.activeSeason.seasonId;
+  }
+  const completed = Array.isArray(administration.completedSeasons) ? administration.completedSeasons : [];
+  for (let index = completed.length - 1; index >= 0; index -= 1) {
+    if (isRecord(completed[index]) && typeof completed[index].seasonId === "string") {
+      return completed[index].seasonId;
+    }
+  }
+  return null;
 }
 function createWarmapElectronStartup({ generationStore, fileStore }) {
   if (!generationStore || !fileStore) throw new TypeError("generationStore and fileStore are required.");
@@ -116,10 +129,17 @@ function createWarmapElectronStartup({ generationStore, fileStore }) {
     }
     return contextPromise;
   };
-  const migrationStartup = { async resolve() { const context = await getContext(); return context ? createComposition(generationStore, context).resolve() : { status: "legacy_required", persistenceMode: "legacy", generation: null, reason: "no_committed_generation", diagnostics: [] }; } };
-  const legacyStateLoader = { async load() { const context = await getContext(); if (!context) return { seasonId: "first-run", baseMapId: "first-run", dataManagementEnvelope: null, serverStateEnvelope: null, unionRegistryEnvelopes: [] }; const dataManagementEnvelope = await fileStore.loadEnvelope({ scope: "data_management", seasonId: context.seasonId }); const serverStateEnvelope = await fileStore.loadEnvelope({ seasonId: context.seasonId, baseMapId: context.baseMapId }); return { seasonId: context.seasonId, baseMapId: context.baseMapId, dataManagementEnvelope, serverStateEnvelope, unionRegistryEnvelopes: dataManagementEnvelope ? [dataManagementEnvelope.unionRegistry] : [] }; } };
+  const getLegacyContext = async () => {
+    const activeContext = await getContext();
+    if (activeContext) return activeContext;
+    const administration = await fileStore.loadEnvelope({ scope: "season_activation" });
+    const seasonId = legacySeasonIdFromAdministration(administration);
+    return seasonId ? packageContext(seasonId) : null;
+  };
+  const legacyStateLoader = { async load() { const context = await getLegacyContext(); if (!context) return { seasonId: "first-run", baseMapId: "first-run", dataManagementEnvelope: null, serverStateEnvelope: null, seasonAdministrationEnvelope: null, applicationAuditEnvelope: null, unionRegistryEnvelopes: [] }; const dataManagementEnvelope = await fileStore.loadEnvelope({ scope: "data_management", seasonId: context.seasonId }); const serverStateEnvelope = await fileStore.loadEnvelope({ seasonId: context.seasonId, baseMapId: context.baseMapId }); const seasonAdministrationEnvelope = await fileStore.loadEnvelope({ scope: "season_activation" }); const applicationAuditEnvelope = await fileStore.loadEnvelope({ scope: "application_audit" }); return { seasonId: context.seasonId, baseMapId: context.baseMapId, dataManagementEnvelope, serverStateEnvelope, seasonAdministrationEnvelope, applicationAuditEnvelope, unionRegistryEnvelopes: dataManagementEnvelope ? [dataManagementEnvelope.unionRegistry] : [] }; } };
   const legacyEvidenceSerializer = createEvidenceDomainStateSerializer({ validateEvidenceAssetHistory: evidenceModules().validateEvidenceAssetHistory, validateEvidenceRecordHistory: evidenceModules().validateEvidenceRecordHistory });
   const legacyStateClassifier = createLegacyStateClassifier({ deserializeDataManagementEnvelope: (envelope) => ({ seasonId: envelope.seasonId, unionRegistry: deserializeUnionRegistryEnvelope(envelope.unionRegistry), strategicDomain: deserializeStrategicDomainEnvelope(envelope.strategicDomain), evidenceDomain: legacyEvidenceSerializer.deserializeEnvelope(envelope.evidenceDomain) }), deserializeServerStateEnvelope: deserializePersistenceEnvelope });
+  const migrationStartup = { async resolve() { const context = await getContext(); if (context) return createComposition(generationStore, context).resolve(); const legacyInput = await legacyStateLoader.load(); const classification = await legacyStateClassifier.classify({ ...legacyInput }); if (classification.status !== "rebuildable_projection") return { status: "legacy_required", persistenceMode: "legacy", generation: null, reason: "no_committed_generation", diagnostics: [] }; const legacyContext = await getLegacyContext(); if (!legacyContext) return { status: "legacy_required", persistenceMode: "legacy", generation: null, reason: "legacy_context_unavailable", diagnostics: [] }; return createComposition(generationStore, legacyContext, { ...legacyInput, classification }).resolve(); } };
   return createWarMapStartupReadiness({ migrationStartup, legacyStateLoader, legacyStateClassifier });
 }
-module.exports = { createWarmapElectronStartup, contextFromCommitted };
+module.exports = { createWarmapElectronStartup, contextFromCommitted, legacySeasonIdFromAdministration };

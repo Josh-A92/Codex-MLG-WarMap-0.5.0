@@ -357,12 +357,14 @@
             return;
           }
           if (record.reviewState !== "confirmed" || record.supersededBy !== null) return;
+          const effective = resolveEffectiveTerminal(record, kind, idField);
+          if (!effective) return;
           const terminalKey = `${kind}:${key}`;
           const existing = terminalByTarget.get(terminalKey);
           if (existing) {
-            fail("contradiction", `Multiple terminal ${kind} records affect target '${key}'.`, { kind, targetKey: key, recordIds: [existing[idField], id].sort() });
+            fail("contradiction", `Multiple terminal ${kind} records affect target '${key}'.`, { kind, targetKey: key, recordIds: [existing[idField], effective[idField]].sort() });
           }
-          terminalByTarget.set(terminalKey, record);
+          terminalByTarget.set(terminalKey, effective);
         });
       }
 
@@ -374,8 +376,7 @@
         const kind = terminalKey.slice(0, separator);
         const key = terminalKey.slice(separator + 1);
         const idField = kind === "territory" ? "ownershipRecordId" : "structureOwnershipId";
-        const effective = resolveEffectiveTerminal(terminalRecord, kind, idField);
-        if (!effective) return;
+        const effective = terminalRecord;
         const effectivePrecision = eventPrecision(effective);
         if (effectivePrecision !== "exact") {
           uncertainty.push({ kind, recordId: effective[idField], targetKey: key, target: targetDescription(effective, kind), precision: effectivePrecision, eventAt: deepClone(effective.eventAt) });

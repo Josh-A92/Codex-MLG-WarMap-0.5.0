@@ -4,7 +4,7 @@ const season1Map = require("../data/season1-map.json");
 const season2Map = require("../data/season2-map.json");
 const { SEASON_1_PACKAGE } = require("../src/seasons/season1-package.js");
 const { SEASON_2_PACKAGE } = require("../src/seasons/season2-package.js");
-const { contextFromCommitted } = require("../src/main/warmap-electron-startup.js");
+const { contextFromCommitted, legacySeasonIdFromAdministration } = require("../src/main/warmap-electron-startup.js");
 const season2CommittedServers = [{ id: "server-201", label: "Server 201" }, { id: "server-202", label: "Server 202" }];
 
 function identity(generation = 7) {
@@ -106,4 +106,15 @@ assert.strictEqual(season2.documents.find((document) => document.type === "strat
 assert.strictEqual(season2.documents.find((document) => document.type === "server-state").value.baseMapId, "season2-strategic-node-network");
 console.log("PASS committed inputs remain unchanged after returned context mutation");
 
-console.log("8 Electron startup context scenarios passed");
+assert.strictEqual(legacySeasonIdFromAdministration({
+  activeSeason: null,
+  completedSeasons: [{ seasonId: "season-1" }, { seasonId: "season-2" }]
+}), "season-2");
+assert.strictEqual(legacySeasonIdFromAdministration({
+  activeSeason: { seasonId: "season-1" },
+  completedSeasons: [{ seasonId: "season-2" }]
+}), "season-1");
+assert.strictEqual(legacySeasonIdFromAdministration({ activeSeason: null, completedSeasons: [] }), null);
+console.log("PASS legacy startup restores the latest archived season without treating it as active migration context");
+
+console.log("9 Electron startup context scenarios passed");

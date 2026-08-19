@@ -554,6 +554,23 @@ runTest("ownership records retain bounded and unknown event times without enteri
   assert.strictEqual(service.getCurrentTerritoryRecord("server-366", "season-1", { type: "normal_map_cell", row: 5, col: 5 }), null);
 });
 
+runTest("canonical eventAt does not require the legacy effectiveAt compatibility field", () => {
+  const service = createService();
+  const input = territoryManualInput({
+    ownershipRecordId: "event-at-only",
+    territoryRef: { type: "normal_map_cell", row: 6, col: 6 },
+    eventAt: { precision: "exact", at: "2026-08-12T10:00:00.000Z" },
+    reviewedAt: "2026-08-12T12:10:00Z"
+  });
+  delete input.effectiveAt;
+  const created = service.addConfirmedManualTerritoryRecord(input);
+  assert.strictEqual(created.effectiveAt, "2026-08-12T10:00:00.000Z");
+  assert.deepStrictEqual(created.eventAt, {
+    precision: "exact",
+    at: "2026-08-12T10:00:00.000Z"
+  });
+});
+
 runTest("invalid transaction snapshot leaves both ownership collections unchanged", () => {
   const service = createService({
     initialTerritoryRecords: [territoryRecord()],

@@ -31,6 +31,16 @@ assert.strictEqual(validateAuditRecord({ ...first, outcome: "rejected" }).valid,
 assert.strictEqual(validateAuditRecord({ ...first, seasonId: null, serverId: null }).valid, true);
 assert.strictEqual(validateAuditRecord({ ...first, sequence: 0 }).valid, false);
 assert.strictEqual(validateAuditRecord({ ...first, actionType: "unsupported" }).valid, false);
+assert.strictEqual(validateAuditRecord({ ...first, actionType: "ownership_retracted" }).valid, true);
+assert.strictEqual(validateAuditRecord({ ...first, actionType: "ownership_redone" }).valid, true);
+assert.strictEqual(validateAuditRecord({ ...first, actionType: "ownership_conflict_resolved" }).valid, true);
+assert.strictEqual(validateAuditRecord({
+  ...first,
+  actionType: "ownership_evidence_attached",
+  targetType: "ownership_target",
+  targetId: "normal_map_cell:1:1"
+}).valid, true);
+assert.strictEqual(validateAuditRecord({ ...first, recordedAt: "2026-02-30T10:00:00.000Z" }).valid, false);
 assert.strictEqual(validateAuditRecord({ ...first, targetType: "unsupported" }).valid, false);
 assert.strictEqual(validateAuditRecord({ ...first, details: { nested: [true, "x", 1] } }).valid, true);
 const cyclic = {}; cyclic.self = cyclic;
@@ -53,6 +63,13 @@ const snapshot = rollback.captureTransactionState();
 rollback.append({ ...base, sequence: 2 });
 rollback.restoreTransactionState(snapshot);
 assert.deepStrictEqual(rollback.listRecords(), []);
+const ownershipOperations = create();
+ownershipOperations.append({ ...base, transactionId: "undo-tx", actionType: "ownership_retracted" });
+ownershipOperations.append({ ...base, transactionId: "redo-tx", actionType: "ownership_redone" });
+assert.deepStrictEqual(
+  ownershipOperations.listRecords().map((record) => record.actionType),
+  ["ownership_redone", "ownership_retracted"]
+);
 assert.throws(() => rollback.restoreTransactionState([{ ...first, auditId: "dup" }, { ...first, auditId: "dup", sequence: 2 }]), (error) => error.code === "invalid_history");
 assert.deepStrictEqual(rollback.listRecords(), []);
 assert.throws(() => create({ clock: () => new Date("invalid") }).append(base), (error) => error.code === "invalid_clock");

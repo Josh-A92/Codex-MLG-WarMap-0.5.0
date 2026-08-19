@@ -10,7 +10,8 @@
     "targetCatalog",
     "persistedProjection",
     "provenanceState",
-    "sourceDocumentIds"
+    "sourceDocumentIds",
+    "sourceKind"
   ]);
   const ACTIVE_FIELDS = new Set(["seasonId", "baseMapId", "serverIds"]);
   const SOURCE_FIELDS = new Set(["strategic", "projection"]);
@@ -168,6 +169,7 @@
           return;
         }
         try {
+          const existing = existingByServer.get(serverId);
           evidence = evidenceFactory.createEvidence({
             seasonId: context.seasonId,
             serverId,
@@ -176,8 +178,8 @@
             structureRecords: input.structureRecords,
             targetCatalog: input.targetCatalog,
             persistedProjection: input.persistedProjection,
-            sourceKind: "existing_generation",
-            sourceDocumentIds: [context.sourceDocumentIds.strategic, context.sourceDocumentIds.projection]
+            sourceKind: existing ? existing.sourceKind : (input.sourceKind || "existing_generation"),
+            sourceDocumentIds: existing ? existing.sourceDocumentIds : [context.sourceDocumentIds.strategic, context.sourceDocumentIds.projection]
           });
         } catch (error) {
           serverResults.push(blockedServer(serverId, error && error.code === "contradiction" ? "contradictory_territory_history" : "malformed_territory_history", null, [error && error.code ? error.code : "evidence_evaluation_failed"]));

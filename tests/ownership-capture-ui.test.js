@@ -64,3 +64,10 @@ test("renderer requires and audits a reason for exact ownership corrections", ()
   assert.match(renderer, /correctionReason: correction \? correction\.reason : null/);
   assert.match(renderer, /eventAt\.precision === "exact"/);
 });
+
+test("renderer collects undo reasons inline without unsupported prompt dialogs", () => {
+  assert.match(renderer, /data-ownership-undo-reason/);
+  assert.match(renderer, /Why is the last capture being undone/);
+  assert.match(renderer, /requestOwnershipUndoReason\(selectionPanel\)/);
+  assert.doesNotMatch(renderer, /globalThis\.prompt|\.prompt\("Undo reason/);
+});

@@ -8,13 +8,14 @@
     "season_activated", "season_servers_updated", "season_completed",
     "union_registered", "union_identity_updated", "union_archived", "union_restored",
     "native_assignment_confirmed", "ownership_confirmed", "ownership_corrected",
+    "ownership_retracted", "ownership_redone", "ownership_conflict_resolved", "ownership_evidence_attached",
     "server_observation_confirmed", "server_observation_corrected",
     "combat_strength_observation_confirmed", "combat_strength_observation_corrected",
     "target_verification_confirmed", "target_verification_corrected",
     "snapshot_confirmed", "evidence_record_confirmed", "evidence_record_corrected"
   ]);
   const TARGET_TYPES = new Set([
-    "season_administration", "union_identity", "native_assignment", "ownership_record",
+    "season_administration", "union_identity", "native_assignment", "ownership_record", "ownership_target",
     "server_observation", "combat_strength_observation", "target_verification",
     "snapshot", "evidence_record"
   ]);
@@ -83,7 +84,14 @@
     ["seasonId", "serverId"].forEach((field) => {
       if (Object.prototype.hasOwnProperty.call(record, field) && record[field] !== null && !nonEmpty(record[field])) add(errors, "INVALID_STRING", `${path}.${field}`, `${path}.${field} must be null or non-empty.`);
     });
-    if (typeof record.recordedAt === "string" && (!TIMESTAMP.test(record.recordedAt) || Number.isNaN(new Date(record.recordedAt).getTime()))) add(errors, "INVALID_TIMESTAMP", `${path}.recordedAt`, "recordedAt must be a canonical UTC timestamp.");
+    if (typeof record.recordedAt === "string") {
+      const parsed = new Date(record.recordedAt);
+      if (!TIMESTAMP.test(record.recordedAt)
+          || Number.isNaN(parsed.getTime())
+          || parsed.toISOString() !== record.recordedAt) {
+        add(errors, "INVALID_TIMESTAMP", `${path}.recordedAt`, "recordedAt must be a canonical UTC timestamp.");
+      }
+    }
     if (typeof record.recordedAt !== "string") add(errors, "INVALID_TIMESTAMP", `${path}.recordedAt`, "recordedAt must be a canonical UTC timestamp.");
     if (Object.prototype.hasOwnProperty.call(record, "outcome") && !OUTCOMES.has(record.outcome)) add(errors, "INVALID_OUTCOME", `${path}.outcome`, "Only accepted outcome is durable.");
     if (Object.prototype.hasOwnProperty.call(record, "details")) {

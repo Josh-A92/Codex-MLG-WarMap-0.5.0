@@ -1,4 +1,4 @@
-const FACTORY_FIELDS = new Set(["generationStore", "executionCoordinator"]);
+const FACTORY_FIELDS = new Set(["generationStore", "executionCoordinator", "allowMissingGeneration"]);
 const RESULT_STATUSES = new Set(["published", "already_published", "already_proven"]);
 const FAILURE_STATUSES = new Set(["refused", "verification_failed", "stale_current", "storage_failure"]);
 
@@ -101,6 +101,9 @@ function createOwnershipProvenanceMigrationStartup(options) {
   rejectUnknown(options, FACTORY_FIELDS, "options");
   requireMethod(options.generationStore, "options.generationStore", "loadCommittedGeneration");
   requireMethod(options.executionCoordinator, "options.executionCoordinator", "execute");
+  if (options.allowMissingGeneration !== undefined && typeof options.allowMissingGeneration !== "boolean") {
+    fail("invalid_factory", "options.allowMissingGeneration must be a boolean.");
+  }
 
   async function loadCurrent() {
     let loaded;
@@ -126,7 +129,7 @@ function createOwnershipProvenanceMigrationStartup(options) {
   async function resolve() {
     const initial = await loadCurrent();
     if (initial.failure) return initial.failure;
-    if (initial.missing) {
+    if (initial.missing && !options.allowMissingGeneration) {
       return immutableResult({
         status: "legacy_required",
         persistenceMode: "legacy",
@@ -136,7 +139,7 @@ function createOwnershipProvenanceMigrationStartup(options) {
       });
     }
 
-    const expectedCurrent = clone(initial.identity);
+    const expectedCurrent = initial.missing ? null : clone(initial.identity);
     let execution;
     try {
       execution = await options.executionCoordinator.execute({ expectedCurrent: clone(expectedCurrent) });

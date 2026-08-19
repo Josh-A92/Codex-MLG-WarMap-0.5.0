@@ -1,6 +1,7 @@
 const { createApplicationDocumentCodec } = require("../services/application-document-codec.js");
 const { createIsolatedApplicationGraphLoader } = require("../services/isolated-application-graph-loader.js");
 const { createCommittedGenerationMigrationSnapshotAdapter } = require("../services/committed-generation-migration-snapshot-adapter.js");
+const { createLegacyOwnershipProvenanceMigrationSnapshotAdapter } = require("../services/legacy-ownership-provenance-migration-snapshot-adapter.js");
 const { createOwnershipMigrationInputAdapter } = require("../services/ownership-migration-input-adapter.js");
 const { createOwnershipHistoryResolver } = require("../services/ownership-history-resolver.js");
 const { createOwnershipProjectionComparator } = require("../services/ownership-projection-comparator.js");
@@ -24,7 +25,8 @@ const FACTORY_FIELDS = new Set([
   "createApplicationDocumentCodec",
   "codecOptionsFactory",
   "clock",
-  "createTransactionId"
+  "createTransactionId",
+  "legacyInput"
 ]);
 
 class OwnershipProvenanceMigrationStartupCompositionError extends Error {
@@ -79,11 +81,13 @@ function createOwnershipProvenanceMigrationStartupComposition(options) {
     createFreshServices: freshServices,
     createApplicationDocumentCodec: options.createApplicationDocumentCodec
   });
-  const snapshotAdapter = createCommittedGenerationMigrationSnapshotAdapter({
-    generationStore: options.generationStore,
-    seasonId: options.seasonId,
-    baseMapId: options.baseMapId
-  });
+  const snapshotAdapter = options.legacyInput
+    ? createLegacyOwnershipProvenanceMigrationSnapshotAdapter({ legacyInput: options.legacyInput })
+    : createCommittedGenerationMigrationSnapshotAdapter({
+      generationStore: options.generationStore,
+      seasonId: options.seasonId,
+      baseMapId: options.baseMapId
+    });
   const inputAdapter = createOwnershipMigrationInputAdapter({
     resolveSeasonPackage: options.resolveSeasonPackage,
     createTargetCatalog: options.createTargetCatalog
@@ -119,7 +123,8 @@ function createOwnershipProvenanceMigrationStartupComposition(options) {
   });
   const startupCoordinator = createOwnershipProvenanceMigrationStartup({
     generationStore: options.generationStore,
-    executionCoordinator
+    executionCoordinator,
+    allowMissingGeneration: Boolean(options.legacyInput)
   });
   return Object.freeze({ resolve: startupCoordinator.resolve });
 }

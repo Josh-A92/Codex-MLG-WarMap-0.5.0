@@ -43,7 +43,7 @@ test("registration uses the atomic coordinator and edits use management services
   assert.match(renderer, /management\.updateUnionIdentity\(localActor/);
   assert.match(renderer, /archiveUnionIdentity\(localActor/);
   assert.match(renderer, /restoreUnionIdentity\(localActor/);
-  assert.match(renderer, /applicationPersistenceFacade\.execute\(mutation\)/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute\(mutation, auditIntent\)/);
 });
 
 test("confirmed native servers are immutable while unconfirmed unions can assign one", () => {
@@ -58,7 +58,7 @@ test("successful registry mutations unlock before persistence completes", () => 
   const mutationStart = renderer.indexOf("async function runDataManagementMutation");
   const mutationEnd = renderer.indexOf("async function handleDataManagementSubmit");
   const mutationSource = renderer.slice(mutationStart, mutationEnd);
-  assert.match(mutationSource, /await applicationPersistenceFacade\.execute\(mutation\)/);
+  assert.match(mutationSource, /await applicationPersistenceFacade\.execute\(mutation, auditIntent\)/);
   assert.doesNotMatch(mutationSource, /dataManagementPersistenceController\.requestSave\(\)/);
 });
 
@@ -84,6 +84,31 @@ test("archived identities remain visible and restorable", () => {
   assert.match(renderer, /archived \? "Archived" : "Current"/);
   assert.match(renderer, /"restore-union"/);
   assert.match(renderer, /"archive-union"/);
+});
+
+test("Data Management exposes factual server notes with audited corrections", () => {
+  assert.match(renderer, /Factual server notes/);
+  assert.match(renderer, /Do not enter objectives, priorities, or recommendations/);
+  assert.match(renderer, /data-data-management-form', 'server-note|data-data-management-form", "server-note/);
+  assert.match(renderer, /recordManualServerObservation/);
+  assert.match(renderer, /correctManualServerObservation/);
+  assert.match(renderer, /Correction reason is required/);
+  assert.match(renderer, /actionType: correctionOf \? "server_observation_corrected" : "server_observation_confirmed"/);
+  assert.match(renderer, /Archived season notes are read-only/);
+  assert.match(renderer, /completedSeasons\.slice\(\)\.reverse\(\)\.find/);
+  assert.match(renderer, /getDataManagementSeasonServers\(\)/);
+  assert.doesNotMatch(renderer, /name = "objective"|name="objective"/);
+});
+
+test("Data Management exposes recovery-only ownership conflict resolution", () => {
+  assert.match(renderer, /data-ownership-conflict-panel/);
+  assert.match(renderer, /data-data-management-form", "ownership-conflict/);
+  assert.match(renderer, /inspectOwnershipConflict/);
+  assert.match(renderer, /resolveOwnershipConflict/);
+  assert.match(renderer, /ownership_conflict_resolved/);
+  assert.match(renderer, /retainedRecordId/);
+  assert.match(renderer, /retractedRecordId/);
+  assert.match(renderer, /Resolution reason/);
 });
 
 test("Data Management layout has a phone-friendly single-column mode", () => {

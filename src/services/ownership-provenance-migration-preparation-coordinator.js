@@ -33,6 +33,7 @@
   function requireMethod(value, path, method) { if (!isRecord(value) || typeof value[method] !== "function") fail("invalid_factory", `${path}.${method} must be a function.`); }
   function requireDate(value) { if (!(value instanceof Date) || Number.isNaN(value.getTime())) fail("invalid_clock", "clock must return a valid Date."); return value.toISOString(); }
   function normalizeExpectedCurrent(value) {
+    if (value === null) return null;
     if (!isRecord(value)) fail("invalid_input", "input.expectedCurrent must be an object.");
     const fields = new Set(["schemaVersion", "generation", "manifestFile", "manifestSha256"]);
     const unknown = Object.keys(value).filter((field) => !fields.has(field)).sort();
@@ -60,7 +61,7 @@
       let snapshot;
       try {
         snapshot = await options.snapshotAdapter.load({ expectedCurrent });
-        const graph = await options.isolatedGraphLoader.load({ documents: snapshot.documents });
+        const graph = await options.isolatedGraphLoader.load({ documents: snapshot.documents, sourceKind: snapshot.sourceKind });
         const migrationInput = await options.migrationInputAdapter.adapt({ snapshot: graph, sourceDocumentIds: snapshot.sourceDocumentIds });
         const decision = await options.migrationDecisionService.decide(migrationInput);
         if (!isRecord(decision) || typeof decision.decision !== "string") return freeze({ status: "refused", reason: "invalid_decision" });

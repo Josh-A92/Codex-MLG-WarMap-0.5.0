@@ -101,7 +101,7 @@
     "api_integration",
     "bot_integration"
   ]);
-  const OPTIONAL_TEMPORAL_FIELDS = new Set(["eventAt", "observedAt", "recordedAt", "ruleVersionRef"]);
+  const OPTIONAL_TEMPORAL_FIELDS = new Set(["effectiveAt", "eventAt", "observedAt", "recordedAt", "ruleVersionRef"]);
 
   class OwnershipRecordServiceError extends Error {
     constructor(code, message, validationErrors) {

@@ -206,6 +206,9 @@ test("builds registration and map ownership transaction support from their mutab
   assert.deepStrictEqual(mapOwnership.targetCatalog, setup.options.targetCatalog);
   assert.strictEqual(typeof mapOwnership.executeAtomically, "function");
   assert.strictEqual(mapOwnership.createId, setup.options.createId);
+  const ownershipClockValue = mapOwnership.clock();
+  assert.strictEqual(ownershipClockValue instanceof Date, true);
+  assert.strictEqual(ownershipClockValue.toISOString(), "2026-07-31T10:00:00.000Z");
   assert.strictEqual(runtime.mapOwnershipCoordinator, setup.created.mapOwnership);
   const selectedView = setup.calls.find((call) => call[0] === "selectedMapTargetView")[1];
   assert.strictEqual(selectedView.ownershipRecordService, setup.options.strategicDomainRuntime.ownershipRecordService);
