@@ -290,7 +290,11 @@
       ? bindInterface(config.storageAdapter, "options.storageAdapter", ["loadEnvelope", "saveEnvelope"])
       : null;
     const persistence = config.persistenceCoordinator
-      ? bindInterface(config.persistenceCoordinator, "options.persistenceCoordinator", ["execute"])
+      ? (() => {
+        const bound = bindInterface(config.persistenceCoordinator, "options.persistenceCoordinator", ["execute"]);
+        if (typeof config.persistenceCoordinator.executeLifecycle === "function") bound.executeLifecycle = config.persistenceCoordinator.executeLifecycle.bind(config.persistenceCoordinator);
+        return bound;
+      })()
       : null;
     if (!storage && !persistence) fail("invalid_input", "Season Administration requires persistenceCoordinator or storageAdapter.");
     const packagesBySeasonId = new Map();
@@ -333,7 +337,10 @@
 
     async function persistState(nextState, auditIntent) {
       if (persistence) {
-        return persistence.execute(() => {
+        const execute = typeof persistence.executeLifecycle === "function"
+          ? persistence.executeLifecycle
+          : persistence.execute;
+        return execute(() => {
           administrationState = nextState;
           return getActiveSeason();
         }, auditIntent);
@@ -369,11 +376,26 @@
       return safeClone(administrationState.completedSeasons);
     }
 
+    function isSeasonArchived(seasonIdValue) {
+      const seasonId = requireString(seasonIdValue, "seasonId");
+      return administrationState.completedSeasons.some((season) => season.seasonId === seasonId);
+    }
+
+    function assertOperationalMutationAllowed() {
+      requireInitialized();
+      if (!administrationState.activeSeason && administrationState.completedSeasons.length > 0) {
+        fail("archived_season_read_only", "Archived season state is read-only until another season is active.");
+      }
+    }
+
     async function activateSeason(actor, requestValue) {
       requireInitialized();
       const request = requireRecord(requestValue, "request");
       rejectUnknownFields(request, REQUEST_FIELDS, "request");
       const seasonId = requireString(request.seasonId, "request.seasonId");
+      if (isSeasonArchived(seasonId)) {
+        fail("archived_season_read_only", `Archived season '${seasonId}' cannot be activated again.`);
+      }
       const preparedPackage = packagesBySeasonId.get(seasonId);
       if (!preparedPackage) fail("season_not_found", `Prepared season '${seasonId}' was not found.`);
       if (preparedPackage.packageIdentity.seasonStatus !== "active") {
@@ -427,7 +449,10 @@
     async function updateActiveSeasonServers(actor, serverIdsValue) {
       requireInitialized();
       const activeSeason = administrationState.activeSeason;
-      if (!activeSeason) fail("no_active_season", "There is no active season to update.");
+      if (!activeSeason) {
+        if (administrationState.completedSeasons.length > 0) fail("archived_season_read_only", "Archived season participation is read-only.");
+        fail("no_active_season", "There is no active season to update.");
+      }
       const serverIds = normalizeServerIds(serverIdsValue, "serverIds");
       authorization.requireAuthorized(actor, "season_rules.manage", {
         seasonId: activeSeason.seasonId
@@ -491,6 +516,8 @@
       getPreparedSeason,
       getActiveSeason,
       listCompletedSeasons,
+      isSeasonArchived,
+      assertOperationalMutationAllowed,
       activateSeason,
       updateActiveSeasonServers,
       completeActiveSeason

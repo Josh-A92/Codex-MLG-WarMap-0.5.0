@@ -61,6 +61,15 @@
       }
     }
 
+    async function executeLifecycle(mutate, auditIntent) {
+      if (recoveryState) {
+        const error = new Error(`Persistence recovery is required before lifecycle changes can be made (${recoveryState.reason}).`);
+        error.code = "recovery_required";
+        throw error;
+      }
+      return input.coordinator.executeLifecycle(mutate, auditIntent);
+    }
+
     async function repairOwnershipProjection(inputValue) {
       if (recoveryState) return { status: "recovery_required", reason: recoveryState.reason };
       if (typeof input.coordinator.repairOwnershipProjection !== "function") {
@@ -87,6 +96,7 @@
     return Object.freeze({
       load,
       execute,
+      executeLifecycle,
       commitCurrent,
       repairOwnershipProjection,
       isRecoveryRequired: () => recoveryState !== null,

@@ -524,14 +524,17 @@ function renderSeasonSetupPackageSummary(container, preparedView, includeStructu
 }
 
 function renderPreparedSeasonSelector(container, preparedSeasons) {
+  const archivedSeasonIds = new Set(seasonAdministrationService.listCompletedSeasons().map((season) => season.seasonId));
   const seasonLabel = createSeasonSetupElement("label", "season-setup-field");
   seasonLabel.appendChild(createSeasonSetupElement("span", null, "Prepared season package"));
   const select = createSeasonSetupElement("select");
   select.setAttribute("data-season-setup-action", "select-season");
   preparedSeasons.forEach((season) => {
-    const option = createSeasonSetupElement("option", null, `${season.displayName} · Package ${season.packageVersion || "unversioned"}`);
+    const archived = archivedSeasonIds.has(season.seasonId);
+    const option = createSeasonSetupElement("option", null, `${season.displayName} · Package ${season.packageVersion || "unversioned"}${archived ? " · Archived" : ""}`);
     option.value = season.seasonId;
     option.selected = season.seasonId === seasonSetupState.selectedSeasonId;
+    option.disabled = archived;
     select.appendChild(option);
   });
   seasonLabel.appendChild(select);
@@ -713,14 +716,15 @@ function renderCompletedSeasonNotice(container) {
   if (completedSeasons.length === 0) return;
   const completed = completedSeasons[completedSeasons.length - 1];
   const notice = createSeasonSetupElement("section", "season-setup-card season-setup-completed-card");
-  notice.appendChild(createSeasonSetupElement("h3", null, "Most recently completed season"));
+  notice.appendChild(createSeasonSetupElement("h3", null, "Archived season history"));
+  notice.appendChild(createSeasonSetupElement("span", "season-setup-status", "Archived · read-only"));
   appendSeasonSetupFact(notice, "Season", completed.seasonId);
   appendSeasonSetupFact(notice, "Completed", completed.completedAt);
   appendSeasonSetupFact(notice, "Completed by", completed.completedBy);
   notice.appendChild(createSeasonSetupElement(
     "p",
     "season-setup-help",
-    "Completion clears live map ownership while preserving union, evidence, and audit history. A prepared season may now be activated."
+    "Archived seasons remain available for historical viewing. Ownership, evidence, participation, and lifecycle changes are disabled."
   ));
   container.appendChild(notice);
 }
@@ -1127,7 +1131,7 @@ async function handleSeasonSetupClick(event) {
     const ownershipSnapshot = serverStateService.captureTransactionState();
     let ownershipWasCleared = false;
     try {
-      await applicationPersistenceFacade.execute(async () => {
+      await applicationPersistenceFacade.executeLifecycle(async () => {
         serverStateService.replaceTerritoryOwnership({});
         ownershipWasCleared = true;
         await seasonAdministrationService.completeActiveSeason(localActor, { persist: false });

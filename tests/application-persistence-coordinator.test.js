@@ -88,7 +88,29 @@ function baseOptions(overrides = {}) {
   assert.strictEqual(context.first.value, "before");
   assert.strictEqual(context.second.value, 0);
 
-  console.log("3 persistence coordinator hardening scenarios passed");
+  const guarded = baseOptions({
+    seasonAdministrationService: {
+      assertOperationalMutationAllowed() {
+        const error = new Error("archived");
+        error.code = "archived_season_read_only";
+        throw error;
+      }
+    }
+  });
+  const guardedCoordinator = createApplicationPersistenceCoordinator(guarded.options);
+  await guardedCoordinator.load({});
+  await assert.rejects(
+    () => guardedCoordinator.execute(() => { guarded.first.value = "must-not-change"; }),
+    (error) => error.code === "archived_season_read_only"
+  );
+  assert.strictEqual(guarded.first.value, "before");
+  let lifecycleRuns = 0;
+  const lifecycleCoordinator = createApplicationPersistenceCoordinator({ ...guarded.options, seasonAdministrationService: undefined });
+  await lifecycleCoordinator.load({});
+  await lifecycleCoordinator.executeLifecycle(() => { lifecycleRuns += 1; });
+  assert.strictEqual(lifecycleRuns, 1);
+
+  console.log("4 persistence coordinator hardening scenarios passed");
   console.log("1 test passed");
 })().catch((error) => {
   console.error(error.stack || error.message);

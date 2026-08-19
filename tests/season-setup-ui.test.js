@@ -105,6 +105,14 @@ test("active season management explicitly clears live maps while preserving hist
   assert.match(renderer, /applicationPersistenceFacade\.execute/);
 });
 
+test("completed season history is presented as archived and read-only", () => {
+  assert.match(renderer, /Archived season history/);
+  assert.match(renderer, /Archived · read-only/);
+  assert.match(renderer, /Archived seasons remain available for historical viewing/);
+  assert.match(renderer, /option.disabled = archived/);
+  assert.match(renderer, /· Archived/);
+});
+
 test("active Season Management can update participating servers", () => {
   assert.match(renderer, /data-active-season-server/);
   assert.match(renderer, /Save participating servers/);

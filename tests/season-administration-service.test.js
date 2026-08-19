@@ -42,6 +42,30 @@ function createSetup(options) {
   return { service, calls, getStored: () => stored };
 }
 
+test("completed Season 1 is archived, persisted, reopenable, and visibly protected", async () => {
+  const stored = { schemaVersion: 2, activeSeason: null, completedSeasons: [{
+    schemaVersion: 1,
+    seasonId: "season-1",
+    packageVersion: "0.5.0",
+    serverIds: ["366"],
+    confirmations: { mapAndStructures: true, resourcesAndValues: true },
+    activatedAt: "2026-07-31T10:00:00.000Z",
+    activatedBy: "admin-1",
+    completedAt: "2026-08-01T10:00:00.000Z",
+    completedBy: "admin-2"
+  }] };
+  const { service } = createSetup({ stored });
+  await service.initialize();
+  assert.strictEqual(service.isSeasonArchived("season-1"), true);
+  assert.strictEqual(service.getActiveSeason(), null);
+  assert.strictEqual(service.listCompletedSeasons()[0].seasonId, "season-1");
+  assert.throws(() => service.assertOperationalMutationAllowed(), (error) => error.code === "archived_season_read_only");
+  assert.strictEqual(service.isSeasonArchived("season-2"), false);
+  await assert.rejects(
+    () => service.activateSeason({ actorId: "admin" }, { seasonId: "season-1", serverIds: ["366"], confirmations: { mapAndStructures: true, resourcesAndValues: true } }),
+    (error) => error.code === "archived_season_read_only"
+  );
+});
 function activationRequest(overrides) {
   return {
     seasonId: "season-1",

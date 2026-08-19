@@ -60,6 +60,7 @@
       generationStore: input.generationStore,
       mutationCoordinator: input.mutationCoordinator,
       legacyStateClassifier: input.legacyStateClassifier,
+      seasonAdministrationService: input.seasonAdministrationService,
       serializeDocuments,
       deserializeDocuments: documentCodec.deserializeDocuments,
       applyState: documentCodec.applyState,

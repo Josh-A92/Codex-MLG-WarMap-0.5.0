@@ -349,6 +349,10 @@
         execute(...args) {
           if (!activePersistenceFacade) throw new Error("Persistence coordinator is not initialized.");
           return activePersistenceFacade.execute(...args);
+        },
+        executeLifecycle(...args) {
+          if (!activePersistenceFacade) throw new Error("Persistence coordinator is not initialized.");
+          return activePersistenceFacade.executeLifecycle(...args);
         }
       };
       const seasonAdministrationService = createSeasonAdministrationService({

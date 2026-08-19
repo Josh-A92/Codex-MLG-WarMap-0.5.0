@@ -9,7 +9,7 @@
     "clock",
     "createTransactionId"
   ]);
-  const OPTIONAL_FIELDS = new Set(["ownershipProjectionReplacementCoordinator", "legacyWrite"]);
+  const OPTIONAL_FIELDS = new Set(["ownershipProjectionReplacementCoordinator", "legacyWrite", "seasonAdministrationService"]);
   const REPAIR_INPUT_FIELDS = new Set(["seasonId", "serverId"]);
 
   class ApplicationPersistenceCoordinatorError extends Error {
@@ -60,6 +60,7 @@
     const clock = requireFunction(input.clock, "clock");
     const createTransactionId = requireFunction(input.createTransactionId, "createTransactionId");
     const replacementCoordinator = input.ownershipProjectionReplacementCoordinator || null;
+    const seasonAdministration = input.seasonAdministrationService || null;
     let expectedGeneration = null;
 
     async function load(inputValue) {
@@ -122,7 +123,14 @@
       return result;
     }
 
-    function execute(mutate, auditIntent) {
+    async function execute(mutate, auditIntent) {
+      if (seasonAdministration && typeof seasonAdministration.assertOperationalMutationAllowed === "function") {
+        seasonAdministration.assertOperationalMutationAllowed();
+      }
+      return mutation(mutate, async () => commitCurrent(), auditIntent);
+    }
+
+    function executeLifecycle(mutate, auditIntent) {
       return mutation(mutate, async () => commitCurrent(), auditIntent);
     }
 
@@ -154,7 +162,7 @@
       );
     }
 
-    return Object.freeze({ load, commitCurrent, execute, repairOwnershipProjection });
+    return Object.freeze({ load, commitCurrent, execute, executeLifecycle, repairOwnershipProjection });
   }
 
   const exportsObject = { createApplicationPersistenceCoordinator, ApplicationPersistenceCoordinatorError };
