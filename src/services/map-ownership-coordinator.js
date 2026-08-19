@@ -2,6 +2,9 @@
   const historyResolverExports = globalScope.createOwnershipHistoryResolver
     ? globalScope
     : (typeof require === "function" ? require("./ownership-history-resolver.js") : {});
+  const conflictAnalysisExports = globalScope.createOwnershipConflictAnalysisService
+    ? globalScope
+    : (typeof require === "function" ? require("./ownership-conflict-analysis-service.js") : {});
   const FACTORY_FIELDS = new Set([
     "relationService",
     "serverIntelligenceManagementService",
@@ -302,6 +305,12 @@
     const historyResolver = historyResolverExports.createOwnershipHistoryResolver({
       targetCatalog: input.targetCatalog
     });
+    if (typeof conflictAnalysisExports.createOwnershipConflictAnalysisService !== "function") {
+      fail("invalid_factory", "Map Ownership Coordinator requires the ownership conflict analysis service.");
+    }
+    const conflictAnalysis = conflictAnalysisExports.createOwnershipConflictAnalysisService({
+      ownershipHistoryResolver: historyResolver
+    });
     const resolveEvidenceScope = input.resolveEvidenceScope.bind(input);
     const executeAtomically = input.executeAtomically.bind(input);
     const createId = input.createId.bind(input);
@@ -458,42 +467,15 @@
       const serverId = requiredString(inputValue.serverId, "input.serverId");
       const historyInput = ownershipHistoryInput(seasonId, serverId);
       try {
-        historyResolver.resolve(historyInput);
-        return null;
+        return conflictAnalysis.inspect(historyInput);
       } catch (error) {
-        if (!error || error.code !== "contradiction" || !isRecord(error.details)) {
+        if (!error || error.code !== "invalid_authoritative_history") {
           fail("invalid_authoritative_history", `Map Ownership Coordinator could not inspect ownership history: ${error && error.message ? error.message : "unknown failure"}`);
         }
-        const kind = error.details.kind;
-        const idField = kind === "territory" ? "ownershipRecordId" : "structureOwnershipId";
-        const records = kind === "territory" ? historyInput.territoryRecords : historyInput.structureRecords;
-        if (kind !== "territory" && kind !== "structure") {
-          fail("invalid_authoritative_history", "Map Ownership Coordinator received malformed conflict diagnostics.");
-        }
-        const retractedIds = new Set(historyInput.retractionRecords.map((record) => record.retractedRecordId));
-        const diagnosticIds = Array.isArray(error.details.recordIds) ? error.details.recordIds : [];
-        const recordById = new Map(records.map((record) => [record[idField], record]));
-        const recordIds = new Set(diagnosticIds);
-        records.filter((record) => {
-          if (record.reviewState !== "confirmed" || record.supersededBy !== null || retractedIds.has(record[idField])) return false;
-          const targetKey = kind === "territory"
-            ? territoryCatalogKey(record.territoryRef)
-            : JSON.stringify(["logical_structure", record.structureId]);
-          return targetKey === error.details.targetKey;
-        }).forEach((record) => recordIds.add(record[idField]));
-        const sortedRecordIds = Array.from(recordIds).sort();
-        const conflictingRecords = sortedRecordIds.map((recordId) => recordById.get(recordId));
-        if (conflictingRecords.length < 2 || conflictingRecords.some((record) => !record)) {
-          fail("invalid_authoritative_history", "Map Ownership Coordinator could not locate every conflicting ownership record.");
-        }
-        return clone({
-          seasonId,
-          serverId,
-          kind,
-          targetKey: error.details.targetKey,
-          recordIds: sortedRecordIds,
-          records: conflictingRecords
-        });
+        fail(
+          "invalid_authoritative_history",
+          `Map Ownership Coordinator could not inspect ownership history: ${error && error.message ? error.message : "unknown failure"}`
+        );
       }
     }
 
