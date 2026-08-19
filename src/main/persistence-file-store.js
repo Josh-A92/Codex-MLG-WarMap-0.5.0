@@ -23,7 +23,8 @@ function assertIdentity(identity) {
         strategic_domain: ["scope", "seasonId"],
         evidence_domain: ["domainId", "scope"],
         data_management: ["scope", "seasonId"],
-        season_activation: ["scope"]
+        season_activation: ["scope"],
+        application_audit: ["scope"]
       }[identity.scope];
   const matchesShape = Array.isArray(expectedFields)
     && expectedFields.length === keys.length

@@ -418,6 +418,7 @@
       });
       let dataManagementEnvelope = null;
       let serverStateEnvelope = null;
+      let applicationAuditEnvelope = null;
       let legacyInput = { seasonId: requestedSeasonId, baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId };
       if (generationStartup.status === "missing") {
         dataManagementEnvelope = await warMapPersistenceStorage.loadEnvelope({ scope: "data_management", seasonId: requestedSeasonId });
@@ -425,6 +426,7 @@
           seasonId: requestedSeasonId,
           baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId
         });
+        applicationAuditEnvelope = await warMapPersistenceStorage.loadEnvelope({ scope: "application_audit" });
         const classification = startupHandoff.classification === "aligned"
           ? { status: "aligned" }
           : { status: "first_run" };
@@ -441,7 +443,8 @@
               { documentId: `strategic-${requestedSeasonId}`, scope: requestedSeasonId, type: "strategic-domain", value: dataManagementEnvelope.strategicDomain },
               { documentId: `evidence-${requestedSeasonId}`, scope: requestedSeasonId, type: "evidence-domain", value: dataManagementEnvelope.evidenceDomain },
               { documentId: `projection-${requestedSeasonId}-${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`, scope: `${requestedSeasonId}/${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`, type: "server-state", value: serverStateEnvelope },
-              { documentId: "season-administration", scope: "global", type: "season-administration", value: persistedAdministration || { schemaVersion: 2, activeSeason: null, completedSeasons: [] } }
+              { documentId: "season-administration", scope: "global", type: "season-administration", value: persistedAdministration || { schemaVersion: 2, activeSeason: null, completedSeasons: [] } },
+              { documentId: "application-audit-global", scope: "global", type: "application-audit", value: applicationAuditEnvelope || { schemaVersion: 1, records: [] } }
             ]
             : []
         };
@@ -477,8 +480,9 @@
           const unionRegistry = values.get("union-registry-global");
           const strategicDomain = values.get(`strategic-${requestedSeasonId}`);
           const evidenceDomain = values.get(`evidence-${requestedSeasonId}`);
+          const applicationAudit = values.get("application-audit-global");
           const savedAt = unionRegistry && unionRegistry.savedAt;
-          if (!unionRegistry || !strategicDomain || !evidenceDomain
+          if (!unionRegistry || !strategicDomain || !evidenceDomain || !applicationAudit
               || typeof savedAt !== "string"
               || strategicDomain.savedAt !== savedAt
               || evidenceDomain.savedAt !== savedAt) {
@@ -494,7 +498,8 @@
               evidenceDomain
             }],
             ["server_state", { seasonId: requestedSeasonId, baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId }, values.get(`projection-${requestedSeasonId}-${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`)],
-            ["season_activation", { scope: "season_activation" }, values.get("season-administration")]
+            ["season_activation", { scope: "season_activation" }, values.get("season-administration")],
+            ["application_audit", { scope: "application_audit" }, applicationAudit]
           ];
           for (const [_name, identity, value] of writes) {
             if (value !== undefined) await (warMapPersistenceStorage.runLegacyWrite || warMapPersistenceStorage.saveEnvelope)(identity, value);

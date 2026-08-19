@@ -137,6 +137,16 @@ runTest("season activation identity round trips independently", async () => {
   });
 });
 
+runTest("application audit identity round trips independently", async () => {
+  await withTempStore(async ({ store }) => {
+    const identity = { scope: "application_audit" };
+    const envelope = { schemaVersion: 1, records: [] };
+    await store.saveEnvelope(identity, envelope);
+    assert.deepStrictEqual(await store.loadEnvelope(identity), envelope);
+    assert.strictEqual(await store.loadEnvelope(sampleIdentity()), null);
+  });
+});
+
 runTest("same identity overwrites the current envelope", async () => {
   await withTempStore(async ({ store, tempDirectory }) => {
     const identity = sampleIdentity();
