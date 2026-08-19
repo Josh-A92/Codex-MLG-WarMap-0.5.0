@@ -2,7 +2,7 @@
 
 ## Current committed boundary
 
-Baseline after this work: `30cd1de`.
+Baseline after this work: `f751aa1`.
 
 Completed Phase 4 slices:
 
@@ -130,8 +130,9 @@ domain transaction fails; no deletion is attempted because the same digest may
 already be referenced elsewhere. A future maintenance/cleanup slice may remove
 unreferenced blobs only after scanning committed evidence assets.
 
-The managed file store rejects structurally truncated JPEGs and PNGs with an
-invalid terminal IEND length before hashing or copying them.
+The managed file store rejects structurally truncated JPEGs, PNGs with an
+invalid terminal IEND length, and source files whose size or filesystem change
+identity differs after the read. These checks run before hashing or copying.
 
 ## Remaining Phase 4 sequence
 
