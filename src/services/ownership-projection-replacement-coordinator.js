@@ -79,7 +79,8 @@
       resolved.territories.forEach((record) => {
         if (record.ownershipState !== "owned" && record.ownershipState !== "unclaimed") fail("unrepresentable_ownership_state", `Cannot project ownership state '${record.ownershipState}'.`);
         const ref = record.territoryRef;
-        rebuiltOwnership[`${ref.row}-${ref.col}`] = record.ownershipState === "owned" ? record.ownerUnionId : null;
+          const key = ref.type === "strategic_node" ? JSON.stringify(["strategic_node", ref.nodeId]) : `${ref.row}-${ref.col}`;
+          rebuiltOwnership[key] = record.ownershipState === "owned" ? record.ownerUnionId : null;
       });
       if (comparison.status === "matching_projection") return { status: "unchanged", comparison, rebuiltProjection: { seasonId, serverId, ownership: clone(rebuiltOwnership) } };
 

@@ -249,6 +249,12 @@
 
   function territoryTargetKey(serverId, seasonId, territoryRef) {
     const ref = requireRecordObject(territoryRef, "territoryRef");
+    if (ref.type === "strategic_node") {
+      requireKnownFields(ref, new Set(["type", "nodeId"]), "territoryRef");
+      requireRequiredFields(ref, new Set(["type", "nodeId"]), "territoryRef");
+      if (typeof ref.nodeId !== "string" || ref.nodeId.trim() === "") throwServiceError("invalid_input", "Ownership Record Service requires territoryRef.nodeId to be a stable non-empty ID.");
+      return JSON.stringify([seasonId, serverId, "strategic_node", ref.nodeId]);
+    }
     requireKnownFields(ref, new Set(["type", "row", "col"]), "territoryRef");
     requireRequiredFields(ref, new Set(["type", "row", "col"]), "territoryRef");
     if (ref.type !== "normal_map_cell" || !Number.isInteger(ref.row) || ref.row < 1 || !Number.isInteger(ref.col) || ref.col < 1) {

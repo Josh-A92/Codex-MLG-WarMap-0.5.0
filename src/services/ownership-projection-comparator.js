@@ -48,7 +48,12 @@
   }
 
   function validateTerritoryRef(value, path) {
-    requireExactFields(value, new Set(["type", "row", "col"]), path);
+    const fields = value && value.type === "strategic_node" ? new Set(["type", "nodeId"]) : new Set(["type", "row", "col"]);
+    requireExactFields(value, fields, path);
+    if (value.type === "strategic_node") {
+      requireString(value.nodeId, `${path}.nodeId`);
+      return;
+    }
     if (value.type !== "normal_map_cell"
         || !Number.isInteger(value.row) || value.row < 1
         || !Number.isInteger(value.col) || value.col < 1) {
@@ -57,7 +62,7 @@
   }
 
   function persistedTerritoryKey(ref) {
-    return `${ref.row}-${ref.col}`;
+    return ref.type === "strategic_node" ? JSON.stringify(["strategic_node", ref.nodeId]) : `${ref.row}-${ref.col}`;
   }
 
   function validateCanonicalTimestamp(value, path) {
@@ -110,7 +115,10 @@
       requireString(entry.targetKey, `resolverResult.uncertainty[${index}].targetKey`);
       validateTerritoryRef(entry.target, `resolverResult.uncertainty[${index}].target`);
       const key = persistedTerritoryKey(entry.target);
-      if (entry.targetKey !== JSON.stringify(["normal_map_cell", entry.target.row, entry.target.col])) fail("invalid_input", `resolverResult.uncertainty[${index}].targetKey does not match target.`);
+      const expectedTargetKey = entry.target.type === "strategic_node"
+        ? JSON.stringify(["strategic_node", entry.target.nodeId])
+        : JSON.stringify(["normal_map_cell", entry.target.row, entry.target.col]);
+      if (entry.targetKey !== expectedTargetKey) fail("invalid_input", `resolverResult.uncertainty[${index}].targetKey does not match target.`);
       if (uncertaintyByKey.has(key)) uncertaintyByKey.get(key).push(entry);
       else uncertaintyByKey.set(key, [entry]);
     });
@@ -133,7 +141,15 @@
       if (!isPlainObject(server.ownership)) fail("invalid_input", `persistedProjection.servers[${index}].ownership must be a plain object.`);
       const ownership = new Map();
       Object.keys(server.ownership).forEach((key) => {
-        if (!/^([1-9]\d*)-([1-9]\d*)$/.test(key)) fail("invalid_input", `persistedProjection.servers[${index}].ownership key '${key}' is invalid.`);
+        const strategicKey = (() => {
+          try {
+            const parsed = JSON.parse(key);
+            return Array.isArray(parsed) && parsed.length === 2 && parsed[0] === "strategic_node" && typeof parsed[1] === "string" && parsed[1].trim() !== "";
+          } catch (_error) {
+            return false;
+          }
+        })();
+        if (!/^([1-9]\d*)-([1-9]\d*)$/.test(key) && !strategicKey) fail("invalid_input", `persistedProjection.servers[${index}].ownership key '${key}' is invalid.`);
         const valueAtKey = server.ownership[key];
         if (valueAtKey !== null && (typeof valueAtKey !== "string" || valueAtKey.trim() === "")) fail("invalid_input", `persistedProjection.servers[${index}].ownership['${key}'] is invalid.`);
         ownership.set(key, valueAtKey);

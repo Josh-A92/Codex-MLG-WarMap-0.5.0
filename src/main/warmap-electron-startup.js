@@ -52,8 +52,8 @@ function packageContext(seasonId) {
 }
 function targetCatalog(context) {
   const points = context.map.topologyType === "strategic_node_network"
-    ? context.map.nodes.map((node) => ({ row: node.position.row, col: node.position.column }))
-    : context.map.tiles.flat().map((tile) => ({ row: tile.row, col: tile.col }));
+    ? context.map.nodes.map((node) => ({ type: "strategic_node", nodeId: node.nodeId }))
+    : context.map.tiles.flat().map((tile) => ({ type: "normal_map_cell", row: tile.row, col: tile.col }));
   const structures = Array.isArray(context.map.structures)
     ? context.map.structures.map((structure) => ({ structureId: structure.id, footprint: [{ row: structure.row, col: structure.col }] }))
     : [];

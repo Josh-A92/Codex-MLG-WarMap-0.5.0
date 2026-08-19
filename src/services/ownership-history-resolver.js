@@ -53,7 +53,9 @@
   }
 
   function targetKey(ref) {
-    return JSON.stringify(["normal_map_cell", ref.row, ref.col]);
+    return ref.type === "strategic_node"
+      ? JSON.stringify(["strategic_node", ref.nodeId])
+      : JSON.stringify(["normal_map_cell", ref.row, ref.col]);
   }
 
   function structureKey(structureId) {
@@ -67,13 +69,27 @@
     return { row: value.row, col: value.col };
   }
 
+  function validateTargetRef(value, path) {
+    if (!isPlainObject(value)) fail("invalid_target_catalog", `${path} must be a target reference.`);
+    if (value.type === "strategic_node") {
+      exactObject(value, new Set(["type", "nodeId"]), path);
+      return { type: "strategic_node", nodeId: requireString(value.nodeId, `${path}.nodeId`) };
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "type")) {
+      exactObject(value, new Set(["type", "row", "col"]), path);
+      if (value.type !== "normal_map_cell") fail("invalid_target_catalog", `${path}.type is invalid.`);
+      return { type: "normal_map_cell", ...validatePoint({ row: value.row, col: value.col }, path) };
+    }
+    return { type: "normal_map_cell", ...validatePoint(value, path) };
+  }
+
   function createCatalog(value) {
     exactObject(value, new Set(["territoryKeys", "structures"]), "targetCatalog");
     requireArray(value.territoryKeys, "targetCatalog.territoryKeys");
     requireArray(value.structures, "targetCatalog.structures");
     const territoryKeys = new Set();
     value.territoryKeys.forEach((point, index) => {
-      const normalized = validatePoint(point, `targetCatalog.territoryKeys[${index}]`);
+      const normalized = validateTargetRef(point, `targetCatalog.territoryKeys[${index}]`);
       const key = targetKey(normalized);
       if (territoryKeys.has(key)) fail("invalid_target_catalog", `Duplicate territory key at index ${index}.`);
       territoryKeys.add(key);
@@ -83,9 +99,10 @@
       exactObject(structure, new Set(["structureId", "footprint"]), `targetCatalog.structures[${index}]`);
       const id = requireString(structure.structureId, `targetCatalog.structures[${index}].structureId`);
       const footprint = requireArray(structure.footprint, `targetCatalog.structures[${index}].footprint`)
-        .map((point, pointIndex) => validatePoint(point, `targetCatalog.structures[${index}].footprint[${pointIndex}]`));
+        .map((point, pointIndex) => validateTargetRef(point, `targetCatalog.structures[${index}].footprint[${pointIndex}]`));
       if (footprint.length === 0) fail("invalid_target_catalog", `Structure '${id}' must have a footprint.`);
       if (structures.has(id)) fail("invalid_target_catalog", `Duplicate structure ID '${id}'.`);
+      if (territoryKeys.has(structureKey(id))) fail("invalid_target_catalog", `Structure '${id}' collides with a territory target.`);
       const footprintKeys = new Set(footprint.map(targetKey));
       if (footprintKeys.size !== footprint.length) fail("invalid_target_catalog", `Structure '${id}' has a duplicate footprint point.`);
       footprint.forEach((point) => {

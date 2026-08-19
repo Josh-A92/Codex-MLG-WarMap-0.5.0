@@ -45,26 +45,40 @@
     Object.keys(value).forEach((key) => Object.defineProperty(output, key, { value: clone(value[key]), enumerable: true, configurable: true, writable: true }));
     return output;
   }
-  function targetKey(point) { return `${point.row}-${point.col}`; }
+  function targetKey(ref) { return ref.type === "strategic_node" ? JSON.stringify(["strategic_node", ref.nodeId]) : `${ref.row}-${ref.col}`; }
   function validatePoint(value, path) {
     if (!isPlainObject(value) || Object.keys(value).some((field) => !["row", "col"].includes(field))) fail("invalid_input", `${path} is invalid.`);
     if (!Number.isInteger(value.row) || value.row < 1 || !Number.isInteger(value.col) || value.col < 1) fail("invalid_input", `${path} is invalid.`);
     return { row: value.row, col: value.col };
   }
+  function validateTargetRef(value, path) {
+    if (!isPlainObject(value)) fail("invalid_input", `${path} is invalid.`);
+    if (value.type === "strategic_node") {
+      const unknown = Object.keys(value).filter((field) => !["type", "nodeId"].includes(field));
+      if (unknown.length > 0 || typeof value.nodeId !== "string" || value.nodeId.trim() === "") fail("invalid_input", `${path} strategic node reference is invalid.`);
+      return { type: "strategic_node", nodeId: value.nodeId };
+    }
+    if (Object.prototype.hasOwnProperty.call(value, "type") && value.type !== "normal_map_cell") fail("invalid_input", `${path}.type is invalid.`);
+    return { type: "normal_map_cell", ...validatePoint(Object.prototype.hasOwnProperty.call(value, "type") ? { row: value.row, col: value.col } : value, path) };
+  }
   function normalizeCatalog(value) {
     if (!isPlainObject(value) || !Array.isArray(value.territoryKeys) || !Array.isArray(value.structures)) fail("invalid_input", "targetCatalog is invalid.");
     const territoryKeys = new Set();
+    const territoryIdentityKeys = new Set();
     value.territoryKeys.forEach((point, index) => {
-      const normalized = validatePoint(point, `targetCatalog.territoryKeys[${index}]`);
+      const normalized = validateTargetRef(point, `targetCatalog.territoryKeys[${index}]`);
       const key = targetKey(normalized);
-      if (territoryKeys.has(key)) fail("invalid_input", `targetCatalog contains duplicate territory '${key}'.`);
+      const identityKey = JSON.stringify(normalized);
+      if (territoryKeys.has(key) || territoryIdentityKeys.has(identityKey)) fail("invalid_input", `targetCatalog contains duplicate territory '${key}'.`);
       territoryKeys.add(key);
+      territoryIdentityKeys.add(identityKey);
     });
     const structures = new Map();
     value.structures.forEach((structure, index) => {
       if (!isPlainObject(structure) || typeof structure.structureId !== "string" || !Array.isArray(structure.footprint)) fail("invalid_input", `targetCatalog.structures[${index}] is invalid.`);
       if (structures.has(structure.structureId)) fail("invalid_input", `targetCatalog contains duplicate structure '${structure.structureId}'.`);
-      const footprint = structure.footprint.map((point, pointIndex) => validatePoint(point, `targetCatalog.structures[${index}].footprint[${pointIndex}]`));
+      if (territoryIdentityKeys.has(JSON.stringify(["logical_structure", structure.structureId]))) fail("invalid_input", `targetCatalog structure '${structure.structureId}' collides with a territory target.`);
+      const footprint = structure.footprint.map((point, pointIndex) => validateTargetRef(point, `targetCatalog.structures[${index}].footprint[${pointIndex}]`));
       structures.set(structure.structureId, { structureId: structure.structureId, footprint });
     });
     return { territoryKeys: Array.from(territoryKeys).sort(), structures: Array.from(structures.values()).sort((left, right) => compareStrings(left.structureId, right.structureId)) };

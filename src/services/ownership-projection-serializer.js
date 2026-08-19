@@ -50,6 +50,11 @@
   }
 
   function validateTerritoryRef(value, path) {
+    if (value && value.type === "strategic_node") {
+      requireExactFields(value, new Set(["type", "nodeId"]), path);
+      requireString(value.nodeId, `${path}.nodeId`);
+      return;
+    }
     requireExactFields(value, new Set(["type", "row", "col"]), path);
     if (value.type !== "normal_map_cell") fail("invalid_result", `${path}.type is invalid.`);
     if (!Number.isInteger(value.row) || value.row < 1) fail("invalid_result", `${path}.row is invalid.`);
@@ -57,7 +62,9 @@
   }
 
   function territorySortKey(record) {
-    return JSON.stringify([record.territoryRef.type, record.territoryRef.row, record.territoryRef.col]);
+    return record.territoryRef.type === "strategic_node"
+      ? JSON.stringify(["strategic_node", record.territoryRef.nodeId])
+      : JSON.stringify([record.territoryRef.type, record.territoryRef.row, record.territoryRef.col]);
   }
 
   function compareStrings(left, right) {
@@ -76,7 +83,9 @@
       if (keys.has(key)) fail("invalid_result", `territories contains duplicate target '${key}'.`);
       keys.add(key);
       return {
-        target: { type: record.territoryRef.type, row: record.territoryRef.row, col: record.territoryRef.col },
+        target: record.territoryRef.type === "strategic_node"
+          ? { type: "strategic_node", nodeId: record.territoryRef.nodeId }
+          : { type: record.territoryRef.type, row: record.territoryRef.row, col: record.territoryRef.col },
         ownershipState: record.ownershipState,
         ownerUnionId: record.ownerUnionId
       };

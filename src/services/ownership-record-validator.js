@@ -300,13 +300,21 @@
       return null;
     }
 
-    const fields = ["type", "row", "col"];
+    const fields = value.type === "strategic_node" ? ["type", "nodeId"] : ["type", "row", "col"];
     validateRequiredFields(value, fields, path, errors);
     validateUnknownFields(value, fields, path, errors);
 
     let valid = true;
+    if (value.type === "strategic_node") {
+      if (!isNonEmptyTrimmedString(value.nodeId)) {
+        pushError(errors, "INVALID_STRING", `${path}.nodeId`, `${path}.nodeId must be a non-empty stable node ID.`);
+      }
+      return valid && isNonEmptyTrimmedString(value.nodeId)
+        ? JSON.stringify(["strategic_node", value.nodeId])
+        : null;
+    }
     if (value.type !== "normal_map_cell") {
-      pushError(errors, "INVALID_ENUM", `${path}.type`, `${path}.type must be normal_map_cell.`);
+      pushError(errors, "INVALID_ENUM", `${path}.type`, `${path}.type must be normal_map_cell or strategic_node.`);
       valid = false;
     }
 
