@@ -2774,6 +2774,13 @@ function buildTerritoryEditor(item) {
   const form = document.createElement("form");
   form.className = "territory-editor-form";
   form.setAttribute("data-ownership-capture-form", "true");
+  if (targetView && targetView.currentOwnershipRecord) {
+    const currentRecordId = targetView.currentOwnershipRecord.ownershipRecordId
+      || targetView.currentOwnershipRecord.structureOwnershipId;
+    if (currentRecordId) {
+      form.setAttribute("data-correction-of", currentRecordId);
+    }
+  }
 
   const editorRow = document.createElement("label");
   editorRow.className = "territory-editor-row";
@@ -2891,6 +2898,21 @@ function buildTerritoryEditor(item) {
   evidenceRow.appendChild(evidenceInput);
   form.appendChild(evidenceRow);
 
+  const correctionReasonRow = document.createElement("label");
+  correctionReasonRow.className = "territory-editor-row";
+  correctionReasonRow.setAttribute("data-ownership-correction-reason-row", "true");
+  const correctionReasonLabel = document.createElement("span");
+  correctionReasonLabel.className = "selection-label";
+  correctionReasonLabel.textContent = "Correction reason";
+  const correctionReasonInput = document.createElement("textarea");
+  correctionReasonInput.id = "ownership-correction-reason";
+  correctionReasonInput.name = "correctionReason";
+  correctionReasonInput.rows = 2;
+  correctionReasonInput.placeholder = "Why is the confirmed fact being replaced?";
+  correctionReasonRow.appendChild(correctionReasonLabel);
+  correctionReasonRow.appendChild(correctionReasonInput);
+  form.appendChild(correctionReasonRow);
+
   const submitRow = document.createElement("div");
   submitRow.className = "territory-editor-row";
   const spacer = document.createElement("span");
@@ -2980,7 +3002,7 @@ function parseEvidenceIds(inputValue) {
     .filter((value) => value !== "");
 }
 
-function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds) {
+function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds, correction) {
   let targetId;
   if (isStructure) {
     targetId = `structure:${selectedItem.id}`;
@@ -2990,7 +3012,7 @@ function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategi
     targetId = `normal_map_cell:${Number(selectedItem.row)}:${Number(selectedItem.col)}`;
   }
   return {
-    actionType: "ownership_confirmed",
+    actionType: correction ? "ownership_corrected" : "ownership_confirmed",
     targetType: "ownership_record",
     targetId,
     seasonId: seasonIdentity.seasonId,
@@ -2999,7 +3021,9 @@ function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategi
     details: {
       ownerUnionId: ownerId,
       eventAt,
-      evidenceIds: evidenceIds.slice()
+      evidenceIds: evidenceIds.slice(),
+      correctionOf: correction ? correction.recordId : null,
+      correctionReason: correction ? correction.reason : null
     }
   };
 }
@@ -3018,6 +3042,7 @@ function updateOwnershipEventTimeRows(container) {
   const exactRow = container.querySelector("[data-ownership-exact-time-row='true']");
   const windowStartRow = container.querySelector("[data-ownership-window-start-row='true']");
   const windowEndRow = container.querySelector("[data-ownership-window-end-row='true']");
+  const correctionReasonRow = container.querySelector("[data-ownership-correction-reason-row='true']");
 
   if (exactRow) {
     exactRow.style.display = mode === "exact" ? "grid" : "none";
@@ -3027,6 +3052,12 @@ function updateOwnershipEventTimeRows(container) {
   }
   if (windowEndRow) {
     windowEndRow.style.display = mode === "window" ? "grid" : "none";
+  }
+  if (correctionReasonRow) {
+    const form = correctionReasonRow.closest("form[data-ownership-capture-form='true']");
+    correctionReasonRow.style.display = form && form.getAttribute("data-correction-of") && mode !== "window"
+      ? "grid"
+      : "none";
   }
 }
 
@@ -3061,13 +3092,22 @@ async function handleSelectionPanelSubmit(event) {
   try {
     const eventAt = normalizeEventAtFromForm(formData);
     const evidenceIds = parseEvidenceIds(formData.get("evidenceIds"));
+    const correctionRecordId = form.getAttribute("data-correction-of");
+    const correctionReason = String(formData.get("correctionReason") || "").trim();
+    const correction = correctionRecordId && eventAt.precision === "exact"
+      ? { recordId: correctionRecordId, reason: correctionReason }
+      : null;
+    if (correction && correction.reason === "") {
+      throw new Error("Correction reason is required when replacing a confirmed ownership fact.");
+    }
     const auditIntent = createOwnershipCaptureAuditIntent(
       selectedItem,
       isStructure,
       isStrategicNode,
       ownerId,
       eventAt,
-      evidenceIds
+      evidenceIds,
+      correction
     );
     await applicationPersistenceFacade.execute(async () => {
       if (isStructure) {

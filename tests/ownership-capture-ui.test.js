@@ -37,8 +37,18 @@ test("renderer sends evidence IDs and strategic-node targets to capture coordina
 });
 
 test("renderer persists a scoped ownership audit intent with capture metadata", () => {
-  assert.match(renderer, /actionType: "ownership_confirmed"/);
+  assert.match(renderer, /actionType: correction \? "ownership_corrected" : "ownership_confirmed"/);
   assert.match(renderer, /targetType: "ownership_record"/);
   assert.match(renderer, /applicationPersistenceFacade\.execute\(async \(\) => \{[\s\S]*\}, auditIntent\)/);
   assert.match(renderer, /details: \{[\s\S]*ownerUnionId: ownerId,[\s\S]*eventAt,[\s\S]*evidenceIds: evidenceIds\.slice\(\)/);
+});
+
+test("renderer requires and audits a reason for exact ownership corrections", () => {
+  assert.match(renderer, /data-correction-of/);
+  assert.match(renderer, /name = "correctionReason"/);
+  assert.match(renderer, /Correction reason is required when replacing a confirmed ownership fact/);
+  assert.match(renderer, /actionType: correction \? "ownership_corrected" : "ownership_confirmed"/);
+  assert.match(renderer, /correctionOf: correction \? correction\.recordId : null/);
+  assert.match(renderer, /correctionReason: correction \? correction\.reason : null/);
+  assert.match(renderer, /eventAt\.precision === "exact"/);
 });

@@ -378,6 +378,11 @@ test("rebuilds projection from authoritative structure history", async () => {
 
   assert.strictEqual(context.projectionState.value["server-366"]["4-4"], null);
   assert.strictEqual(context.projectionState.value["server-366"]["4-5"], null);
+  const oldRecord = context.ownershipState.value.structures.find((record) => record.structureOwnershipId === "structure-existing");
+  const replacement = context.ownershipState.value.structures.find((record) => record.structureOwnershipId !== "structure-existing");
+  assert.strictEqual(oldRecord.reviewState, "superseded");
+  assert.strictEqual(oldRecord.supersededBy, replacement.structureOwnershipId);
+  assert.strictEqual(replacement.reviewState, "confirmed");
 });
 
 test("rolls back history and projection changes when projection replacement fails", async () => {
