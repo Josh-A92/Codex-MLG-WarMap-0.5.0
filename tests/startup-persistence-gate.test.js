@@ -57,6 +57,20 @@ async function assertCode(operation, code) {
   console.log("PASS first-run and legacy-ready results enable only legacy writes");
 
   gate = createStartupPersistenceGate();
+  gate.settle({
+    status: "first_run",
+    persistenceMode: "legacy",
+    generation: null,
+    reason: null,
+    classification: "first_run",
+    diagnostics: []
+  });
+  let readinessShapeWrites = 0;
+  await gate.writeLegacy(async () => { readinessShapeWrites += 1; });
+  assert.strictEqual(readinessShapeWrites, 1);
+  console.log("PASS real first-run readiness shape enables legacy writes");
+
+  gate = createStartupPersistenceGate();
   const unsafe = { status: "verification_failed", persistenceMode: "unavailable", diagnostics: [{ code: "blocked" }] };
   const blockedState = gate.settle(unsafe);
   assert.deepStrictEqual(blockedState, { status: "blocked", settled: true, mode: null, reason: "unsafe_startup_result", diagnostics: [{ code: "blocked" }] });

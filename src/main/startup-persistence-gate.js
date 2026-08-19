@@ -62,7 +62,7 @@ function normalizeSettlement(value) {
     };
   }
   try {
-    rejectUnknown(value, new Set(["status", "persistenceMode", "generation", "reason", "diagnostics"]), "startupResult");
+    rejectUnknown(value, new Set(["status", "persistenceMode", "generation", "reason", "classification", "diagnostics"]), "startupResult");
   } catch (_error) {
     return {
       status: "blocked",

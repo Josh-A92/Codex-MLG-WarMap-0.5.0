@@ -77,6 +77,22 @@ function baseOptions(overrides = {}) {
   assert.strictEqual(committedDocuments.filter((document) => document.documentId === "application-audit-global").length, 1);
   assert.strictEqual(committedDocuments.find((document) => document.documentId === "application-audit-global").type, "application-audit");
 
+  let legacyDocuments = null;
+  let firstRunGenerationWrites = 0;
+  const firstRun = createWarMapApplicationPersistenceCoordinator({
+    ...compositionOptions,
+    generationStore: {
+      async loadCommittedGeneration() { return { status: "missing" }; },
+      async commit() { firstRunGenerationWrites += 1; return { generation: 1 }; }
+    },
+    legacyWrite: async (documents) => { legacyDocuments = documents; return { status: "legacy_saved" }; }
+  });
+  await firstRun.load({ trustedClassification: { status: "first_run" }, legacyDocuments: [] });
+  const firstRunCommit = await firstRun.commitCurrent();
+  assert.strictEqual(firstRunCommit.status, "legacy_saved");
+  assert.ok(Array.isArray(legacyDocuments));
+  assert.strictEqual(firstRunGenerationWrites, 0);
+
   const context = baseOptions({
     applyState: async () => {
       context.first.value = "partial";

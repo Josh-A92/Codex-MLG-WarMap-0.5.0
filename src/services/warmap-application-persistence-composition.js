@@ -66,7 +66,8 @@
       applyState: documentCodec.applyState,
       clock: input.clock,
       createTransactionId: input.createTransactionId,
-      ownershipProjectionReplacementCoordinator: input.ownershipProjectionReplacementCoordinator
+      ownershipProjectionReplacementCoordinator: input.ownershipProjectionReplacementCoordinator,
+      legacyWrite: input.legacyWrite
     });
   }
 
