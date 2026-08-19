@@ -69,8 +69,9 @@ function safeError(error) {
 }
 
 function createGenerationStorageHandlers(generationStore) {
-  if (!generationStore || typeof generationStore.loadCommittedGeneration !== "function" || typeof generationStore.commit !== "function") {
-    throw new TypeError("generationStore must expose loadCommittedGeneration and commit.");
+  if (!generationStore || typeof generationStore.loadCommittedGeneration !== "function"
+      || (typeof generationStore.runGenerationWrite !== "function" && typeof generationStore.commit !== "function")) {
+    throw new TypeError("generationStore must expose loadCommittedGeneration and runGenerationWrite.");
   }
   return {
     async loadCommittedGeneration() {
@@ -83,7 +84,8 @@ function createGenerationStorageHandlers(generationStore) {
     async commitGeneration(payload) {
       try {
         validateCommitPayload(payload);
-        return { ok: true, result: await generationStore.commit(payload) };
+        const write = generationStore.runGenerationWrite || generationStore.commit;
+        return { ok: true, result: await write.call(generationStore, payload) };
       } catch (error) {
         return { ok: false, error: safeError(error) };
       }

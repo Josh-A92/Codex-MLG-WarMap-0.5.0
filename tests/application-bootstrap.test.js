@@ -317,6 +317,11 @@ function createValidScope(options) {
       rendererCalls.push(context);
     })
   };
+  scope.warMapStartup = values.warMapStartup || {
+    async getResult() {
+      return { status: "first_run", persistenceMode: "legacy", generation: null, reason: null, classification: "first_run", diagnostics: [] };
+    }
+  };
 
   return {
     scope,
@@ -431,9 +436,10 @@ runTest("bootstrap exposes first-run season context and administration service",
   assert.ok(callLog.indexOf("initializeSeasonAdministration") < callLog.indexOf("resolvePackage"));
 });
 
-runTest("generation startup is read before legacy migration reads", async () => {
+runTest("trusted legacy handoff selects legacy reads", async () => {
   const calls = [];
   const { scope, rendererCalls } = createValidScope({
+    warMapStartup: { async getResult() { calls.push("startup"); return { status: "first_run", persistenceMode: "legacy", generation: null, reason: null, classification: "first_run", diagnostics: [] }; } },
     warMapGenerationStorage: {
       async loadCommittedGeneration() {
         calls.push("generation");
@@ -450,7 +456,7 @@ runTest("generation startup is read before legacy migration reads", async () => 
     }
   });
   await createApplicationBootstrap(scope).bootstrapApplication();
-  assert.strictEqual(calls[0], "generation");
+  assert.strictEqual(calls[0], "startup");
   assert.ok(calls.includes("legacy:season_activation"));
   assert.strictEqual(rendererCalls.length, 1);
 });
@@ -458,10 +464,11 @@ runTest("generation startup is read before legacy migration reads", async () => 
 runTest("committed generation startup does not read legacy envelopes", async () => {
   const calls = [];
   const { scope, rendererCalls } = createValidScope({
+    warMapStartup: { async getResult() { return { status: "published", persistenceMode: "generation", generation: { generation: 1, manifestFile: "generation.json", manifestSha256: "sha256:generation" }, reason: null, classification: null, diagnostics: [] }; } },
     warMapGenerationStorage: {
       async loadCommittedGeneration() {
         calls.push("generation");
-        return { ok: true, result: { status: "committed", source: "current", manifest: { generation: 1 }, documents: [] } };
+        return { ok: true, result: { status: "committed", source: "current", pointer: { generation: 1, manifestFile: "generation.json", manifestSha256: "sha256:generation" }, manifest: { generation: 1 }, documents: [] } };
       },
       async commitGeneration() { return { ok: true, result: { generation: 2 } }; }
     },
@@ -476,6 +483,55 @@ runTest("committed generation startup does not read legacy envelopes", async () 
   await createApplicationBootstrap(scope).bootstrapApplication();
   assert.deepStrictEqual(calls, ["generation"]);
   assert.strictEqual(rendererCalls.length, 1);
+});
+
+runTest("trusted generation handoff is consumed before renderer startup and legacy is not read", async () => {
+  const calls = [];
+  const handoff = {
+    status: "published",
+    persistenceMode: "generation",
+    generation: { generation: 2, manifestFile: "candidate.json", manifestSha256: "sha256:candidate" },
+    reason: null,
+    diagnostics: []
+  };
+  const { scope, rendererCalls } = createValidScope({
+    warMapStartup: { async getResult() { calls.push("startup"); return handoff; } },
+    warMapGenerationStorage: {
+      async loadCommittedGeneration() {
+        calls.push("generation");
+        return { ok: true, result: { status: "committed", source: "current", pointer: handoff.generation, manifest: { generation: 2 }, documents: [] } };
+      },
+      async commitGeneration() { return { ok: true, result: { generation: 3 } }; }
+    },
+    warMapPersistenceStorage: {
+      async loadEnvelope() { calls.push("legacy"); return null; },
+      async saveEnvelope() { throw new Error("legacy read/write forbidden"); }
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+  assert.deepStrictEqual(calls, ["startup", "generation"]);
+  assert.strictEqual(rendererCalls.length, 1);
+});
+
+runTest("trusted generation identity mismatch blocks renderer initialization", async () => {
+  const handoff = {
+    status: "published",
+    persistenceMode: "generation",
+    generation: { generation: 2, manifestFile: "candidate.json", manifestSha256: "sha256:candidate" },
+    reason: null,
+    diagnostics: []
+  };
+  const { scope, rendererCalls } = createValidScope({
+    warMapStartup: { async getResult() { return handoff; } },
+    warMapGenerationStorage: {
+      async loadCommittedGeneration() {
+        return { ok: true, result: { status: "committed", source: "current", pointer: { generation: 3, manifestFile: "other.json", manifestSha256: "sha256:other" }, manifest: { generation: 3 }, documents: [] } };
+      },
+      async commitGeneration() { return { ok: true, result: { generation: 4 } }; }
+    }
+  });
+  await assert.rejects(() => createApplicationBootstrap(scope).resolveBootstrapContext(), /generation identity mismatch/);
+  assert.strictEqual(rendererCalls.length, 0);
 });
 
 runTest("bootstrap registers both prepared packages for season administration", async () => {

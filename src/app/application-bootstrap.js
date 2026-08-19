@@ -13,14 +13,20 @@
     }
 
     requireFunction(value.loadEnvelope, `${fieldPath}.loadEnvelope`);
-    requireFunction(value.saveEnvelope, `${fieldPath}.saveEnvelope`);
+    requireFunction(value.runLegacyWrite || value.saveEnvelope, `${fieldPath}.runLegacyWrite`);
     return value;
   }
 
   function requireGenerationBridge(value, fieldPath) {
     if (!value || typeof value !== "object") throw new Error(`Application Bootstrap requires ${fieldPath}.`);
     requireFunction(value.loadCommittedGeneration, `${fieldPath}.loadCommittedGeneration`);
-    requireFunction(value.commitGeneration, `${fieldPath}.commitGeneration`);
+    requireFunction(value.runGenerationWrite || value.commitGeneration, `${fieldPath}.runGenerationWrite`);
+    return value;
+  }
+
+  function requireStartupBridge(value, fieldPath) {
+    if (!value || typeof value !== "object") throw new Error(`Application Bootstrap requires ${fieldPath}.`);
+    requireFunction(value.getResult, `${fieldPath}.getResult`);
     return value;
   }
 
@@ -160,6 +166,11 @@
     const safeScope = scope || {};
 
     async function resolveBootstrapContext() {
+      const warMapStartup = requireStartupBridge(safeScope.warMapStartup, "warMapStartup");
+      const startupHandoff = await warMapStartup.getResult();
+      if (!startupHandoff || typeof startupHandoff !== "object" || !["generation", "legacy"].includes(startupHandoff.persistenceMode)) {
+        throw new Error("Application Bootstrap requires a safe trusted startup handoff.");
+      }
       const createSeasonLoader = requireFunction(safeScope.createSeasonLoader, "createSeasonLoader");
       const validateSeasonPackage = requireFunction(safeScope.validateSeasonPackage, "validateSeasonPackage");
       const createSeasonAdministrationService = requireFunction(
@@ -298,8 +309,8 @@
           }
           return response.result;
         },
-        async commit(payload) {
-          const response = await warMapGenerationStorage.commitGeneration(payload);
+        async runGenerationWrite(payload) {
+          const response = await (warMapGenerationStorage.runGenerationWrite || warMapGenerationStorage.commitGeneration)(payload);
           if (!response || response.ok !== true) {
             const error = new Error(response && response.error ? response.error.message : "Generation commit failed.");
             error.code = response && response.error ? response.error.code : "generation_commit_failed";
@@ -308,8 +319,18 @@
           return response.result;
         }
       };
-      const generationStartup = await generationStore.loadCommittedGeneration();
-      const legacyActivation = generationStartup.status === "missing"
+      const generationStartup = startupHandoff.persistenceMode === "generation"
+        ? await generationStore.loadCommittedGeneration()
+        : { status: "missing" };
+      if (startupHandoff.persistenceMode === "generation"
+          && (!generationStartup || generationStartup.status !== "committed" || generationStartup.source !== "current"
+            || !generationStartup.pointer || !startupHandoff.generation
+            || generationStartup.pointer.generation !== startupHandoff.generation.generation
+            || generationStartup.pointer.manifestFile !== startupHandoff.generation.manifestFile
+            || generationStartup.pointer.manifestSha256 !== startupHandoff.generation.manifestSha256)) {
+        throw new Error("Application Bootstrap rejected a generation identity mismatch.");
+      }
+      const legacyActivation = startupHandoff.persistenceMode === "legacy"
         ? await warMapPersistenceStorage.loadEnvelope({ scope: "season_activation" })
         : null;
       const generationAdministration = generationStartup.status === "committed"
@@ -400,17 +421,14 @@
           seasonId: requestedSeasonId,
           baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId
         });
-        const classification = legacyStateClassifier.classify({
-          seasonId: requestedSeasonId,
-          baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId,
-          dataManagementEnvelope,
-          serverStateEnvelope,
-          unionRegistryEnvelopes: dataManagementEnvelope ? [dataManagementEnvelope.unionRegistry] : []
-        });
+        const classification = startupHandoff.classification === "aligned"
+          ? { status: "aligned" }
+          : { status: "first_run" };
         legacyInput = {
           seasonId: requestedSeasonId,
           baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId,
           classification,
+          trustedClassification: classification,
           dataManagementEnvelope,
           serverStateEnvelope,
           legacyDocuments: dataManagementEnvelope && serverStateEnvelope
@@ -450,6 +468,20 @@
         ,persistenceBoundary
         ,setApplicationPersistenceFacade: (facade) => { activePersistenceFacade = facade; }
         ,persistenceStartup: { generationStore, legacyInput, persistenceBoundary }
+        ,runLegacyWrite: async (documents) => {
+          const values = new Map(documents.map((document) => [document.documentId, document.value]));
+          const writes = [
+            ["union_registry", { scope: "union_registry", registryId: "global" }, values.get("union-registry-global")],
+            ["strategic_domain", { scope: "strategic_domain", seasonId: requestedSeasonId }, values.get(`strategic-${requestedSeasonId}`)],
+            ["evidence_domain", { scope: "evidence_domain", domainId: "global" }, values.get(`evidence-${requestedSeasonId}`)],
+            ["server_state", { seasonId: requestedSeasonId, baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId }, values.get(`projection-${requestedSeasonId}-${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`)],
+            ["season_activation", { scope: "season_activation" }, values.get("season-administration")]
+          ];
+          for (const [_name, identity, value] of writes) {
+            if (value !== undefined) await (warMapPersistenceStorage.runLegacyWrite || warMapPersistenceStorage.saveEnvelope)(identity, value);
+          }
+          return { status: "legacy_saved" };
+        }
         ,createApplicationMutationCoordinator
         ,createWarMapApplicationPersistenceCoordinator
         ,createApplicationPersistenceCoordinator

@@ -3626,6 +3626,7 @@ function initializeApplicationPersistence() {
     createTransactionId: createRuntimeId.bind(null, "transaction"),
     clock: () => new Date(),
     createApplicationPersistenceCoordinator: applicationPersistenceCompositionFactory
+    ,legacyWrite: bootstrapPersistence.runLegacyWrite
   });
   applicationPersistenceFacade = applicationPersistenceFacadeFactory({ coordinator });
   bootstrapPersistence.setApplicationPersistenceFacade(applicationPersistenceFacade);

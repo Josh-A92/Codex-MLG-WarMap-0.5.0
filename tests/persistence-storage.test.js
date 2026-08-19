@@ -386,17 +386,17 @@ runTest("preload source exposes only restricted bridge", async () => {
   const exposedApi = exposed.warMapPersistenceStorage;
   const generationApi = exposed.warMapGenerationStorage;
   assert.ok(exposedApi && typeof exposedApi === "object");
-  assert.deepStrictEqual(Object.keys(exposedApi).sort(), ["loadEnvelope", "saveEnvelope"]);
-  assert.deepStrictEqual(Object.keys(generationApi).sort(), ["commitGeneration", "loadCommittedGeneration"]);
+  assert.deepStrictEqual(Object.keys(exposedApi).sort(), ["loadEnvelope", "runLegacyWrite"]);
+  assert.deepStrictEqual(Object.keys(generationApi).sort(), ["loadCommittedGeneration", "runGenerationWrite"]);
   assert.strictEqual(typeof exposedApi.loadEnvelope, "function");
-  assert.strictEqual(typeof exposedApi.saveEnvelope, "function");
+  assert.strictEqual(typeof exposedApi.runLegacyWrite, "function");
 
   const identity = sampleIdentity();
   const envelope = sampleEnvelope();
   await exposedApi.loadEnvelope(identity);
-  await exposedApi.saveEnvelope(identity, envelope);
+  await exposedApi.runLegacyWrite(identity, envelope);
   await generationApi.loadCommittedGeneration();
-  await generationApi.commitGeneration({ expectedGeneration: 0 });
+  await generationApi.runGenerationWrite({ expectedGeneration: 0 });
 
   assert.deepStrictEqual(requiredModules, ["electron"]);
   assert.deepStrictEqual(invoked, [
@@ -420,6 +420,8 @@ runTest("preload source exposes only restricted bridge", async () => {
 
   assert.strictEqual("ipcRenderer" in exposedApi, false);
   assert.strictEqual("invoke" in exposedApi, false);
+  assert.ok(exposed.warMapStartup && typeof exposed.warMapStartup.getResult === "function");
+  assert.deepStrictEqual(Object.keys(exposed.warMapStartup), ["getResult"]);
 });
 
 runTest("main source uses preload security settings fixed handlers and user-data directory", async () => {
@@ -431,7 +433,7 @@ runTest("main source uses preload security settings fixed handlers and user-data
   assert.match(source, /path\.join\(app\.getPath\("userData"\),\s*"warmap-state"\)/);
 
   const handleCount = (source.match(/ipcMain\.handle\(/g) || []).length;
-  assert.strictEqual(handleCount, 4);
+  assert.strictEqual(handleCount, 5);
 
   assert.match(source, /PERSISTENCE_IPC_CHANNELS\.LOAD_ENVELOPE/);
   assert.match(source, /PERSISTENCE_IPC_CHANNELS\.SAVE_ENVELOPE/);

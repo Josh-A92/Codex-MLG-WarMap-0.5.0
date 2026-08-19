@@ -9,7 +9,7 @@
     "clock",
     "createTransactionId"
   ]);
-  const OPTIONAL_FIELDS = new Set(["ownershipProjectionReplacementCoordinator"]);
+  const OPTIONAL_FIELDS = new Set(["ownershipProjectionReplacementCoordinator", "legacyWrite"]);
   const REPAIR_INPUT_FIELDS = new Set(["seasonId", "serverId"]);
 
   class ApplicationPersistenceCoordinatorError extends Error {
@@ -50,7 +50,8 @@
     const generationStore = input.generationStore;
     if (!isRecord(generationStore)) fail("invalid_factory", "generationStore must be an object.");
     const loadGeneration = requireFunction(generationStore.loadCommittedGeneration, "generationStore.loadCommittedGeneration").bind(generationStore);
-    const commitGeneration = requireFunction(generationStore.commit, "generationStore.commit").bind(generationStore);
+    const commitGeneration = requireFunction(generationStore.runGenerationWrite || generationStore.commit, "generationStore.runGenerationWrite").bind(generationStore);
+    const legacyWrite = input.legacyWrite || null;
     const mutation = requireFunction(input.mutationCoordinator.execute, "mutationCoordinator.execute").bind(input.mutationCoordinator);
     const classifyLegacy = requireFunction(input.legacyStateClassifier.classify, "legacyStateClassifier.classify").bind(input.legacyStateClassifier);
     const serializeDocuments = requireFunction(input.serializeDocuments, "serializeDocuments");
@@ -75,7 +76,9 @@
         return { status: "committed", generation: expectedGeneration, source: current.source, state };
       }
       if (current.status !== "missing") return { status: "recovery_required", reason: current.errorCode || "invalid_generation" };
-      const legacy = classifyLegacy(inputValue);
+      const legacy = inputValue && inputValue.trustedClassification
+        ? inputValue.trustedClassification
+        : classifyLegacy(inputValue);
       if (legacy.status !== "aligned" && legacy.status !== "rebuildable_projection" && legacy.status !== "first_run") {
         return { status: legacy.status, reason: legacy.reason };
       }
@@ -105,6 +108,10 @@
       const generation = expectedGeneration === null ? 0 : expectedGeneration;
       const createdAt = clock();
       const documents = await serializeDocuments();
+      if (generation === 0 && typeof legacyWrite === "function") {
+        await legacyWrite(documents);
+        return { status: "legacy_saved", generation: 0 };
+      }
       const result = await commitGeneration({
         expectedGeneration: generation,
         transactionId: createTransactionId(),
