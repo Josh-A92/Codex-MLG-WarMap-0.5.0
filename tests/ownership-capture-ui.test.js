@@ -36,6 +36,17 @@ test("renderer sends evidence IDs and strategic-node targets to capture coordina
   assert.match(renderer, /evidenceIds/);
 });
 
+test("renderer imports managed screenshots into durable evidence records before linking", () => {
+  assert.match(renderer, /data-ownership-import-evidence/);
+  assert.match(renderer, /window\.warMapEvidenceStorage/);
+  assert.match(renderer, /bridge\.selectAndImport\(\)/);
+  assert.match(renderer, /registerUploadedAsset\(localActor/);
+  assert.match(renderer, /createManualAttachment\(localActor/);
+  assert.match(renderer, /actionType: "ownership_evidence_attached"/);
+  assert.match(renderer, /attachment\.evidenceId/);
+  assert.match(renderer, /selectionPanel\.addEventListener\("click", handleOwnershipEvidenceImport\)/);
+});
+
 test("renderer persists a scoped ownership audit intent with capture metadata", () => {
   assert.match(renderer, /actionType: correction \? "ownership_corrected" : "ownership_confirmed"/);
   assert.match(renderer, /targetType: "ownership_record"/);

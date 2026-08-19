@@ -93,7 +93,8 @@ const selectionPanel = document.getElementById("selection-panel");
 const selectionState = {
   selectedItem: null,
   selectedElements: [],
-  errorMessage: null
+  errorMessage: null,
+  isImportingEvidence: false
 };
 
 const tileElementsByPosition = new Map();
@@ -2898,6 +2899,23 @@ function buildTerritoryEditor(item) {
   evidenceRow.appendChild(evidenceInput);
   form.appendChild(evidenceRow);
 
+  const evidenceImportRow = document.createElement("div");
+  evidenceImportRow.className = "territory-editor-row";
+  const evidenceImportSpacer = document.createElement("span");
+  evidenceImportSpacer.className = "selection-label";
+  evidenceImportSpacer.textContent = "";
+  const evidenceImportButton = document.createElement("button");
+  evidenceImportButton.type = "button";
+  evidenceImportButton.className = "data-management-secondary-action";
+  evidenceImportButton.setAttribute("data-ownership-import-evidence", "true");
+  evidenceImportButton.disabled = selectionState.isImportingEvidence;
+  evidenceImportButton.textContent = selectionState.isImportingEvidence
+    ? "Importing screenshot…"
+    : "Import screenshot";
+  evidenceImportRow.appendChild(evidenceImportSpacer);
+  evidenceImportRow.appendChild(evidenceImportButton);
+  form.appendChild(evidenceImportRow);
+
   const correctionReasonRow = document.createElement("label");
   correctionReasonRow.className = "territory-editor-row";
   correctionReasonRow.setAttribute("data-ownership-correction-reason-row", "true");
@@ -3002,15 +3020,16 @@ function parseEvidenceIds(inputValue) {
     .filter((value) => value !== "");
 }
 
-function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds, correction) {
-  let targetId;
+function getOwnershipTargetIdentity(selectedItem, isStructure, isStrategicNode) {
   if (isStructure) {
-    targetId = `structure:${selectedItem.id}`;
-  } else if (isStrategicNode) {
-    targetId = `strategic_node:${selectedItem.nodeId}`;
-  } else {
-    targetId = `normal_map_cell:${Number(selectedItem.row)}:${Number(selectedItem.col)}`;
+    return `structure:${selectedItem.id}`;
   }
+  if (isStrategicNode) return `strategic_node:${selectedItem.nodeId}`;
+  return `normal_map_cell:${Number(selectedItem.row)}:${Number(selectedItem.col)}`;
+}
+
+function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds, correction) {
+  const targetId = getOwnershipTargetIdentity(selectedItem, isStructure, isStrategicNode);
   return {
     actionType: correction ? "ownership_corrected" : "ownership_confirmed",
     targetType: "ownership_record",
@@ -3026,6 +3045,91 @@ function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategi
       correctionReason: correction ? correction.reason : null
     }
   };
+}
+
+async function handleOwnershipEvidenceImport(event) {
+  const button = event.target.closest("[data-ownership-import-evidence='true']");
+  if (!button) return;
+  const form = button.closest("form[data-ownership-capture-form='true']");
+  const selectedItem = selectionState.selectedItem;
+  const bridge = typeof window !== "undefined" ? window.warMapEvidenceStorage : null;
+  if (!form || !selectedItem || !localActor || !applicationPersistenceFacade
+      || !bridge || typeof bridge.selectAndImport !== "function") {
+    selectionState.errorMessage = "Screenshot evidence import is unavailable.";
+    renderSelectionPanel(selectedItem);
+    return;
+  }
+
+  event.preventDefault();
+  selectionState.errorMessage = null;
+  selectionState.isImportingEvidence = true;
+  button.disabled = true;
+  button.textContent = "Importing screenshot…";
+  try {
+    const response = await bridge.selectAndImport();
+    if (!response || response.ok !== true) {
+      throw new Error(response && response.error && response.error.message
+        ? response.error.message
+        : "Screenshot evidence import failed.");
+    }
+    if (!response.result || response.result.status === "cancelled") return;
+    if (response.result.status !== "imported" || !response.result.asset) {
+      throw new Error("Screenshot evidence import returned an invalid result.");
+    }
+    const imported = response.result.asset;
+    const isStructure = isStructureSelection(selectedItem);
+    const isStrategicNode = isStrategicNodeSelection(selectedItem);
+    const targetId = getOwnershipTargetIdentity(selectedItem, isStructure, isStrategicNode);
+    const evidenceManagement = getDataManagementRuntimeService(
+      "evidenceManagementService",
+      ["registerUploadedAsset", "createManualAttachment"]
+    );
+    let attachment = null;
+    await applicationPersistenceFacade.execute(() => {
+      const asset = evidenceManagement.registerUploadedAsset(localActor, {
+        seasonId: seasonIdentity.seasonId,
+        serverId: appState.activeServer,
+        storageRef: imported.storageRef,
+        mediaType: imported.mediaType,
+        byteSize: imported.byteSize,
+        pixelWidth: imported.pixelWidth,
+        pixelHeight: imported.pixelHeight,
+        observedAt: imported.originalModifiedAt,
+        observationTimePrecision: "approximate",
+        integrityHash: imported.integrityHash,
+        sourceContext: { originalFileName: imported.originalFileName, ownershipTargetId: targetId }
+      });
+      attachment = evidenceManagement.createManualAttachment(localActor, {
+        assetId: asset.assetId,
+        linkedEntityType: "ownership_target",
+        linkedEntityId: targetId,
+        notes: "Manually attached ownership screenshot"
+      });
+      return attachment;
+    }, {
+      actionType: "ownership_evidence_attached",
+      targetType: "ownership_target",
+      targetId,
+      seasonId: seasonIdentity.seasonId,
+      serverId: appState.activeServer,
+      actorId: localActor.actorId,
+      details: { storageRef: imported.storageRef, integrityHash: imported.integrityHash }
+    });
+    const evidenceInput = form.elements.namedItem("evidenceIds");
+    const existing = parseEvidenceIds(evidenceInput ? evidenceInput.value : "");
+    if (attachment && !existing.includes(attachment.evidenceId)) existing.push(attachment.evidenceId);
+    if (evidenceInput) evidenceInput.value = existing.join(", ");
+  } catch (error) {
+    selectionState.errorMessage = error && error.message ? error.message : "Unable to import screenshot evidence.";
+    console.error("Unable to import screenshot evidence", error);
+  } finally {
+    selectionState.isImportingEvidence = false;
+    if (selectionState.errorMessage) renderSelectionPanel(selectedItem);
+    else {
+      button.disabled = false;
+      button.textContent = "Import screenshot";
+    }
+  }
 }
 
 function updateOwnershipEventTimeRows(container) {
@@ -3170,6 +3274,7 @@ function attachSelectionPanelHandlers() {
   }
 
   selectionPanel.addEventListener("submit", handleSelectionPanelSubmit);
+  selectionPanel.addEventListener("click", handleOwnershipEvidenceImport);
   selectionPanel.addEventListener("change", () => {
     updateOwnershipEventTimeRows(selectionPanel);
   });
