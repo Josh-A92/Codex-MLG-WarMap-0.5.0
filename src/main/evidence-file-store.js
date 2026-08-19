@@ -95,7 +95,16 @@ function createEvidenceFileStore(options) {
     if (sourceStat.size < 1 || sourceStat.size > MAX_BYTES) fail("invalid_size", `Evidence source must be between 1 and ${MAX_BYTES} bytes.`);
     let bytes;
     try { bytes = await readFile(sourcePath); } catch (_error) { fail("source_unavailable", "Evidence source file could not be read."); }
-    if (!Buffer.isBuffer(bytes) || bytes.length !== sourceStat.size) fail("source_changed", "Evidence source changed while it was being imported.");
+    let verifiedSourceStat;
+    try { verifiedSourceStat = await stat(sourcePath); } catch (_error) { fail("source_changed", "Evidence source changed while it was being imported."); }
+    if (!Buffer.isBuffer(bytes)
+        || bytes.length !== sourceStat.size
+        || !verifiedSourceStat.isFile()
+        || verifiedSourceStat.size !== sourceStat.size
+        || verifiedSourceStat.mtimeMs !== sourceStat.mtimeMs
+        || verifiedSourceStat.ctimeMs !== sourceStat.ctimeMs) {
+      fail("source_changed", "Evidence source changed while it was being imported.");
+    }
     const image = detectImage(bytes);
     if (!image) fail("unsupported_media", "Evidence source must be a valid PNG or JPEG image.");
     const digest = crypto.createHash("sha256").update(bytes).digest("hex");

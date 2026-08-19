@@ -69,6 +69,25 @@ function jpeg(width, height) {
     await assert.rejects(store.importFile({ sourcePath: sourcePng, storageRef: "../escape" }), (error) => error.code === "invalid_input");
     console.log("PASS rejects missing, forged, and unsupported inputs");
 
+    const stableStat = await fs.promises.stat(sourcePng);
+    let statCalls = 0;
+    const changingSourceStore = createEvidenceFileStore({
+      rootDirectory: path.join(root, "changing-source"),
+      async stat(filePath) {
+        statCalls += 1;
+        if (statCalls === 1) return stableStat;
+        return Object.assign(Object.create(Object.getPrototypeOf(stableStat)), stableStat, {
+          mtimeMs: stableStat.mtimeMs + 1
+        });
+      }
+    });
+    await assert.rejects(
+      changingSourceStore.importFile({ sourcePath: sourcePng }),
+      (error) => error.code === "source_changed"
+    );
+    assert.strictEqual(statCalls, 2);
+    console.log("PASS rejects a same-size source changed during import");
+
     const failingRoot = path.join(root, "failing");
     const failingStore = createEvidenceFileStore({
       rootDirectory: failingRoot,
@@ -112,7 +131,7 @@ function jpeg(width, height) {
   } finally {
     await fs.promises.rm(root, { recursive: true, force: true });
   }
-  console.log("5 evidence file store scenarios passed");
+  console.log("6 evidence file store scenarios passed");
 })().catch((error) => {
   console.error(error.stack || error.message);
   process.exitCode = 1;
