@@ -46,6 +46,16 @@ async function assertCode(operation, code) {
   assert.strictEqual(generationExecuted, false);
   console.log("PASS legacy-required result cannot authorize either write mode");
 
+  for (const status of ["first_run", "legacy_ready"]) {
+    gate = createStartupPersistenceGate();
+    gate.settle(startupResult(status, "legacy"));
+    let legacyWrites = 0;
+    await gate.writeLegacy(async () => { legacyWrites += 1; });
+    await assertCode(() => gate.writeGeneration(async () => { throw new Error("must not execute"); }), "persistence_mode_inactive");
+    assert.strictEqual(legacyWrites, 1);
+  }
+  console.log("PASS first-run and legacy-ready results enable only legacy writes");
+
   gate = createStartupPersistenceGate();
   const unsafe = { status: "verification_failed", persistenceMode: "unavailable", diagnostics: [{ code: "blocked" }] };
   const blockedState = gate.settle(unsafe);
