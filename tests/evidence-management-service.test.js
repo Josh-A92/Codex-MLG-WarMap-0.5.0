@@ -92,6 +92,28 @@ test("creates a screenshot extraction proposal from registered asset scope", () 
   assert.strictEqual(proposal.reviewerId, null);
 });
 
+test("creates a confirmed manual screenshot attachment without fabricated extraction data", () => {
+  const { service } = setup();
+  const asset = service.registerUploadedAsset(actor, upload);
+  const attachment = service.createManualAttachment(actor, {
+    assetId: asset.assetId,
+    linkedEntityType: "territory_ownership",
+    linkedEntityId: "normal_map_cell:12:9",
+    notes: "Ownership screenshot"
+  });
+  assert.strictEqual(attachment.evidenceId, "evidence_record-2");
+  assert.strictEqual(attachment.assetId, asset.assetId);
+  assert.strictEqual(attachment.sourceType, "manual_entry");
+  assert.strictEqual(attachment.rawExtractedValue, null);
+  assert.strictEqual(attachment.normalizedValue, null);
+  assert.strictEqual(attachment.confidence, null);
+  assert.strictEqual(attachment.reviewState, "confirmed");
+  assert.strictEqual(attachment.actorId, "contributor-1");
+  assert.strictEqual(attachment.reviewerId, "contributor-1");
+  assert.strictEqual(attachment.reviewedAt, "2026-07-31T10:00:00.000Z");
+  assert.strictEqual(attachment.observedAt, upload.observedAt);
+});
+
 test("resolves evidence scope from trusted asset metadata", () => {
   const { service } = setup();
   const asset = service.registerUploadedAsset(actor, upload);
@@ -137,6 +159,14 @@ test("operation inputs and factory dependencies are strict", () => {
   assert.throws(
     () => service.registerUploadedAsset(actor, { ...upload, extra: true }),
     (error) => error instanceof EvidenceManagementServiceError && error.code === "invalid_input"
+  );
+  assert.throws(
+    () => service.createManualAttachment(actor, {
+      assetId: "missing",
+      linkedEntityType: "territory_ownership",
+      linkedEntityId: "normal_map_cell:1:1"
+    }),
+    (error) => error instanceof EvidenceManagementServiceError && error.code === "unknown_asset"
   );
   assert.throws(
     () => createEvidenceManagementService({}),

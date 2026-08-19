@@ -15,6 +15,9 @@
     "assetId", "linkedEntityType", "linkedEntityId", "rawExtractedValue",
     "normalizedValue", "confidence", "notes"
   ]);
+  const ATTACHMENT_INPUT_FIELDS = new Set([
+    "assetId", "linkedEntityType", "linkedEntityId", "notes"
+  ]);
 
   class EvidenceManagementServiceError extends Error {
     constructor(code, message) {
@@ -232,9 +235,43 @@
       });
     }
 
+    function createManualAttachment(actor, input) {
+      const value = requireRecord(input, "input");
+      requireFields(
+        value,
+        ATTACHMENT_INPUT_FIELDS,
+        new Set(["assetId", "linkedEntityType", "linkedEntityId"]),
+        "input"
+      );
+      const assetId = requireString(value.assetId, "input.assetId");
+      const asset = assets.getAsset(assetId);
+      if (!asset) fail("unknown_asset", `Evidence Management Service could not find asset '${assetId}'.`);
+      const scope = scopeFromAsset(asset);
+      const decision = authorize(actor, scope);
+      const reviewedAt = now();
+      return evidence.addEvidenceRecord({
+        evidenceId: nextId("evidence_record"),
+        assetId,
+        sourceType: "manual_entry",
+        rawExtractedValue: null,
+        normalizedValue: null,
+        confidence: null,
+        observedAt: asset.observedAt,
+        reviewState: "confirmed",
+        actorId: decision.actorId,
+        reviewerId: decision.actorId,
+        reviewedAt,
+        notes: value.notes === undefined ? null : value.notes,
+        linkedEntityType: requireString(value.linkedEntityType, "input.linkedEntityType"),
+        linkedEntityId: requireString(value.linkedEntityId, "input.linkedEntityId"),
+        supersededBy: null
+      });
+    }
+
     return Object.freeze({
       registerUploadedAsset,
       createExtractionProposal,
+      createManualAttachment,
       resolveEvidenceScope
     });
   }
