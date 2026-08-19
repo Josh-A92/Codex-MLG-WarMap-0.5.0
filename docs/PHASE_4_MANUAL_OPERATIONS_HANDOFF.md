@@ -2,7 +2,7 @@
 
 ## Current committed boundary
 
-Baseline after this work: `277a4b95e2027f1bf89e9610e9b79e6007a70c71`.
+Baseline after this work: `30cd1de`.
 
 Completed Phase 4 slices:
 
@@ -24,6 +24,18 @@ End-of-slice evidence:
 - focused correction, audit, uncertainty, persistence rollback, and session-history tests passed afterward;
 - Electron opened without a startup error banner in first-run/no-active-season state;
 - working tree was clean after each commit.
+
+An isolated fresh-profile Electron walkthrough also proved:
+
+- first-run Season 1 activation completes without a persistence-mode error;
+- the activated eight-server workspace displays the real ownership capture form and managed screenshot button;
+- closing and reopening the same isolated profile returns `legacy_ready` / `aligned` and restores all eight server workspaces;
+- no startup/bootstrap error banner appears on either launch.
+
+That walkthrough exposed and fixed two first-run persistence defects: the startup
+gate now accepts the readiness result's trusted `classification` field, and the
+legacy writer now stores the union, strategic, and evidence documents in the
+single combined Data Management envelope expected by restart classification.
 
 ## Authority and data flow
 
@@ -118,6 +130,9 @@ domain transaction fails; no deletion is attempted because the same digest may
 already be referenced elsewhere. A future maintenance/cleanup slice may remove
 unreferenced blobs only after scanning committed evidence assets.
 
+The managed file store rejects structurally truncated JPEGs and PNGs with an
+invalid terminal IEND length before hashing or copying them.
+
 ## Remaining Phase 4 sequence
 
 1. Resolve the first-capture undo compensation rule.
@@ -128,6 +143,11 @@ unreferenced blobs only after scanning committed evidence assets.
    its package is promoted from Draft through the existing readiness process.
 6. Run the Phase 4 release matrix, active-season evidence walkthrough, backup/restore checks, and
    update the Completion Plan only after the Definition of Done is evidenced.
+
+Contradictory exact ownership terminals currently fail closed inside the
+canonical history resolver before projection adoption. They therefore require a
+recovery-mode resolution design; they must not be routed through the ordinary
+proposal review queue or silently converted into a normal correction.
 
 ## Explicit exclusions
 
