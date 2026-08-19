@@ -20,6 +20,8 @@ const { createOwnershipHistoryProvenanceStateService } = require("../src/service
 const { createOwnershipHistoryProvenanceDocumentSerializer } = require("../src/services/ownership-history-provenance-document-serializer.js");
 const { createApplicationDocumentCodec } = require("../src/services/application-document-codec.js");
 const { createGenerationStore } = require("../src/main/generation-store.js");
+const { createPersistenceFileStore } = require("../src/main/persistence-file-store.js");
+const { createWarmapElectronStartup } = require("../src/main/warmap-electron-startup.js");
 const { createOwnershipProvenanceMigrationStartupComposition } = require("../src/main/ownership-provenance-migration-startup-composition.js");
 const { serializeUnionRegistry, deserializeUnionRegistryEnvelope } = require("../src/services/union-registry-state-serializer.js");
 const { serializeStrategicDomainRuntime, deserializeStrategicDomainEnvelope } = require("../src/services/strategic-domain-state-serializer.js");
@@ -95,6 +97,37 @@ async function withDirectory(callback) { const directory = await fs.promises.mkd
     const reopened = await store.loadCommittedGeneration();
     assert.ok(reopened.documents.some((document) => document.type === "ownership-history-provenance"));
     console.log("PASS composed real chain migrates, publishes, and reloads provenance");
+  });
+  await withDirectory(async (directory) => {
+    const store = await createInitialGeneration(directory);
+    const current = await store.loadCommittedGeneration();
+    const strategic = current.documents.find((document) => document.type === "strategic-domain");
+    const first = strategic.value.state.territoryOwnershipRecords[0];
+    strategic.value.state.territoryOwnershipRecords.push({
+      ...structuredClone(first),
+      ownershipRecordId: "contradictory-terminal",
+      ownerUnionId: "union-0002",
+      eventAt: { precision: "exact", at: "2026-08-01T00:01:00Z" },
+      effectiveAt: "2026-08-01T00:01:00Z",
+      reviewedAt: "2026-08-01T00:11:00Z"
+    });
+    await store.commit({
+      expectedGeneration: 1,
+      transactionId: "contradictory-generation",
+      createdAt: "2026-08-13T00:01:00.000Z",
+      documents: current.documents
+    });
+    const startup = createWarmapElectronStartup({
+      generationStore: store,
+      fileStore: createPersistenceFileStore({ baseDirectory: directory })
+    });
+    const result = await startup.resolve();
+    assert.deepStrictEqual({ status: result.status, persistenceMode: result.persistenceMode, reason: result.reason }, {
+      status: "blocked",
+      persistenceMode: "unavailable",
+      reason: "preparation_failed"
+    });
+    console.log("PASS contradictory committed history is blocked by isolated authoritative validation before renderer recovery UI");
   });
   await withDirectory(async (directory) => {
     const store = await createInitialGeneration(directory);

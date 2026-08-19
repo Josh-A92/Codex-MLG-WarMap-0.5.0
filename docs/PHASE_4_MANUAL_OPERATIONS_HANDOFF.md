@@ -163,13 +163,20 @@ identity differs after the read. These checks run before hashing or copying.
    backup/restore checks; then update the Completion Plan only after the
    Definition of Done is evidenced.
 
+The contradictory-history walkthrough is now evidenced as blocked before the
+renderer: strict isolated graph reconstruction rejects two confirmed exact
+terminals for one target with `preparation_failed`, preserving the committed
+generation and preventing ordinary writes. Recovery UI remains unverified. Do
+not weaken the resolver or startup gate; the next safe slice requires a
+quarantined recovery-mode loader and a publish-after-retraction candidate gate.
+
 Contradictory exact ownership terminals still fail closed when unresolved. The
 resolver applies validated append-only retractions before terminal conflict
-classification. The recovery-only Data Management action requires an explicit
-record to retain and reason, retracts every competing terminal in one transaction,
-rebuilds projection, and writes `ownership_conflict_resolved` audit history. It is
-not routed through the ordinary proposal review queue or converted into a normal
-correction.
+classification. The future recovery-only Data Management action must require an
+explicit record to retain and reason, retract every competing terminal in one
+transaction, rebuild projection, and write `ownership_conflict_resolved` audit
+history. It must not be routed through the ordinary proposal review queue or
+converted into a normal correction.
 
 ## Explicit exclusions
 

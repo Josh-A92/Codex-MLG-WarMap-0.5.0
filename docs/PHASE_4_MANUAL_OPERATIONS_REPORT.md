@@ -121,6 +121,21 @@ deterministic. Verification refusal leaves the generation head missing.
 4. Reconcile the Completion Plan and mark Phase 4 complete only when the Season 2
    and objectives decisions above are settled with evidence.
 
+The isolated contradictory-history walkthrough reached the trusted startup
+boundary but not the recovery UI. A real committed generation containing two
+confirmed exact terminal records for the same Season 1 target was rejected with
+`status: blocked`, `persistenceMode: unavailable`, and
+`reason: preparation_failed`; Electron therefore did not create a renderer
+window. The isolated graph loader constructs the normal strict ownership
+history service before the recovery-only coordinator can inspect conflicts, so
+the contradiction is rejected before `inspectOwnershipConflict()` is reachable.
+This is the correct fail-closed behavior and was not weakened. The smallest safe
+future design is a dedicated recovery-mode isolated loader that validates all
+non-conflicting domains, loads ownership history as an explicitly quarantined
+diagnostic input, exposes only conflict inspection/resolution, and publishes a
+new generation only after append-only retractions and the normal candidate gate;
+it must not reuse ordinary mutation startup or silently repair history.
+
 ## Exclusions Preserved
 
 No Season 2 scoring assumption, Phase 5 research conclusion, Phase 6 scoring
