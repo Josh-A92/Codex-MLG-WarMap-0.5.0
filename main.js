@@ -1,8 +1,10 @@
-const { app, BrowserWindow, Menu, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
 const path = require("path");
 const { createPersistenceFileStore } = require("./src/main/persistence-file-store.js");
 const { createGenerationStore } = require("./src/main/generation-store.js");
 const { createGenerationStorageHandlers } = require("./src/main/generation-storage-ipc.js");
+const { createEvidenceFileStore } = require("./src/main/evidence-file-store.js");
+const { createEvidenceStorageHandlers } = require("./src/main/evidence-storage-ipc.js");
 const { createStartupPersistenceGate } = require("./src/main/startup-persistence-gate.js");
 const { createWarmapElectronStartup } = require("./src/main/warmap-electron-startup.js");
 const { PERSISTENCE_IPC_CHANNELS } = require("./src/shared/persistence-ipc-channels.js");
@@ -13,6 +15,10 @@ const fileStore = createPersistenceFileStore({
 });
 const generationStore = createGenerationStore({
   baseDirectory: path.join(persistenceStoreDirectory, "generations")
+});
+const evidenceStorageHandlers = createEvidenceStorageHandlers({
+  dialog,
+  evidenceFileStore: createEvidenceFileStore({ rootDirectory: persistenceStoreDirectory })
 });
 const generationHandlers = createGenerationStorageHandlers({
   loadCommittedGeneration: generationStore.loadCommittedGeneration,
@@ -37,6 +43,9 @@ function registerPersistenceHandlers() {
   });
   ipcMain.handle(PERSISTENCE_IPC_CHANNELS.COMMIT_GENERATION, (_event, payload) => {
     return generationHandlers.commitGeneration(payload);
+  });
+  ipcMain.handle(PERSISTENCE_IPC_CHANNELS.SELECT_AND_IMPORT_EVIDENCE, () => {
+    return evidenceStorageHandlers.selectAndImportEvidence();
   });
 }
 

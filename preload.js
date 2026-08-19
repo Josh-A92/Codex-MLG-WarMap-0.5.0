@@ -24,6 +24,12 @@ const generationApi = {
 };
 contextBridge.exposeInMainWorld("warMapGenerationStorage", generationApi);
 
+contextBridge.exposeInMainWorld("warMapEvidenceStorage", Object.freeze({
+  selectAndImport() {
+    return ipcRenderer.invoke("evidence:select-and-import");
+  }
+}));
+
 contextBridge.exposeInMainWorld("warMapStartup", {
   getResult() {
     return ipcRenderer.invoke(STARTUP_RESULT_CHANNEL);
