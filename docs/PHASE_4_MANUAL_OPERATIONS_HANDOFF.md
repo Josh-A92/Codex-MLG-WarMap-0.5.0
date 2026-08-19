@@ -2,7 +2,7 @@
 
 ## Current committed boundary
 
-Baseline after this work: `17f3f1b3548ef8fde3ed3975e8c215cf1511676e`.
+Baseline after this work: `277a4b95e2027f1bf89e9610e9b79e6007a70c71`.
 
 Completed Phase 4 slices:
 
@@ -15,10 +15,12 @@ Completed Phase 4 slices:
 - authoritative history, verification, projection, audit, and generation commit share rollback boundaries;
 - exact replacement requires a correction reason and writes `ownership_corrected` audit details;
 - a bounded session-operation history foundation exists for queued undo/redo callbacks.
+- PNG/JPEG screenshot evidence is copied into hash-addressed managed storage through a fixed Electron IPC bridge;
+- the renderer can register the managed asset plus a confirmed manual evidence attachment in one durable application transaction and insert the resulting evidence-record ID into the ownership form.
 
 End-of-slice evidence:
 
-- all 116 test files passed after the capture implementation;
+- all 119 test files passed after the managed-evidence implementation;
 - focused correction, audit, uncertainty, persistence rollback, and session-history tests passed afterward;
 - Electron opened without a startup error banner in first-run/no-active-season state;
 - working tree was clean after each commit.
@@ -93,16 +95,38 @@ The next coherent slice must therefore:
 5. add edit, failure rollback, close/reopen, archived-read-only, and isolation tests;
 6. only then expose renderer controls.
 
+## Managed screenshot evidence boundary
+
+The main process owns file selection, validation, hashing, and managed copying.
+Renderer code receives only managed metadata; it never receives a source path or
+filesystem capability. The current evidence path is:
+
+```text
+renderer Import screenshot
+  -> fixed preload IPC method
+  -> main-process file dialog and EvidenceFileStore
+  -> hash-addressed managed PNG/JPEG copy
+  -> ApplicationPersistenceFacade.execute()
+  -> EvidenceManagementService.registerUploadedAsset()
+  -> EvidenceManagementService.createManualAttachment()
+  -> evidence-record ID inserted into the ownership capture form
+```
+
+Asset and evidence-record changes roll back together if generation persistence
+fails. A copied hash-addressed file can remain unreferenced when that later
+domain transaction fails; no deletion is attempted because the same digest may
+already be referenced elsewhere. A future maintenance/cleanup slice may remove
+unreferenced blobs only after scanning committed evidence assets.
+
 ## Remaining Phase 4 sequence
 
 1. Resolve the first-capture undo compensation rule.
 2. Integrate session undo/redo through compensating durable operations and audit.
 3. Add the versioned notes/objectives persistence slice described above.
-4. Complete managed screenshot evidence import/copy/hash/reuse and ownership linking.
-5. Add operator conflict-resolution flow for contradictory evidence.
-6. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
+4. Add operator conflict-resolution flow for contradictory evidence.
+5. Repeat the supported lifecycle/manual-operation matrix for Season 2 only after
    its package is promoted from Draft through the existing readiness process.
-7. Run the Phase 4 release matrix, visual walkthrough, backup/restore checks, and
+6. Run the Phase 4 release matrix, active-season evidence walkthrough, backup/restore checks, and
    update the Completion Plan only after the Definition of Done is evidenced.
 
 ## Explicit exclusions
