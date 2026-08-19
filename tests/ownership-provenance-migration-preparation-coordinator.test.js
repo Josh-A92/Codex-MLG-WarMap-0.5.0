@@ -29,6 +29,8 @@ const { createOwnershipHistoryProvenanceEvidenceFactory } = require("../src/serv
 const { createOwnershipProvenanceMigrationDecisionService } = require("../src/services/ownership-provenance-migration-decision-service.js");
 const { createOwnershipProvenanceCandidateDocumentBuilder } = require("../src/services/ownership-provenance-candidate-document-builder.js");
 const { createOwnershipProvenanceMigrationPreparationCoordinator } = require("../src/services/ownership-provenance-migration-preparation-coordinator.js");
+const { createOwnershipHistoryStartupDecisionService } = require("../src/services/ownership-history-startup-decision-service.js");
+const { createOwnershipProvenanceCandidateVerifier } = require("../src/services/ownership-provenance-candidate-verifier.js");
 const { createGenerationStore } = require("../src/main/generation-store.js");
 const { serializeUnionRegistry, deserializeUnionRegistryEnvelope } = require("../src/services/union-registry-state-serializer.js");
 const { serializeStrategicDomainRuntime, deserializeStrategicDomainEnvelope } = require("../src/services/strategic-domain-state-serializer.js");
@@ -92,6 +94,19 @@ async function createCoordinator(directory, decision, useRealDecision = false) {
       ownershipProjectionComparator: createOwnershipProjectionComparator()
     })
   });
+  const startupDecisionService = createOwnershipHistoryStartupDecisionService({
+    createCompletenessEvaluator: (options) => createOwnershipHistoryCompletenessEvaluator({
+      ...options,
+      ownershipHistoryResolver: createOwnershipHistoryResolver(options),
+      ownershipProjectionComparator: createOwnershipProjectionComparator()
+    })
+  });
+  const verifier = createOwnershipProvenanceCandidateVerifier({
+    isolatedGraphLoader: createIsolatedApplicationGraphLoader({ ...freshFactory, createApplicationDocumentCodec }),
+    resolveSeasonPackage: async () => SEASON_1_PACKAGE,
+    createTargetCatalog: () => targetCatalog,
+    createContextDecisionService: () => startupDecisionService
+  });
   const coordinator = createOwnershipProvenanceMigrationPreparationCoordinator({
     generationStore: generation.store,
     snapshotAdapter: createCommittedGenerationMigrationSnapshotAdapter({ generationStore: generation.store, seasonId: context.seasonId, baseMapId: context.baseMapId }),
@@ -103,16 +118,55 @@ async function createCoordinator(directory, decision, useRealDecision = false) {
     clock: () => new Date("2026-08-13T00:00:00.000Z"),
     createTransactionId: () => "migration-transaction"
   });
-  return { coordinator, generation, targetCatalog };
+  return { coordinator, generation, targetCatalog, verifier };
 }
 
 async function withDirectory(callback) { const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), "warmap-migration-preparation-")); try { await callback(directory); } finally { await fs.promises.rm(directory, { recursive: true, force: true }); } }
 async function fileBytes(directory, name) { const filePath = path.join(directory, name); try { return (await fs.promises.readFile(filePath)).toString("base64"); } catch (error) { if (error.code === "ENOENT") return null; throw error; } }
 function liveSnapshot(services) { return { union: services.unionRegistryService.captureTransactionState(), territory: services.strategicDomainRuntime.ownershipRecordService.captureTransactionState(), projection: services.serverStateService.captureTransactionState(), administration: services.seasonAdministrationService.captureTransactionState(), provenance: services.ownershipHistoryProvenanceStateService.captureTransactionState() }; }
 
+function createControlledVerifier(finalDecision) {
+  const freshFactory = { createFreshServices: () => { const next = freshServices(); return { services: next.services, codecOptions: codecOptions(next.provenanceSerializer) }; } };
+  const targetCatalog = { territoryKeys: [{ row: 1, col: 1 }, { row: 1, col: 2 }], structures: [] };
+  return createOwnershipProvenanceCandidateVerifier({
+    isolatedGraphLoader: createIsolatedApplicationGraphLoader({ ...freshFactory, createApplicationDocumentCodec }),
+    resolveSeasonPackage: async () => SEASON_1_PACKAGE,
+    createTargetCatalog: () => targetCatalog,
+    createOwnershipStartupCandidateGate: () => ({ evaluate: () => finalDecision })
+  });
+}
+
+async function prepareEligibleCandidate(directory) {
+  const { coordinator, generation } = await createCoordinator(directory, null, true);
+  const prepared = await coordinator.prepare({ expectedCurrent: generation.expectedCurrent });
+  return { candidate: prepared.candidate, generation };
+}
+
+function assertNoServiceHandles(value, path = "result") {
+  if (typeof value === "function") assert.fail(`service handle at ${path}`);
+  if (value === null || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertNoServiceHandles(item, `${path}[${index}]`));
+  } else {
+    Object.keys(value).forEach((key) => {
+      assert.ok(!/generationStore|persistence|service|electron|ipc/i.test(key), `capability key at ${path}.${key}`);
+      assertNoServiceHandles(value[key], `${path}.${key}`);
+    });
+  }
+}
+
+function assertRefusal(result, reason) {
+  assert.strictEqual(result.status, "refused", JSON.stringify(result));
+  assert.strictEqual(result.accepted, false, JSON.stringify(result));
+  assert.strictEqual(typeof result.reason, "string", JSON.stringify(result));
+  assert.strictEqual(result.reason, reason, JSON.stringify(result));
+  assertNoServiceHandles(result);
+  JSON.stringify(result);
+}
+
 (async () => {
   await withDirectory(async (directory) => {
-    const { coordinator, generation } = await createCoordinator(directory, null, true);
+    const { coordinator, generation, verifier } = await createCoordinator(directory, null, true);
     const before = await generation.store.loadCommittedGeneration();
     const beforeCurrent = await fileBytes(directory, "CURRENT");
     const beforePrevious = await fileBytes(directory, "PREVIOUS");
@@ -122,6 +176,13 @@ function liveSnapshot(services) { return { union: services.unionRegistryService.
     assert.strictEqual(result.candidate.generation, 2);
     assert.strictEqual((await generation.store.loadCommittedGeneration()).manifest.generation, before.manifest.generation);
     const reopened = await generation.store.loadCandidate(result.candidate);
+    const candidateBeforeVerification = JSON.stringify(reopened);
+    const verification = await verifier.verify(reopened);
+    assert.strictEqual(JSON.stringify(reopened), candidateBeforeVerification);
+    assert.strictEqual(verification.status, "accepted");
+    assert.strictEqual(verification.accepted, true);
+    assert.strictEqual(verification.decision, "ready");
+    assert.strictEqual(verification.gate.serverDecisions[0].decision, "ready");
     const provenance = reopened.documents.find((document) => document.type === "ownership-history-provenance");
     assert.strictEqual(provenance.value.documentId, "ownership-provenance:season-1:season1-map");
     assert.deepStrictEqual(provenance.value.records[0].sourceDocumentIds, ["projection-season-1-season1-map", "strategic-season-1"]);
@@ -133,6 +194,77 @@ function liveSnapshot(services) { return { union: services.unionRegistryService.
     assert.strictEqual(await fileBytes(directory, "PREVIOUS"), beforePrevious);
     assert.deepStrictEqual(liveSnapshot(generation.initialServices), beforeLive);
     console.log("PASS eligible preparation derives real evidence and preserves generation/live state");
+  });
+  await withDirectory(async (directory) => {
+    const { coordinator, generation, verifier } = await createCoordinator(directory, null, true);
+    const presentCandidate = await generation.store.loadCandidate((await coordinator.prepare({ expectedCurrent: generation.expectedCurrent })).candidate);
+    await generation.store.commit({
+      expectedGeneration: 1,
+      transactionId: "committed-provenance",
+      createdAt: "2026-08-13T00:02:00.000Z",
+      documents: presentCandidate.documents.map((document) => ({ documentId: document.documentId, scope: document.scope, type: document.type, value: document.value }))
+    });
+    const current = await generation.store.loadCommittedGeneration();
+    const withoutProvenance = await generation.store.prepare({
+      expectedCurrent: { generation: current.manifest.generation, manifestFile: current.pointer.manifestFile, manifestSha256: current.pointer.manifestSha256 },
+      transactionId: "candidate-missing-provenance",
+      createdAt: "2026-08-13T00:03:00.000Z",
+      documents: current.documents.filter((document) => document.type !== "ownership-history-provenance").map((document) => ({ documentId: document.documentId, scope: document.scope, type: document.type, value: document.value }))
+    });
+    const result = await verifier.verify(await generation.store.loadCandidate(withoutProvenance.candidate));
+    assert.strictEqual(result.status, "refused");
+    assert.strictEqual(result.accepted, false);
+    assert.strictEqual(result.reason, "recovery_required");
+    assert.deepStrictEqual(await verifier.verify({ status: "prepared", candidate: {}, manifest: {}, documents: [] }), { status: "refused", accepted: false, reason: "malformed_candidate" });
+    assert.deepStrictEqual(await verifier.verify({ status: "prepared", candidate: {}, manifest: { documents: [{ documentId: "strategic-a", type: "strategic-domain" }, { documentId: "strategic-b", type: "strategic-domain" }, { documentId: "projection", type: "server-state" }] }, documents: [] }), { status: "refused", accepted: false, reason: "ambiguous_candidate_scope" });
+    console.log("PASS candidate provenance is authoritative over committed provenance");
+  });
+  await withDirectory(async (directory) => {
+    const { candidate, generation } = await prepareEligibleCandidate(directory);
+    const reopened = await generation.store.loadCandidate(candidate);
+    const before = JSON.stringify(reopened);
+    const cases = [
+      { finalDecision: { decision: "ready" }, accepted: true, reason: "ready" },
+      { finalDecision: { decision: "ready_empty" }, accepted: false, reason: "ready_empty" },
+      { finalDecision: { decision: "repair_required" }, accepted: false, reason: "repair_required" },
+      { finalDecision: { decision: "recovery_required" }, accepted: false, reason: "recovery_required" },
+      { finalDecision: { decision: "ready_setup" }, accepted: false, reason: "ready_setup" },
+      { finalDecision: { decision: "not_a_decision" }, accepted: false, reason: "not_a_decision" },
+      { finalDecision: null, accepted: false, reason: "ambiguous_result" },
+      { finalDecision: {}, accepted: false, reason: "ambiguous_result" }
+    ];
+    for (const { finalDecision, accepted, reason } of cases) {
+      const verifier = createControlledVerifier(finalDecision);
+      const result = await verifier.verify(structuredClone(reopened));
+      if (accepted) {
+        assert.strictEqual(result.status, "accepted");
+        assert.strictEqual(result.accepted, true);
+        assert.strictEqual(result.decision, "ready");
+      } else {
+        assertRefusal(result, reason);
+      }
+    }
+    assert.strictEqual(JSON.stringify(reopened), before);
+    console.log("PASS complete gate decision mapping table");
+  });
+  await withDirectory(async (directory) => {
+    const { coordinator, generation, verifier } = await createCoordinator(directory, null, true);
+    const eligible = await coordinator.prepare({ expectedCurrent: generation.expectedCurrent });
+    const loaded = await generation.store.loadCandidate(eligible.candidate);
+    const administration = loaded.documents.find((document) => document.type === "season-administration");
+    const mismatchedDocuments = loaded.documents.map((document) => document === administration
+      ? { documentId: document.documentId, scope: document.scope, type: document.type, value: { ...document.value, activeSeason: { ...document.value.activeSeason, serverIds: ["server-999"] } } }
+      : { documentId: document.documentId, scope: document.scope, type: document.type, value: document.value });
+    const current = await generation.store.loadCommittedGeneration();
+    const mismatched = await generation.store.prepare({
+      expectedCurrent: { generation: current.manifest.generation, manifestFile: current.pointer.manifestFile, manifestSha256: current.pointer.manifestSha256 },
+      transactionId: "scope-mismatch",
+      createdAt: "2026-08-13T00:04:00.000Z",
+      documents: mismatchedDocuments
+    });
+    const result = await verifier.verify(await generation.store.loadCandidate(mismatched.candidate));
+    assertRefusal(result, "server_scope_mismatch");
+    console.log("PASS real candidate scope mismatch fails closed");
   });
   await withDirectory(async (directory) => {
     const { coordinator, generation } = await createCoordinator(directory, { decision: "already_proven" });
@@ -147,5 +279,5 @@ function liveSnapshot(services) { return { union: services.unionRegistryService.
     assert.strictEqual((await generation.store.loadCommittedGeneration()).manifest.generation, 1);
     console.log("PASS repair-required decisions are refused without preparation");
   });
-  console.log("3 migration preparation integration scenarios passed");
+  console.log("5 migration preparation integration scenarios passed");
 })().catch((error) => { console.error(error.stack || error.message); if (error.cause) console.error(error.cause.stack || error.cause.message); process.exitCode = 1; });
