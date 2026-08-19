@@ -461,6 +461,43 @@ runTest("trusted legacy handoff selects legacy reads", async () => {
   assert.strictEqual(rendererCalls.length, 1);
 });
 
+runTest("first-run legacy writes preserve the combined Data Management envelope expected at restart", async () => {
+  const writes = [];
+  const { scope, rendererCalls } = createValidScope({
+    warMapPersistenceStorage: {
+      async loadEnvelope() { return null; },
+      async saveEnvelope(identity, value) { writes.push({ identity, value }); }
+    }
+  });
+  await createApplicationBootstrap(scope).bootstrapApplication();
+  const savedAt = "2026-08-19T12:00:00.000Z";
+  const unionRegistry = { schemaVersion: 1, savedAt, identities: [] };
+  const strategicDomain = { schemaVersion: 1, seasonId: "season-1", savedAt, state: {} };
+  const evidenceDomain = { schemaVersion: 1, savedAt, assets: [], evidenceRecords: [] };
+  const projection = { schemaVersion: 1, seasonId: "season-1", baseMapId: "season1-map", savedAt, servers: [] };
+  const administration = { schemaVersion: 2, activeSeason: null, completedSeasons: [] };
+  await rendererCalls[0].runLegacyWrite([
+    { documentId: "union-registry-global", value: unionRegistry },
+    { documentId: "strategic-season-1", value: strategicDomain },
+    { documentId: "evidence-season-1", value: evidenceDomain },
+    { documentId: "projection-season-1-season1-map", value: projection },
+    { documentId: "season-administration", value: administration }
+  ]);
+  assert.deepStrictEqual(writes.map((entry) => entry.identity), [
+    { scope: "data_management", seasonId: "season-1" },
+    { seasonId: "season-1", baseMapId: "season1-map" },
+    { scope: "season_activation" }
+  ]);
+  assert.deepStrictEqual(writes[0].value, {
+    schemaVersion: 1,
+    seasonId: "season-1",
+    savedAt,
+    unionRegistry,
+    strategicDomain,
+    evidenceDomain
+  });
+});
+
 runTest("committed generation startup does not read legacy envelopes", async () => {
   const calls = [];
   const { scope, rendererCalls } = createValidScope({

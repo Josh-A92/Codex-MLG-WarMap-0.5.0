@@ -474,10 +474,25 @@
         ,persistenceStartup: { generationStore, legacyInput, persistenceBoundary }
         ,runLegacyWrite: async (documents) => {
           const values = new Map(documents.map((document) => [document.documentId, document.value]));
+          const unionRegistry = values.get("union-registry-global");
+          const strategicDomain = values.get(`strategic-${requestedSeasonId}`);
+          const evidenceDomain = values.get(`evidence-${requestedSeasonId}`);
+          const savedAt = unionRegistry && unionRegistry.savedAt;
+          if (!unionRegistry || !strategicDomain || !evidenceDomain
+              || typeof savedAt !== "string"
+              || strategicDomain.savedAt !== savedAt
+              || evidenceDomain.savedAt !== savedAt) {
+            throw new Error("Application Bootstrap cannot assemble a coherent legacy Data Management envelope.");
+          }
           const writes = [
-            ["union_registry", { scope: "union_registry", registryId: "global" }, values.get("union-registry-global")],
-            ["strategic_domain", { scope: "strategic_domain", seasonId: requestedSeasonId }, values.get(`strategic-${requestedSeasonId}`)],
-            ["evidence_domain", { scope: "evidence_domain", domainId: "global" }, values.get(`evidence-${requestedSeasonId}`)],
+            ["data_management", { scope: "data_management", seasonId: requestedSeasonId }, {
+              schemaVersion: 1,
+              seasonId: requestedSeasonId,
+              savedAt,
+              unionRegistry,
+              strategicDomain,
+              evidenceDomain
+            }],
             ["server_state", { seasonId: requestedSeasonId, baseMapId: loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId }, values.get(`projection-${requestedSeasonId}-${loadedSeasonPackage.rulesDefinition.mapDefinition.baseMapId}`)],
             ["season_activation", { scope: "season_activation" }, values.get("season-administration")]
           ];
