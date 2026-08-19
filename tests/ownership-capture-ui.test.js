@@ -35,3 +35,10 @@ test("renderer sends evidence IDs and strategic-node targets to capture coordina
   assert.match(renderer, /eventAt,/);
   assert.match(renderer, /evidenceIds/);
 });
+
+test("renderer persists a scoped ownership audit intent with capture metadata", () => {
+  assert.match(renderer, /actionType: "ownership_confirmed"/);
+  assert.match(renderer, /targetType: "ownership_record"/);
+  assert.match(renderer, /applicationPersistenceFacade\.execute\(async \(\) => \{[\s\S]*\}, auditIntent\)/);
+  assert.match(renderer, /details: \{[\s\S]*ownerUnionId: ownerId,[\s\S]*eventAt,[\s\S]*evidenceIds: evidenceIds\.slice\(\)/);
+});

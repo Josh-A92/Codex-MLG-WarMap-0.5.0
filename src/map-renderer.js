@@ -2980,6 +2980,30 @@ function parseEvidenceIds(inputValue) {
     .filter((value) => value !== "");
 }
 
+function createOwnershipCaptureAuditIntent(selectedItem, isStructure, isStrategicNode, ownerId, eventAt, evidenceIds) {
+  let targetId;
+  if (isStructure) {
+    targetId = `structure:${selectedItem.id}`;
+  } else if (isStrategicNode) {
+    targetId = `strategic_node:${selectedItem.nodeId}`;
+  } else {
+    targetId = `normal_map_cell:${Number(selectedItem.row)}:${Number(selectedItem.col)}`;
+  }
+  return {
+    actionType: "ownership_confirmed",
+    targetType: "ownership_record",
+    targetId,
+    seasonId: seasonIdentity.seasonId,
+    serverId: appState.activeServer,
+    actorId: localActor.actorId,
+    details: {
+      ownerUnionId: ownerId,
+      eventAt,
+      evidenceIds: evidenceIds.slice()
+    }
+  };
+}
+
 function updateOwnershipEventTimeRows(container) {
   if (!container) {
     return;
@@ -3037,6 +3061,14 @@ async function handleSelectionPanelSubmit(event) {
   try {
     const eventAt = normalizeEventAtFromForm(formData);
     const evidenceIds = parseEvidenceIds(formData.get("evidenceIds"));
+    const auditIntent = createOwnershipCaptureAuditIntent(
+      selectedItem,
+      isStructure,
+      isStrategicNode,
+      ownerId,
+      eventAt,
+      evidenceIds
+    );
     await applicationPersistenceFacade.execute(async () => {
       if (isStructure) {
         await mapOwnershipCoordinator.setStructureOwnership(localActor, {
@@ -3070,7 +3102,7 @@ async function handleSelectionPanelSubmit(event) {
           evidenceIds
         });
       }
-    });
+    }, auditIntent);
 
     refreshOwnershipView();
     refreshCommandCentreCards();
