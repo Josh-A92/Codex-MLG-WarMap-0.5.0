@@ -76,6 +76,11 @@ function factory() {
     captureTransactionState() {},
     restoreTransactionState() {}
   };
+  const seasonAdministrationService = {
+    getActiveSeason() {
+      return { seasonId: "season-1", serverIds: ["server-366"] };
+    }
+  };
   const gameRules = {
     getStructureCatalog() { return []; },
     getStructureResourceProfile() { return null; }
@@ -88,7 +93,12 @@ function factory() {
       unionRegistryService: registry,
       strategicDomainRuntime: strategic,
       evidenceDomainRuntime: evidence,
+      targetCatalog: {
+        territoryKeys: [{ row: 1, col: 1 }],
+        structures: [{ structureId: "structure-1", footprint: [{ row: 1, col: 1 }] }]
+      },
       serverStateService: serverState,
+      seasonAdministrationService,
       gameRulesEngine: gameRules,
       clock() { return "2026-07-31T10:00:00Z"; },
       createId(kind) { return `${kind}-1`; }
@@ -117,13 +127,13 @@ test("composes the union registration coordinator with the screen-facing service
   assert.deepStrictEqual(setup.calls.map((call) => call[0]), [
     "authorization",
     "registryManagement",
+    "evidenceManagement",
     "serverManagement",
     "atomicExecutor",
     "unionRegistration",
     "atomicExecutor",
     "mapOwnership",
     "selectedMapTargetView",
-    "evidenceManagement",
     "reviewQueue",
     "proposalReview",
     "query"
@@ -182,7 +192,12 @@ test("builds registration and map ownership transaction support from their mutab
   assert.strictEqual(mapOwnership.relationService, setup.options.strategicDomainRuntime.relationService);
   assert.strictEqual(mapOwnership.serverIntelligenceManagementService, setup.created.serverManagement);
   assert.strictEqual(mapOwnership.targetVerificationService, setup.options.strategicDomainRuntime.targetVerificationService);
+  assert.strictEqual(mapOwnership.ownershipRecordService, setup.options.strategicDomainRuntime.ownershipRecordService);
+  assert.strictEqual(mapOwnership.evidenceRecordService, setup.options.evidenceDomainRuntime.evidenceRecordService);
+  assert.strictEqual(mapOwnership.resolveEvidenceScope, setup.created.evidenceManagement.resolveEvidenceScope);
+  assert.strictEqual(mapOwnership.seasonAdministrationService, setup.options.seasonAdministrationService);
   assert.strictEqual(mapOwnership.serverStateService, setup.options.serverStateService);
+  assert.deepStrictEqual(mapOwnership.targetCatalog, setup.options.targetCatalog);
   assert.strictEqual(typeof mapOwnership.executeAtomically, "function");
   assert.strictEqual(mapOwnership.createId, setup.options.createId);
   assert.strictEqual(runtime.mapOwnershipCoordinator, setup.created.mapOwnership);

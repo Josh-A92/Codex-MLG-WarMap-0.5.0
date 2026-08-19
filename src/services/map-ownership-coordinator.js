@@ -1,19 +1,28 @@
 (function initializeMapOwnershipCoordinatorFactory(globalScope) {
+  const historyResolverExports = globalScope.createOwnershipHistoryResolver
+    ? globalScope
+    : (typeof require === "function" ? require("./ownership-history-resolver.js") : {});
   const FACTORY_FIELDS = new Set([
     "relationService",
     "serverIntelligenceManagementService",
     "targetVerificationService",
+    "ownershipRecordService",
+    "evidenceRecordService",
+    "resolveEvidenceScope",
+    "seasonAdministrationService",
     "serverStateService",
+    "targetCatalog",
     "executeAtomically",
     "createId"
   ]);
   const TERRITORY_FIELDS = new Set([
-    "seasonId", "serverId", "row", "col", "ownerUnionId", "effectiveAt"
+    "seasonId", "serverId", "row", "col", "territoryRef", "ownerUnionId",
+    "effectiveAt", "eventAt", "evidenceIds"
   ]);
   const STRUCTURE_FIELDS = new Set([
-    "seasonId", "serverId", "structureId", "footprint", "ownerUnionId", "effectiveAt"
+    "seasonId", "serverId", "structureId", "footprint", "ownerUnionId",
+    "effectiveAt", "eventAt", "evidenceIds"
   ]);
-  const FOOTPRINT_FIELDS = new Set(["row", "col"]);
 
   class MapOwnershipCoordinatorError extends Error {
     constructor(code, message) {
@@ -33,6 +42,21 @@
     return prototype === Object.prototype || prototype === null;
   }
 
+  function clone(value) {
+    if (Array.isArray(value)) return value.map(clone);
+    if (!isRecord(value)) return value;
+    const output = Object.getPrototypeOf(value) === null ? Object.create(null) : {};
+    Object.keys(value).forEach((key) => {
+      Object.defineProperty(output, key, {
+        value: clone(value[key]),
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    });
+    return output;
+  }
+
   function exact(value, fields, path) {
     if (!isRecord(value)) fail("invalid_input", `Map Ownership Coordinator requires ${path}.`);
     const unknown = Object.keys(value).filter((field) => !fields.has(field)).sort();
@@ -40,6 +64,15 @@
       fail("invalid_input", `Map Ownership Coordinator does not recognize ${path}.${unknown[0]}.`);
     }
     return value;
+  }
+
+  function requireFields(value, fields, required, path) {
+    required.forEach((field) => {
+      if (!Object.prototype.hasOwnProperty.call(value, field)) {
+        fail("invalid_input", `Map Ownership Coordinator requires ${path}.${field}.`);
+      }
+    });
+    return exact(value, fields, path);
   }
 
   function requiredString(value, path) {
@@ -66,15 +99,6 @@
     return requiredString(value, "input.effectiveAt");
   }
 
-  function requireFields(value, fields, required, path) {
-    required.forEach((field) => {
-      if (!Object.prototype.hasOwnProperty.call(value, field)) {
-        fail("invalid_input", `Map Ownership Coordinator requires ${path}.${field}.`);
-      }
-    });
-    return exact(value, fields, path);
-  }
-
   function bindInterface(value, path, methods) {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       fail("invalid_factory", `Map Ownership Coordinator requires ${path}.`);
@@ -88,8 +112,119 @@
     }, {});
   }
 
-  function tileKey(row, col) {
-    return `${row}-${col}`;
+  function normalizeCatalog(value) {
+    if (!isRecord(value)) {
+      fail("invalid_factory", "Map Ownership Coordinator requires options.targetCatalog.");
+    }
+    if (!Array.isArray(value.territoryKeys) || !Array.isArray(value.structures)) {
+      fail("invalid_factory", "Map Ownership Coordinator requires options.targetCatalog territoryKeys and structures arrays.");
+    }
+    const territoryTargetKeys = new Set();
+    const structureFootprintById = new Map();
+
+    value.territoryKeys.forEach((entry, index) => {
+      if (!isRecord(entry)) {
+        fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.territoryKeys[${index}] to be an object.`);
+      }
+      if (entry.type === "strategic_node") {
+        const nodeId = requiredString(entry.nodeId, `targetCatalog.territoryKeys[${index}].nodeId`);
+        territoryTargetKeys.add(JSON.stringify(["strategic_node", nodeId]));
+        return;
+      }
+      const row = positiveInteger(entry.row, `targetCatalog.territoryKeys[${index}].row`);
+      const col = positiveInteger(entry.col, `targetCatalog.territoryKeys[${index}].col`);
+      territoryTargetKeys.add(JSON.stringify(["normal_map_cell", row, col]));
+    });
+
+    value.structures.forEach((entry, index) => {
+      if (!isRecord(entry) || !Array.isArray(entry.footprint)) {
+        fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.structures[${index}] with a footprint array.`);
+      }
+      const structureId = requiredString(entry.structureId, `targetCatalog.structures[${index}].structureId`);
+      const footprint = entry.footprint.map((point, pointIndex) => {
+        if (!isRecord(point)) {
+          fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.structures[${index}].footprint[${pointIndex}] to be an object.`);
+        }
+        const row = positiveInteger(point.row, `targetCatalog.structures[${index}].footprint[${pointIndex}].row`);
+        const col = positiveInteger(point.col, `targetCatalog.structures[${index}].footprint[${pointIndex}].col`);
+        const targetKey = JSON.stringify(["normal_map_cell", row, col]);
+        if (!territoryTargetKeys.has(targetKey)) {
+          fail("invalid_factory", `Map Ownership Coordinator requires structure '${structureId}' footprint to reference a known territory target.`);
+        }
+        return { row, col, key: `${row}-${col}` };
+      });
+      structureFootprintById.set(structureId, footprint);
+    });
+
+    return {
+      territoryTargetKeys,
+      structureFootprintById
+    };
+  }
+
+  function territoryProjectionKey(territoryRef) {
+    if (territoryRef.type === "strategic_node") {
+      return JSON.stringify(["strategic_node", territoryRef.nodeId]);
+    }
+    return `${territoryRef.row}-${territoryRef.col}`;
+  }
+
+  function territoryCatalogKey(territoryRef) {
+    if (territoryRef.type === "strategic_node") {
+      return JSON.stringify(["strategic_node", territoryRef.nodeId]);
+    }
+    return JSON.stringify(["normal_map_cell", territoryRef.row, territoryRef.col]);
+  }
+
+  function normalizeTerritoryRef(inputValue) {
+    if (Object.prototype.hasOwnProperty.call(inputValue, "territoryRef")) {
+      if (Object.prototype.hasOwnProperty.call(inputValue, "row")
+          || Object.prototype.hasOwnProperty.call(inputValue, "col")) {
+        fail("invalid_input", "Map Ownership Coordinator does not allow input.row or input.col with input.territoryRef.");
+      }
+      if (!isRecord(inputValue.territoryRef)) {
+        fail("invalid_input", "Map Ownership Coordinator requires input.territoryRef.");
+      }
+      const territoryRef = inputValue.territoryRef.type === "strategic_node"
+        ? exact(inputValue.territoryRef, new Set(["type", "nodeId"]), "input.territoryRef")
+        : exact(inputValue.territoryRef, new Set(["type", "row", "col"]), "input.territoryRef");
+      if (territoryRef.type === "strategic_node") {
+        return {
+          type: "strategic_node",
+          nodeId: requiredString(territoryRef.nodeId, "input.territoryRef.nodeId")
+        };
+      }
+      if (territoryRef.type !== "normal_map_cell") {
+        fail("invalid_input", "Map Ownership Coordinator requires input.territoryRef.type to be normal_map_cell or strategic_node.");
+      }
+      return {
+        type: "normal_map_cell",
+        row: positiveInteger(territoryRef.row, "input.territoryRef.row"),
+        col: positiveInteger(territoryRef.col, "input.territoryRef.col")
+      };
+    }
+
+    return {
+      type: "normal_map_cell",
+      row: positiveInteger(inputValue.row, "input.row"),
+      col: positiveInteger(inputValue.col, "input.col")
+    };
+  }
+
+  function normalizeEvidenceIds(value) {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      fail("invalid_input", "Map Ownership Coordinator requires input.evidenceIds to be an array.");
+    }
+    const seen = new Set();
+    return value.map((entry, index) => {
+      const evidenceId = requiredString(entry, `input.evidenceIds[${index}]`);
+      if (seen.has(evidenceId)) {
+        fail("invalid_input", `Map Ownership Coordinator requires input.evidenceIds[${index}] to be unique.`);
+      }
+      seen.add(evidenceId);
+      return evidenceId;
+    });
   }
 
   function createMapOwnershipCoordinator(options) {
@@ -113,19 +248,56 @@
       "options.targetVerificationService",
       ["addConfirmedVerification"]
     );
-    const projection = bindInterface(
+    const ownership = bindInterface(
+      input.ownershipRecordService,
+      "options.ownershipRecordService",
+      ["listTerritoryRecords", "listStructureRecords"]
+    );
+    const evidence = bindInterface(
+      input.evidenceRecordService,
+      "options.evidenceRecordService",
+      ["getEvidenceRecord"]
+    );
+    const seasonAdministration = bindInterface(
+      input.seasonAdministrationService,
+      "options.seasonAdministrationService",
+      ["getActiveSeason"]
+    );
+    const serverState = bindInterface(
       input.serverStateService,
       "options.serverStateService",
-      ["getTerritoryOwner", "setTerritoryOwner"]
+      ["captureTransactionState", "replaceTerritoryOwnership"]
     );
+    if (typeof input.resolveEvidenceScope !== "function") {
+      fail("invalid_factory", "Map Ownership Coordinator requires options.resolveEvidenceScope.");
+    }
     if (typeof input.executeAtomically !== "function") {
       fail("invalid_factory", "Map Ownership Coordinator requires options.executeAtomically.");
     }
     if (typeof input.createId !== "function") {
       fail("invalid_factory", "Map Ownership Coordinator requires options.createId.");
     }
+
+    const catalog = normalizeCatalog(input.targetCatalog);
+    if (typeof historyResolverExports.createOwnershipHistoryResolver !== "function") {
+      fail("invalid_factory", "Map Ownership Coordinator requires the ownership history resolver.");
+    }
+    const historyResolver = historyResolverExports.createOwnershipHistoryResolver({
+      targetCatalog: input.targetCatalog
+    });
+    const resolveEvidenceScope = input.resolveEvidenceScope.bind(input);
     const executeAtomically = input.executeAtomically.bind(input);
     const createId = input.createId.bind(input);
+
+    function ensureActiveSeasonScope(seasonId, serverId) {
+      const activeSeason = seasonAdministration.getActiveSeason();
+      if (!activeSeason
+          || activeSeason.seasonId !== seasonId
+          || !Array.isArray(activeSeason.serverIds)
+          || !activeSeason.serverIds.includes(serverId)) {
+        fail("archived_season", `Map Ownership Coordinator rejects ownership capture for archived season '${seasonId}' on server '${serverId}'.`);
+      }
+    }
 
     function ensureKnownUnion(actor, seasonId, serverId, ownerUnionId) {
       if (
@@ -136,23 +308,48 @@
       }
     }
 
-    function ownershipInput(base, ownerUnionId) {
-      const value = {
-        seasonId: base.seasonId,
-        serverId: base.serverId,
-        ownerUnionId,
-        ownershipState: ownerUnionId === null ? "unclaimed" : "owned"
-      };
-      if (base.effectiveAt !== undefined) value.effectiveAt = base.effectiveAt;
-      return value;
+    function validateEvidenceScope(seasonId, serverId, evidenceIds) {
+      evidenceIds.forEach((evidenceId) => {
+        const record = evidence.getEvidenceRecord(evidenceId);
+        if (!record) {
+          fail("unknown_evidence", `Map Ownership Coordinator could not find evidence '${evidenceId}'.`);
+        }
+        const scope = resolveEvidenceScope(record);
+        if (!scope || scope.seasonId !== seasonId || scope.serverId !== serverId) {
+          fail(
+            "evidence_scope_mismatch",
+            `Evidence '${evidenceId}' does not match season '${seasonId}' and server '${serverId}'.`
+          );
+        }
+      });
     }
 
-    function addVerification(record, targetRef, ownershipType, recordId) {
+    function ensureKnownTerritory(territoryRef) {
+      const key = territoryCatalogKey(territoryRef);
+      if (!catalog.territoryTargetKeys.has(key)) {
+        fail("invalid_target", `Map Ownership Coordinator could not find target '${key}' in the active map catalog.`);
+      }
+    }
+
+    function ensureKnownStructure(structureId) {
+      if (!catalog.structureFootprintById.has(structureId)) {
+        fail("invalid_target", `Map Ownership Coordinator could not find structure '${structureId}' in the active map catalog.`);
+      }
+    }
+
+    function nextVerificationId() {
+      return requiredString(
+        createId("target_verification"),
+        "createId('target_verification')"
+      );
+    }
+
+    function addVerification(record, targetRef, ownershipType, recordId, evidenceIds) {
+      const observedAt = typeof record.effectiveAt === "string"
+        ? record.effectiveAt
+        : (record.eventAt && record.eventAt.precision === "exact" ? record.eventAt.at : record.reviewedAt);
       return verifications.addConfirmedVerification({
-        verificationId: requiredString(
-          createId("target_verification"),
-          "createId('target_verification')"
-        ),
+        verificationId: nextVerificationId(),
         serverId: record.serverId,
         seasonId: record.seasonId,
         targetRef,
@@ -160,10 +357,10 @@
           type: ownershipType,
           recordId
         },
-        observedAt: record.effectiveAt,
+        observedAt,
         confirmedAt: record.reviewedAt,
         sourceType: "manual_entry",
-        evidenceIds: [],
+        evidenceIds: evidenceIds.slice(),
         actorId: record.actorId,
         reviewerId: record.reviewerId,
         reviewState: "confirmed",
@@ -171,62 +368,121 @@
       });
     }
 
+    function createProjectionMap(seasonId, serverId) {
+      const territoryRecords = ownership.listTerritoryRecords({
+        seasonId,
+        serverId,
+        reviewState: "confirmed"
+      });
+      const structureRecords = ownership.listStructureRecords({
+        seasonId,
+        serverId,
+        reviewState: "confirmed"
+      });
+
+      let resolved;
+      try {
+        resolved = historyResolver.resolve({
+          seasonId,
+          serverId,
+          territoryRecords,
+          structureRecords
+        });
+      } catch (error) {
+        fail(
+          error && error.code === "contradiction"
+            ? "contradictory_authoritative_history"
+            : "invalid_authoritative_history",
+          `Map Ownership Coordinator could not rebuild ownership projection: ${error.message}`
+        );
+      }
+
+      const rebuiltOwnership = {};
+      resolved.territories.forEach((record) => {
+        const targetKey = territoryProjectionKey(record.territoryRef);
+        rebuiltOwnership[targetKey] = record.ownershipState === "owned" ? record.ownerUnionId : null;
+      });
+
+      resolved.structures.forEach((record) => {
+        const footprint = catalog.structureFootprintById.get(record.structureId) || [];
+        footprint.forEach((cell) => {
+          rebuiltOwnership[cell.key] = record.ownershipState === "owned" ? record.ownerUnionId : null;
+        });
+      });
+
+      return rebuiltOwnership;
+    }
+
+    function replaceServerProjection(serverId, rebuiltOwnership) {
+      const currentProjection = serverState.captureTransactionState();
+      if (!isRecord(currentProjection) || !isRecord(currentProjection[serverId])) {
+        fail("invalid_projection", `Map Ownership Coordinator could not capture projection state for server '${serverId}'.`);
+      }
+      const replacementProjection = clone(currentProjection);
+      replacementProjection[serverId] = clone(rebuiltOwnership);
+      serverState.replaceTerritoryOwnership(replacementProjection);
+      return replacementProjection;
+    }
+
+    function normalizeTemporalInput(inputValue) {
+      const output = {};
+      if (Object.prototype.hasOwnProperty.call(inputValue, "eventAt")) {
+        output.eventAt = clone(inputValue.eventAt);
+      }
+      const effectiveAt = optionalTimestamp(inputValue.effectiveAt);
+      if (effectiveAt !== undefined) {
+        output.effectiveAt = effectiveAt;
+      }
+      return output;
+    }
+
+    function ownershipInput(base, ownerUnionId) {
+      return {
+        seasonId: base.seasonId,
+        serverId: base.serverId,
+        ownerUnionId,
+        ownershipState: ownerUnionId === null ? "unclaimed" : "owned",
+        evidenceIds: base.evidenceIds,
+        ...normalizeTemporalInput(base)
+      };
+    }
+
     function setTerritoryOwnership(actor, value) {
-      const inputValue = requireFields(
-        value,
-        TERRITORY_FIELDS,
-        new Set(["seasonId", "serverId", "row", "col", "ownerUnionId"]),
-        "input"
-      );
+      const hasTargetRef = value && Object.prototype.hasOwnProperty.call(value, "territoryRef");
+      const required = hasTargetRef
+        ? new Set(["seasonId", "serverId", "territoryRef", "ownerUnionId"])
+        : new Set(["seasonId", "serverId", "row", "col", "ownerUnionId"]);
+      const inputValue = requireFields(value, TERRITORY_FIELDS, required, "input");
       const seasonId = requiredString(inputValue.seasonId, "input.seasonId");
       const serverId = requiredString(inputValue.serverId, "input.serverId");
-      const row = positiveInteger(inputValue.row, "input.row");
-      const col = positiveInteger(inputValue.col, "input.col");
       const ownerUnionId = owner(inputValue.ownerUnionId);
-      const effectiveAt = optionalTimestamp(inputValue.effectiveAt);
+      const territoryRef = normalizeTerritoryRef(inputValue);
+      const evidenceIds = normalizeEvidenceIds(inputValue.evidenceIds);
 
       return executeAtomically(() => {
+        ensureActiveSeasonScope(seasonId, serverId);
+        ensureKnownTerritory(territoryRef);
+        validateEvidenceScope(seasonId, serverId, evidenceIds);
         ensureKnownUnion(actor, seasonId, serverId, ownerUnionId);
         const record = management.recordManualTerritoryOwnership(actor, {
-          ...ownershipInput({ seasonId, serverId, effectiveAt }, ownerUnionId),
-          territoryRef: { type: "normal_map_cell", row, col }
+          ...ownershipInput({ seasonId, serverId, effectiveAt: inputValue.effectiveAt, eventAt: inputValue.eventAt, evidenceIds }, ownerUnionId),
+          territoryRef
         });
         const verification = addVerification(
           record,
-          { type: "normal_map_cell", row, col },
+          territoryRef,
           "territory_ownership_record",
-          record.ownershipRecordId
+          record.ownershipRecordId,
+          evidenceIds
         );
-        projection.setTerritoryOwner(serverId, tileKey(row, col), ownerUnionId);
+        const rebuiltOwnership = createProjectionMap(seasonId, serverId);
+        replaceServerProjection(serverId, rebuiltOwnership);
         return {
-          targetType: "normal_map_cell",
+          targetType: territoryRef.type,
           record,
           verification,
-          projectedTerritoryKeys: [tileKey(row, col)]
+          projectedTerritoryKeys: [territoryProjectionKey(territoryRef)]
         };
-      });
-    }
-
-    function normalizeFootprint(value) {
-      if (!Array.isArray(value) || value.length === 0) {
-        fail("invalid_input", "Map Ownership Coordinator requires input.footprint to be a non-empty array.");
-      }
-      const seen = new Set();
-      return value.map((entry, index) => {
-        const point = requireFields(
-          entry,
-          FOOTPRINT_FIELDS,
-          FOOTPRINT_FIELDS,
-          `input.footprint[${index}]`
-        );
-        const row = positiveInteger(point.row, `input.footprint[${index}].row`);
-        const col = positiveInteger(point.col, `input.footprint[${index}].col`);
-        const key = tileKey(row, col);
-        if (seen.has(key)) {
-          fail("invalid_input", `Map Ownership Coordinator requires unique footprint cell '${key}'.`);
-        }
-        seen.add(key);
-        return { row, col, key };
       });
     }
 
@@ -234,36 +490,39 @@
       const inputValue = requireFields(
         value,
         STRUCTURE_FIELDS,
-        new Set(["seasonId", "serverId", "structureId", "footprint", "ownerUnionId"]),
+        new Set(["seasonId", "serverId", "structureId", "ownerUnionId"]),
         "input"
       );
       const seasonId = requiredString(inputValue.seasonId, "input.seasonId");
       const serverId = requiredString(inputValue.serverId, "input.serverId");
       const structureId = requiredString(inputValue.structureId, "input.structureId");
-      const footprint = normalizeFootprint(inputValue.footprint);
       const ownerUnionId = owner(inputValue.ownerUnionId);
-      const effectiveAt = optionalTimestamp(inputValue.effectiveAt);
+      const evidenceIds = normalizeEvidenceIds(inputValue.evidenceIds);
 
       return executeAtomically(() => {
+        ensureActiveSeasonScope(seasonId, serverId);
+        ensureKnownStructure(structureId);
+        validateEvidenceScope(seasonId, serverId, evidenceIds);
         ensureKnownUnion(actor, seasonId, serverId, ownerUnionId);
         const record = management.recordManualStructureOwnership(actor, {
-          ...ownershipInput({ seasonId, serverId, effectiveAt }, ownerUnionId),
+          ...ownershipInput({ seasonId, serverId, effectiveAt: inputValue.effectiveAt, eventAt: inputValue.eventAt, evidenceIds }, ownerUnionId),
           structureId
         });
         const verification = addVerification(
           record,
           { type: "logical_structure", structureId },
           "structure_ownership_record",
-          record.structureOwnershipId
+          record.structureOwnershipId,
+          evidenceIds
         );
-        footprint.forEach((point) => {
-          projection.setTerritoryOwner(serverId, point.key, ownerUnionId);
-        });
+        const rebuiltOwnership = createProjectionMap(seasonId, serverId);
+        replaceServerProjection(serverId, rebuiltOwnership);
+        const footprint = catalog.structureFootprintById.get(structureId) || [];
         return {
           targetType: "logical_structure",
           record,
           verification,
-          projectedTerritoryKeys: footprint.map((point) => point.key)
+          projectedTerritoryKeys: footprint.map((cell) => cell.key)
         };
       });
     }

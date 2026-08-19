@@ -18,6 +18,12 @@ function participant(initialValue) {
   };
 }
 
+function targetKey(ref) {
+  return ref.type === "strategic_node"
+    ? JSON.stringify(["strategic_node", ref.nodeId])
+    : `${ref.row}-${ref.col}`;
+}
+
 function setup(overrides = {}) {
   const calls = [];
   const relationState = participant([]);
@@ -28,27 +34,93 @@ function setup(overrides = {}) {
       && entry.unionId === unionId
     ));
   };
-  const historyState = participant({ territory: [], structures: [] });
+
+  const ownershipState = participant({ territory: [], structures: [] });
+  ownershipState.listTerritoryRecords = function listTerritoryRecords(filter) {
+    return this.value.territory.filter((record) => {
+      if (filter.seasonId && record.seasonId !== filter.seasonId) return false;
+      if (filter.serverId && record.serverId !== filter.serverId) return false;
+      if (filter.reviewState && record.reviewState !== filter.reviewState) return false;
+      return true;
+    }).map((record) => structuredClone(record));
+  };
+  ownershipState.listStructureRecords = function listStructureRecords(filter) {
+    return this.value.structures.filter((record) => {
+      if (filter.seasonId && record.seasonId !== filter.seasonId) return false;
+      if (filter.serverId && record.serverId !== filter.serverId) return false;
+      if (filter.reviewState && record.reviewState !== filter.reviewState) return false;
+      return true;
+    }).map((record) => structuredClone(record));
+  };
+
   const verificationState = participant([]);
   verificationState.addConfirmedVerification = function addConfirmedVerification(record) {
     this.value.push(structuredClone(record));
     calls.push(["verification", record]);
     return structuredClone(record);
   };
+
   const projectionState = participant({
-    "server-366": { "1-1": "union-old", "2-2": null }
+    "server-366": { "1-1": "union-old", "2-2": null },
+    "server-367": {}
   });
-  projectionState.getTerritoryOwner = function getTerritoryOwner(serverId, key, fallback) {
-    const server = this.value[serverId] || {};
-    return Object.prototype.hasOwnProperty.call(server, key) ? server[key] : fallback;
+  projectionState.replaceTerritoryOwnership = function replaceTerritoryOwnership(ownershipByServerId) {
+    if (overrides.failProjection) {
+      throw new Error("projection failed");
+    }
+    this.value = structuredClone(ownershipByServerId);
+    calls.push(["replaceProjection", ownershipByServerId]);
   };
-  projectionState.setTerritoryOwner = function setTerritoryOwner(serverId, key, ownerUnionId) {
-    if (!this.value[serverId]) this.value[serverId] = {};
-    this.value[serverId][key] = ownerUnionId;
-    calls.push(["project", serverId, key, ownerUnionId]);
-    if (overrides.failProjectionAt === key) throw new Error("projection failed");
-    return ownerUnionId;
+
+  const evidenceById = new Map();
+  const evidenceState = participant({ evidenceById: {} });
+  evidenceState.getEvidenceRecord = function getEvidenceRecord(evidenceId) {
+    return evidenceById.has(evidenceId) ? structuredClone(evidenceById.get(evidenceId)) : null;
   };
+
+  function addEvidence(id, seasonId = "season-1", serverId = "server-366") {
+    evidenceById.set(id, { evidenceId: id, scope: { seasonId, serverId } });
+  }
+
+  addEvidence("evidence-1");
+  addEvidence("evidence-2");
+
+  let territoryCounter = 0;
+  let structureCounter = 0;
+
+  function supersedeCurrentTerritory(nextRecord) {
+    const next = ownershipState.value.territory.map((record) => {
+      if (nextRecord.eventAt && nextRecord.eventAt.precision === "exact"
+          && (!record.eventAt || record.eventAt.precision === "exact")
+          && record.reviewState === "confirmed"
+          && record.supersededBy === null
+          && record.serverId === nextRecord.serverId
+          && record.seasonId === nextRecord.seasonId
+          && JSON.stringify(record.territoryRef) === JSON.stringify(nextRecord.territoryRef)) {
+        return { ...record, reviewState: "superseded", supersededBy: nextRecord.ownershipRecordId };
+      }
+      return record;
+    });
+    next.push(nextRecord);
+    ownershipState.value.territory = next;
+  }
+
+  function supersedeCurrentStructure(nextRecord) {
+    const next = ownershipState.value.structures.map((record) => {
+      if (nextRecord.eventAt && nextRecord.eventAt.precision === "exact"
+          && (!record.eventAt || record.eventAt.precision === "exact")
+          && record.reviewState === "confirmed"
+          && record.supersededBy === null
+          && record.serverId === nextRecord.serverId
+          && record.seasonId === nextRecord.seasonId
+          && record.structureId === nextRecord.structureId) {
+        return { ...record, reviewState: "superseded", supersededBy: nextRecord.structureOwnershipId };
+      }
+      return record;
+    });
+    next.push(nextRecord);
+    ownershipState.value.structures = next;
+  }
 
   const management = {
     addKnownUnion(actor, input) {
@@ -57,191 +129,277 @@ function setup(overrides = {}) {
       return structuredClone(input);
     },
     recordManualTerritoryOwnership(actor, input) {
-      calls.push(["territory", actor, input]);
-      if (overrides.failHistory) throw new Error("history failed");
+      territoryCounter += 1;
       const record = {
-        ownershipRecordId: `territory-${historyState.value.territory.length + 1}`,
+        ownershipRecordId: `territory-${territoryCounter}`,
         ...structuredClone(input),
-        effectiveAt: input.effectiveAt || "2026-07-31T10:00:00.000Z",
+        ...(input.eventAt && input.eventAt.precision === "exact" ? { effectiveAt: input.eventAt.at } : {}),
+        sourceType: "manual_entry",
+        reviewState: "confirmed",
         actorId: actor.actorId,
         reviewerId: actor.actorId,
-        reviewedAt: "2026-07-31T10:00:00.000Z"
+        reviewedAt: "2026-08-19T10:00:00.000Z",
+        supersededBy: null
       };
-      historyState.value.territory.push(record);
+      supersedeCurrentTerritory(record);
+      calls.push(["territory", record]);
       return structuredClone(record);
     },
     recordManualStructureOwnership(actor, input) {
-      calls.push(["structure", actor, input]);
-      if (overrides.failHistory) throw new Error("history failed");
+      structureCounter += 1;
       const record = {
-        structureOwnershipId: `structure-${historyState.value.structures.length + 1}`,
+        structureOwnershipId: `structure-${structureCounter}`,
         ...structuredClone(input),
-        effectiveAt: input.effectiveAt || "2026-07-31T10:00:00.000Z",
+        ...(input.eventAt && input.eventAt.precision === "exact" ? { effectiveAt: input.eventAt.at } : {}),
+        sourceType: "manual_entry",
+        reviewState: "confirmed",
         actorId: actor.actorId,
         reviewerId: actor.actorId,
-        reviewedAt: "2026-07-31T10:00:00.000Z"
+        reviewedAt: "2026-08-19T10:00:00.000Z",
+        supersededBy: null
       };
-      historyState.value.structures.push(record);
+      supersedeCurrentStructure(record);
+      calls.push(["structure", record]);
       return structuredClone(record);
     }
   };
+
+  if (Array.isArray(overrides.initialTerritoryRecords)) {
+    ownershipState.value.territory = overrides.initialTerritoryRecords.map((record) => structuredClone(record));
+  }
+  if (Array.isArray(overrides.initialStructureRecords)) {
+    ownershipState.value.structures = overrides.initialStructureRecords.map((record) => structuredClone(record));
+  }
+
+  const seasonAdministrationService = {
+    captureTransactionState() { return null; },
+    restoreTransactionState() {},
+    getActiveSeason() {
+      if (overrides.archivedSeason) {
+        return { seasonId: "season-2", serverIds: ["server-999"] };
+      }
+      return { seasonId: "season-1", serverIds: ["server-366", "server-367"] };
+    }
+  };
+
   const atomic = createAtomicOperationExecutor({
-    participants: [relationState, historyState, verificationState, projectionState]
+    participants: [relationState, ownershipState, verificationState, projectionState, evidenceState]
   });
+
   const coordinator = createMapOwnershipCoordinator({
     relationService: relationState,
     serverIntelligenceManagementService: management,
     targetVerificationService: verificationState,
+    ownershipRecordService: ownershipState,
+    evidenceRecordService: evidenceState,
+    resolveEvidenceScope(record) {
+      return structuredClone(record.scope);
+    },
+    seasonAdministrationService,
     serverStateService: projectionState,
+    targetCatalog: {
+      territoryKeys: [
+        { row: 1, col: 1 },
+        { row: 2, col: 2 },
+        { row: 4, col: 4 },
+        { row: 4, col: 5 },
+        { type: "strategic_node", nodeId: "node-a" }
+      ],
+      structures: [
+        {
+          structureId: "town-1",
+          footprint: [{ row: 4, col: 4 }, { row: 4, col: 5 }]
+        }
+      ]
+    },
     executeAtomically: atomic.executeAtomically,
-    createId() { return `verification-${verificationState.value.length + 1}`; }
+    createId() {
+      return `verification-${verificationState.value.length + 1}`;
+    }
   });
+
   return {
     calls,
     relationState,
-    historyState,
+    ownershipState,
     verificationState,
     projectionState,
+    evidenceById,
     coordinator
   };
 }
 
 const actor = { actorId: "desktop-user" };
 
-test("records one canonical territory fact and updates its projection", async () => {
+test("captures normal_map_cell ownership with evidence-backed exact event time", async () => {
   const context = setup();
   const result = await context.coordinator.setTerritoryOwnership(actor, {
     seasonId: "season-1",
     serverId: "server-366",
-    row: 3,
-    col: 4,
-    ownerUnionId: "union-1"
+    row: 1,
+    col: 1,
+    ownerUnionId: "union-1",
+    eventAt: { precision: "exact", at: "2026-08-19T09:55:00.000Z" },
+    evidenceIds: ["evidence-1", "evidence-2"]
   });
+
   assert.strictEqual(result.targetType, "normal_map_cell");
-  assert.deepStrictEqual(result.projectedTerritoryKeys, ["3-4"]);
-  assert.deepStrictEqual(
-    context.historyState.value.territory[0].territoryRef,
-    { type: "normal_map_cell", row: 3, col: 4 }
-  );
-  assert.strictEqual(context.projectionState.value["server-366"]["3-4"], "union-1");
-  assert.strictEqual(result.verification.verifiedOwnershipRef.recordId, "territory-1");
-  assert.strictEqual(context.verificationState.value.length, 1);
+  assert.deepStrictEqual(result.projectedTerritoryKeys, ["1-1"]);
+  assert.strictEqual(context.ownershipState.value.territory.length, 1);
+  assert.deepStrictEqual(context.ownershipState.value.territory[0].eventAt, {
+    precision: "exact",
+    at: "2026-08-19T09:55:00.000Z"
+  });
+  assert.deepStrictEqual(context.verificationState.value[0].evidenceIds, ["evidence-1", "evidence-2"]);
+  assert.strictEqual(context.projectionState.value["server-366"]["1-1"], "union-1");
 });
 
-test("discovers an owned union on the server before recording ownership", async () => {
+test("captures strategic_node ownership targets", async () => {
   const context = setup();
-  await context.coordinator.setTerritoryOwnership(actor, {
+  const result = await context.coordinator.setTerritoryOwnership(actor, {
     seasonId: "season-1",
     serverId: "server-366",
-    row: 3,
-    col: 4,
-    ownerUnionId: "union-1"
+    territoryRef: { type: "strategic_node", nodeId: "node-a" },
+    ownerUnionId: "union-2",
+    eventAt: {
+      precision: "bounded",
+      earliestAt: "2026-08-19T09:00:00.000Z",
+      latestAt: "2026-08-19T10:00:00.000Z"
+    },
+    evidenceIds: ["evidence-1"]
   });
-  assert.deepStrictEqual(context.calls.slice(0, 2).map((entry) => entry[0]), [
-    "known",
-    "territory"
-  ]);
 
-  await context.coordinator.setTerritoryOwnership(actor, {
-    seasonId: "season-1",
-    serverId: "server-366",
-    row: 4,
-    col: 4,
-    ownerUnionId: "union-1"
-  });
-  assert.strictEqual(context.calls.filter((entry) => entry[0] === "known").length, 1);
-});
-
-test("unclaimed territory does not create a known-union relation", async () => {
-  const context = setup();
-  await context.coordinator.setTerritoryOwnership(actor, {
-    seasonId: "season-1",
-    serverId: "server-366",
-    row: 3,
-    col: 4,
-    ownerUnionId: null
-  });
-  assert.strictEqual(context.calls.some((entry) => entry[0] === "known"), false);
-  assert.strictEqual(context.historyState.value.territory[0].ownershipState, "unclaimed");
-});
-
-test("records one logical-structure fact while projecting every footprint cell", async () => {
-  const context = setup();
-  const result = await context.coordinator.setStructureOwnership(actor, {
-    seasonId: "season-1",
-    serverId: "server-366",
-    structureId: "royal-city-1",
-    footprint: [
-      { row: 10, col: 10 },
-      { row: 10, col: 11 },
-      { row: 11, col: 10 },
-      { row: 11, col: 11 }
-    ],
-    ownerUnionId: "union-1"
-  });
-  assert.strictEqual(context.historyState.value.structures.length, 1);
-  assert.strictEqual(context.historyState.value.territory.length, 0);
-  assert.strictEqual(result.record.structureId, "royal-city-1");
+  assert.strictEqual(result.targetType, "strategic_node");
+  assert.deepStrictEqual(result.projectedTerritoryKeys, [JSON.stringify(["strategic_node", "node-a"])]);
   assert.strictEqual(
-    result.verification.verifiedOwnershipRef.type,
-    "structure_ownership_record"
+    Object.prototype.hasOwnProperty.call(
+      context.projectionState.value["server-366"],
+      JSON.stringify(["strategic_node", "node-a"])
+    ),
+    false
   );
-  assert.deepStrictEqual(result.projectedTerritoryKeys, [
-    "10-10", "10-11", "11-10", "11-11"
-  ]);
 });
 
-test("rolls back discovered relation and history when projection fails", async () => {
-  const context = setup({ failProjectionAt: "3-4" });
-  const beforeProjection = structuredClone(context.projectionState.value);
+test("rejects evidence outside season/server scope", async () => {
+  const context = setup();
+  context.evidenceById.set("evidence-out", {
+    evidenceId: "evidence-out",
+    scope: { seasonId: "season-2", serverId: "server-999" }
+  });
+
   await assert.rejects(
     context.coordinator.setTerritoryOwnership(actor, {
       seasonId: "season-1",
       serverId: "server-366",
-      row: 3,
-      col: 4,
-      ownerUnionId: "union-1"
+      row: 1,
+      col: 1,
+      ownerUnionId: "union-1",
+      evidenceIds: ["evidence-out"],
+      eventAt: { precision: "exact", at: "2026-08-19T09:55:00.000Z" }
     }),
-    /projection failed/
+    (error) => error instanceof MapOwnershipCoordinatorError
+      && error.code === "evidence_scope_mismatch"
   );
-  assert.deepStrictEqual(context.relationState.value, []);
-  assert.deepStrictEqual(context.historyState.value, { territory: [], structures: [] });
+  assert.deepStrictEqual(context.ownershipState.value.territory, []);
   assert.deepStrictEqual(context.verificationState.value, []);
-  assert.deepStrictEqual(context.projectionState.value, beforeProjection);
 });
 
-test("rolls back partial structure projection when a later footprint cell fails", async () => {
-  const context = setup({ failProjectionAt: "5-6" });
-  const beforeProjection = structuredClone(context.projectionState.value);
+test("rejects ambiguous or over-specified territory references", async () => {
+  const context = setup();
+  assert.throws(
+    () => context.coordinator.setTerritoryOwnership(actor, {
+      seasonId: "season-1",
+      serverId: "server-366",
+      row: 1,
+      col: 1,
+      territoryRef: { type: "strategic_node", nodeId: "node-a" },
+      ownerUnionId: "union-1"
+    }),
+    (error) => error instanceof MapOwnershipCoordinatorError && error.code === "invalid_input"
+  );
+  assert.throws(
+    () => context.coordinator.setTerritoryOwnership(actor, {
+      seasonId: "season-1",
+      serverId: "server-366",
+      territoryRef: { type: "strategic_node", nodeId: "node-a", row: 1 },
+      ownerUnionId: "union-1"
+    }),
+    (error) => error instanceof MapOwnershipCoordinatorError && error.code === "invalid_input"
+  );
+});
+
+test("rejects capture against archived or inactive seasons", async () => {
+  const context = setup({ archivedSeason: true });
+
   await assert.rejects(
-    context.coordinator.setStructureOwnership(actor, {
+    context.coordinator.setTerritoryOwnership(actor, {
+      seasonId: "season-1",
+      serverId: "server-366",
+      row: 1,
+      col: 1,
+      ownerUnionId: "union-1",
+      eventAt: { precision: "exact", at: "2026-08-19T09:55:00.000Z" }
+    }),
+    (error) => error instanceof MapOwnershipCoordinatorError
+      && error.code === "archived_season"
+  );
+  assert.deepStrictEqual(context.ownershipState.value.territory, []);
+});
+
+test("rebuilds projection from authoritative structure history", async () => {
+  const context = setup({
+    initialStructureRecords: [{
+      structureOwnershipId: "structure-existing",
       seasonId: "season-1",
       serverId: "server-366",
       structureId: "town-1",
-      footprint: [{ row: 5, col: 5 }, { row: 5, col: 6 }],
-      ownerUnionId: "union-1"
+      ownerUnionId: "union-1",
+      ownershipState: "owned",
+      sourceType: "manual_entry",
+      eventAt: { precision: "exact", at: "2026-08-19T09:00:00.000Z" },
+      effectiveAt: "2026-08-19T09:00:00.000Z",
+      evidenceIds: [],
+      actorId: "desktop-user",
+      reviewerId: "desktop-user",
+      reviewState: "confirmed",
+      reviewedAt: "2026-08-19T09:05:00.000Z",
+      supersededBy: null
+    }]
+  });
+
+  await context.coordinator.setStructureOwnership(actor, {
+    seasonId: "season-1",
+    serverId: "server-366",
+    structureId: "town-1",
+    ownerUnionId: null,
+    eventAt: { precision: "exact", at: "2026-08-19T10:00:00.000Z" },
+    evidenceIds: ["evidence-1"]
+  });
+
+  assert.strictEqual(context.projectionState.value["server-366"]["4-4"], null);
+  assert.strictEqual(context.projectionState.value["server-366"]["4-5"], null);
+});
+
+test("rolls back history and projection changes when projection replacement fails", async () => {
+  const context = setup({ failProjection: true });
+  const beforeProjection = structuredClone(context.projectionState.value);
+
+  await assert.rejects(
+    context.coordinator.setTerritoryOwnership(actor, {
+      seasonId: "season-1",
+      serverId: "server-366",
+      row: 1,
+      col: 1,
+      ownerUnionId: "union-1",
+      eventAt: { precision: "exact", at: "2026-08-19T09:55:00.000Z" }
     }),
     /projection failed/
   );
-  assert.deepStrictEqual(context.historyState.value, { territory: [], structures: [] });
+
+  assert.deepStrictEqual(context.relationState.value, []);
+  assert.deepStrictEqual(context.ownershipState.value, { territory: [], structures: [] });
   assert.deepStrictEqual(context.verificationState.value, []);
   assert.deepStrictEqual(context.projectionState.value, beforeProjection);
-});
-
-test("rejects malformed inputs before any operation executes", async () => {
-  const context = setup();
-  assert.throws(
-    () => context.coordinator.setStructureOwnership(actor, {
-        seasonId: "season-1",
-        serverId: "server-366",
-        structureId: "town-1",
-        footprint: [{ row: 5, col: 5 }, { row: 5, col: 5 }],
-        ownerUnionId: "union-1"
-      }),
-    (error) => error instanceof MapOwnershipCoordinatorError
-      && error.code === "invalid_input"
-  );
-  assert.deepStrictEqual(context.calls, []);
 });
 
 let passed = 0;

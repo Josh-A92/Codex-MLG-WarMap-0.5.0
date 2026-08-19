@@ -22,11 +22,11 @@
   ]);
   const TERRITORY_FIELDS = new Set([
     "seasonId", "serverId", "territoryRef", "ownerUnionId", "ownershipState",
-    "effectiveAt", "evidenceIds"
+    "effectiveAt", "eventAt", "evidenceIds"
   ]);
   const STRUCTURE_FIELDS = new Set([
     "seasonId", "serverId", "structureId", "ownerUnionId", "ownershipState",
-    "effectiveAt", "evidenceIds"
+    "effectiveAt", "eventAt", "evidenceIds"
   ]);
 
   class ServerIntelligenceManagementServiceError extends Error {
@@ -328,12 +328,23 @@
         seasonId: scope.seasonId,
         ownerUnionId: scope.value.ownerUnionId,
         ownershipState: scope.value.ownershipState,
-        effectiveAt: requireOptionalString(scope.value.effectiveAt, "input.effectiveAt") || recordedAt,
         evidenceIds: evidenceIds(scope.value.evidenceIds),
         actorId: decision.actorId,
         reviewerId: decision.actorId,
         reviewedAt: recordedAt
       };
+      const effectiveAt = requireOptionalString(scope.value.effectiveAt, "input.effectiveAt");
+      if (effectiveAt !== null) {
+        base.effectiveAt = effectiveAt;
+      }
+      if (scope.value.eventAt !== undefined) {
+        base.eventAt = clone(scope.value.eventAt);
+      } else {
+        base.eventAt = {
+          precision: "exact",
+          at: effectiveAt || recordedAt
+        };
+      }
       if (kind === "territory") {
         return ownership.addConfirmedManualTerritoryRecord({
           ownershipRecordId: nextId("territory_ownership"),

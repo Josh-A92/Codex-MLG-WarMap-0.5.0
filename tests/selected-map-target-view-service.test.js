@@ -137,6 +137,42 @@ test("missing ownership and verification return an unknown factual state", () =>
   assert.strictEqual(view.confirmationState, "unknown");
 });
 
+test("territory view supports strategic-node targets", () => {
+  const territory = {
+    ownershipRecordId: "territory-node-1",
+    serverId: "server-366",
+    seasonId: "season-1",
+    territoryRef: { type: "strategic_node", nodeId: "node-a" },
+    ownerUnionId: "union-1",
+    ownershipState: "owned",
+    effectiveAt: "2026-07-31T08:00:00.000Z"
+  };
+  const service = setup({ territory });
+  const view = service.getTerritoryView({
+    seasonId: "season-1",
+    serverId: "server-366",
+    territoryRef: { type: "strategic_node", nodeId: "node-a" }
+  });
+  assert.deepStrictEqual(view.target, { type: "strategic_node", nodeId: "node-a" });
+  assert.strictEqual(view.currentOwnershipRecord.ownershipRecordId, "territory-node-1");
+});
+
+test("territory view rejects ambiguous and over-specified target references", () => {
+  const service = setup();
+  assert.throws(() => service.getTerritoryView({
+    seasonId: "season-1",
+    serverId: "server-366",
+    row: 1,
+    col: 1,
+    territoryRef: { type: "strategic_node", nodeId: "node-a" }
+  }), /does not allow request\.row or request\.col/);
+  assert.throws(() => service.getTerritoryView({
+    seasonId: "season-1",
+    serverId: "server-366",
+    territoryRef: { type: "strategic_node", nodeId: "node-a", row: 1 }
+  }), /does not recognize request\.territoryRef\.row/);
+});
+
 test("returned nested data cannot mutate dependency state", () => {
   const metadata = { mapPattern: "diagonal" };
   const service = setup();

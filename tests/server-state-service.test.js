@@ -602,11 +602,11 @@ runTest("renderer restores one coherent data management state before composing m
   assert.ok(/appState\.unionRegistryService = createUnionRegistryServiceFactory\(bundledIdentities\)/.test(rendererSource));
   assert.ok(/strategicDomainRuntime = createStrategicDomainRuntimeFactory/.test(rendererSource));
   assert.ok(/evidenceDomainRuntime = createEvidenceDomainRuntimeFactory/.test(rendererSource));
-  assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*serverStateService,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
+  assert.ok(/dataManagementRuntimeFactory\(\{[\s\S]*modules: dataManagementModules[\s\S]*unionRegistryService: appState\.unionRegistryService[\s\S]*strategicDomainRuntime,[\s\S]*evidenceDomainRuntime,[\s\S]*targetCatalog:[\s\S]*serverStateService,[\s\S]*seasonAdministrationService,[\s\S]*clock: \(\) => new Date\(\)\.toISOString\(\)[\s\S]*createId: createRuntimeId/.test(rendererSource));
   assert.ok(/appState\.dataManagementRuntime = dataManagementRuntime/.test(rendererSource));
 
   const restoreIndex = rendererSource.indexOf("await initializePersistedDataManagementDomains(bundledIdentities);");
-  const managementIndex = rendererSource.indexOf("initializeDataManagementRuntime();");
+  const managementIndex = rendererSource.indexOf("initializeDataManagementRuntime(mapData);");
   const serverStateIndex = rendererSource.indexOf("initializeServerStateService(seasonServerState);");
   assert.ok(restoreIndex > -1);
   assert.ok(serverStateIndex > restoreIndex);
@@ -617,7 +617,7 @@ runTest("renderer routes ownership through the single generation coordinator", (
   const rendererPath = path.join(__dirname, "..", "src", "map-renderer.js");
   const rendererSource = fs.readFileSync(rendererPath, "utf8");
 
-  const changeHandlerMatch = rendererSource.match(/async function handleSelectionPanelChange\(event\) \{[\s\S]*?\n\}/);
+  const changeHandlerMatch = rendererSource.match(/async function handleSelectionPanelSubmit\(event\) \{[\s\S]*?\n\}/);
   assert.ok(changeHandlerMatch);
 
   const changeHandlerSource = changeHandlerMatch[0];

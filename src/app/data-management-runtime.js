@@ -4,7 +4,9 @@
     "unionRegistryService",
     "strategicDomainRuntime",
     "evidenceDomainRuntime",
+    "targetCatalog",
     "serverStateService",
+    "seasonAdministrationService",
     "gameRulesEngine",
     "clock",
     "createId"
@@ -128,6 +130,13 @@
       authorizationPolicyService,
       unionRegistryService: registry
     });
+    const evidenceManagementService = modules.createEvidenceManagementService({
+      authorizationPolicyService,
+      evidenceAssetService: evidence.evidenceAssetService,
+      evidenceRecordService: evidence.evidenceRecordService,
+      clock: input.clock,
+      createId: input.createId
+    });
     const serverIntelligenceManagementService = modules.createServerIntelligenceManagementService({
       authorizationPolicyService,
       unionRegistryService: registry,
@@ -174,7 +183,12 @@
       relationService: strategic.relationService,
       serverIntelligenceManagementService,
       targetVerificationService: strategic.targetVerificationService,
+      ownershipRecordService: strategic.ownershipRecordService,
+      evidenceRecordService: evidence.evidenceRecordService,
+      resolveEvidenceScope: evidenceManagementService.resolveEvidenceScope,
+      seasonAdministrationService: input.seasonAdministrationService,
       serverStateService: serverState,
+      targetCatalog: input.targetCatalog,
       executeAtomically:
         mapOwnershipAtomicExecutor.executeAtomically.bind(mapOwnershipAtomicExecutor),
       createId: input.createId
@@ -186,13 +200,6 @@
         unionRegistryService: registry,
         gameRulesEngine: gameRules
       });
-    const evidenceManagementService = modules.createEvidenceManagementService({
-      authorizationPolicyService,
-      evidenceAssetService: evidence.evidenceAssetService,
-      evidenceRecordService: evidence.evidenceRecordService,
-      clock: input.clock,
-      createId: input.createId
-    });
     const reviewQueueService = modules.createReviewQueueService({
       nativeAssignmentService: strategic.nativeAssignmentService,
       combatStrengthObservationService: strategic.combatStrengthObservationService,

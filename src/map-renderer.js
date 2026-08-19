@@ -2700,10 +2700,28 @@ function isStructureSelection(item) {
   );
 }
 
-function getTerritoryEditorState(item, isStructure) {
+function isStrategicNodeSelection(item) {
+  return Boolean(
+    item
+    && item.topologyTargetType === "strategic_node"
+    && typeof item.nodeId === "string"
+    && item.nodeId.trim() !== ""
+  );
+}
+
+function getTerritoryEditorState(item, isStructure, targetView) {
   if (!ownershipService || !item) {
     return {
       selectedOwnerId: null,
+      unassignedLabel: "Unassigned"
+    };
+  }
+
+  if (targetView && targetView.currentOwnershipRecord) {
+    return {
+      selectedOwnerId: targetView.currentOwnershipRecord.ownershipState === "owned"
+        ? targetView.currentOwnershipRecord.ownerUnionId
+        : null,
       unassignedLabel: "Unassigned"
     };
   }
@@ -2742,7 +2760,8 @@ function buildTerritoryEditor(item) {
   }
 
   const isStructure = isStructureSelection(item);
-  const editorState = getTerritoryEditorState(item, isStructure);
+  const targetView = getSelectedTargetView(item);
+  const editorState = getTerritoryEditorState(item, isStructure, targetView);
 
   const territorySection = document.createElement("div");
   territorySection.className = "territory-editor";
@@ -2751,6 +2770,10 @@ function buildTerritoryEditor(item) {
   territoryTitle.className = "territory-editor-title";
   territoryTitle.textContent = "Territory";
   territorySection.appendChild(territoryTitle);
+
+  const form = document.createElement("form");
+  form.className = "territory-editor-form";
+  form.setAttribute("data-ownership-capture-form", "true");
 
   const editorRow = document.createElement("label");
   editorRow.className = "territory-editor-row";
@@ -2762,6 +2785,7 @@ function buildTerritoryEditor(item) {
 
   const ownerSelect = document.createElement("select");
   ownerSelect.id = "tile-owner-select";
+  ownerSelect.name = "ownerId";
   ownerSelect.className = "territory-owner-select";
   ownerSelect.setAttribute("data-owner-select", "true");
 
@@ -2781,7 +2805,107 @@ function buildTerritoryEditor(item) {
 
   editorRow.appendChild(ownerLabel);
   editorRow.appendChild(ownerSelect);
-  territorySection.appendChild(editorRow);
+  form.appendChild(editorRow);
+
+  const timeModeRow = document.createElement("label");
+  timeModeRow.className = "territory-editor-row";
+  timeModeRow.setAttribute("for", "ownership-event-time-mode");
+  const timeModeLabel = document.createElement("span");
+  timeModeLabel.className = "selection-label";
+  timeModeLabel.textContent = "Event time";
+  const timeModeSelect = document.createElement("select");
+  timeModeSelect.id = "ownership-event-time-mode";
+  timeModeSelect.setAttribute("name", "eventTimeMode");
+  timeModeSelect.setAttribute("data-ownership-event-time-mode", "true");
+  [
+    { value: "now", label: "Now" },
+    { value: "exact", label: "Exact" },
+    { value: "window", label: "Bounded window" }
+  ].forEach((optionData) => {
+    const option = document.createElement("option");
+    option.value = optionData.value;
+    option.textContent = optionData.label;
+    timeModeSelect.appendChild(option);
+  });
+  timeModeRow.appendChild(timeModeLabel);
+  timeModeRow.appendChild(timeModeSelect);
+  form.appendChild(timeModeRow);
+
+  const exactTimeRow = document.createElement("label");
+  exactTimeRow.className = "territory-editor-row";
+  exactTimeRow.setAttribute("data-ownership-exact-time-row", "true");
+  const exactTimeLabel = document.createElement("span");
+  exactTimeLabel.className = "selection-label";
+  exactTimeLabel.textContent = "Exact at";
+  const exactTimeInput = document.createElement("input");
+  exactTimeInput.type = "datetime-local";
+  exactTimeInput.step = "1";
+  exactTimeInput.name = "exactEventAt";
+  exactTimeInput.id = "ownership-exact-event-at";
+  exactTimeRow.appendChild(exactTimeLabel);
+  exactTimeRow.appendChild(exactTimeInput);
+  form.appendChild(exactTimeRow);
+
+  const windowStartRow = document.createElement("label");
+  windowStartRow.className = "territory-editor-row";
+  windowStartRow.setAttribute("data-ownership-window-start-row", "true");
+  const windowStartLabel = document.createElement("span");
+  windowStartLabel.className = "selection-label";
+  windowStartLabel.textContent = "Window start";
+  const windowStartInput = document.createElement("input");
+  windowStartInput.type = "datetime-local";
+  windowStartInput.step = "1";
+  windowStartInput.name = "windowEarliestAt";
+  windowStartInput.id = "ownership-window-earliest-at";
+  windowStartRow.appendChild(windowStartLabel);
+  windowStartRow.appendChild(windowStartInput);
+  form.appendChild(windowStartRow);
+
+  const windowEndRow = document.createElement("label");
+  windowEndRow.className = "territory-editor-row";
+  windowEndRow.setAttribute("data-ownership-window-end-row", "true");
+  const windowEndLabel = document.createElement("span");
+  windowEndLabel.className = "selection-label";
+  windowEndLabel.textContent = "Window end";
+  const windowEndInput = document.createElement("input");
+  windowEndInput.type = "datetime-local";
+  windowEndInput.step = "1";
+  windowEndInput.name = "windowLatestAt";
+  windowEndInput.id = "ownership-window-latest-at";
+  windowEndRow.appendChild(windowEndLabel);
+  windowEndRow.appendChild(windowEndInput);
+  form.appendChild(windowEndRow);
+
+  const evidenceRow = document.createElement("label");
+  evidenceRow.className = "territory-editor-row";
+  evidenceRow.setAttribute("for", "ownership-evidence-ids");
+  const evidenceLabel = document.createElement("span");
+  evidenceLabel.className = "selection-label";
+  evidenceLabel.textContent = "Evidence IDs";
+  const evidenceInput = document.createElement("input");
+  evidenceInput.type = "text";
+  evidenceInput.id = "ownership-evidence-ids";
+  evidenceInput.name = "evidenceIds";
+  evidenceInput.placeholder = "Comma-separated IDs";
+  evidenceRow.appendChild(evidenceLabel);
+  evidenceRow.appendChild(evidenceInput);
+  form.appendChild(evidenceRow);
+
+  const submitRow = document.createElement("div");
+  submitRow.className = "territory-editor-row";
+  const spacer = document.createElement("span");
+  spacer.className = "selection-label";
+  spacer.textContent = "";
+  const submitButton = document.createElement("button");
+  submitButton.type = "submit";
+  submitButton.className = "data-management-primary-action";
+  submitButton.textContent = "Capture ownership";
+  submitButton.setAttribute("data-ownership-submit", "true");
+  submitRow.appendChild(spacer);
+  submitRow.appendChild(submitButton);
+  form.appendChild(submitRow);
+
+  territorySection.appendChild(form);
   if (selectionState.errorMessage) {
     territorySection.appendChild(createDataManagementElement(
       "div",
@@ -2790,6 +2914,7 @@ function buildTerritoryEditor(item) {
     ));
   }
   selectionPanel.appendChild(territorySection);
+  updateOwnershipEventTimeRows(selectionPanel);
 }
 
 function getStructureFootprint(structure) {
@@ -2808,33 +2933,131 @@ function getStructureFootprint(structure) {
   return footprint;
 }
 
-async function handleSelectionPanelChange(event) {
-  const ownerSelect = event.target.closest("[data-owner-select='true']");
+function toIsoTimestampFromLocal(value, label) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`${label} is required.`);
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new Error(`${label} must be a valid timestamp.`);
+  }
+  return parsed.toISOString();
+}
 
-  if (!ownerSelect || !ownershipService || !mapOwnershipCoordinator || !localActor) {
+function normalizeEventAtFromForm(formData) {
+  const mode = formData.get("eventTimeMode") || "now";
+  if (mode === "exact") {
+    return {
+      precision: "exact",
+      at: toIsoTimestampFromLocal(formData.get("exactEventAt"), "Exact event time")
+    };
+  }
+  if (mode === "window") {
+    const earliestAt = toIsoTimestampFromLocal(formData.get("windowEarliestAt"), "Window start");
+    const latestAt = toIsoTimestampFromLocal(formData.get("windowLatestAt"), "Window end");
+    if (Date.parse(earliestAt) > Date.parse(latestAt)) {
+      throw new Error("Window start must be earlier than or equal to window end.");
+    }
+    return {
+      precision: "bounded",
+      earliestAt,
+      latestAt
+    };
+  }
+  return {
+    precision: "exact",
+    at: new Date().toISOString()
+  };
+}
+
+function parseEvidenceIds(inputValue) {
+  if (typeof inputValue !== "string" || inputValue.trim() === "") {
+    return [];
+  }
+  return inputValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
+}
+
+function updateOwnershipEventTimeRows(container) {
+  if (!container) {
     return;
   }
 
+  const modeSelect = container.querySelector("[data-ownership-event-time-mode='true']");
+  if (!modeSelect) {
+    return;
+  }
+  const mode = modeSelect.value;
+
+  const exactRow = container.querySelector("[data-ownership-exact-time-row='true']");
+  const windowStartRow = container.querySelector("[data-ownership-window-start-row='true']");
+  const windowEndRow = container.querySelector("[data-ownership-window-end-row='true']");
+
+  if (exactRow) {
+    exactRow.style.display = mode === "exact" ? "grid" : "none";
+  }
+  if (windowStartRow) {
+    windowStartRow.style.display = mode === "window" ? "grid" : "none";
+  }
+  if (windowEndRow) {
+    windowEndRow.style.display = mode === "window" ? "grid" : "none";
+  }
+}
+
+async function handleSelectionPanelSubmit(event) {
+  const form = event.target.closest("form[data-ownership-capture-form='true']");
+  if (!form || !ownershipService || !mapOwnershipCoordinator || !localActor) {
+    return;
+  }
+  event.preventDefault();
+
   const selectedItem = selectionState.selectedItem;
   const isStructure = isStructureSelection(selectedItem);
+  const isStrategicNode = isStrategicNodeSelection(selectedItem);
 
   if (!selectedItem) {
     return;
   }
 
-  const ownerId = ownerSelect.value || null;
+  const formData = new FormData(form);
+  const ownerId = formData.get("ownerId") ? String(formData.get("ownerId")) : null;
+  const submitButton = form.querySelector("[data-ownership-submit='true']");
+  const ownerSelect = form.querySelector("[data-owner-select='true']");
+
   selectionState.errorMessage = null;
-  ownerSelect.disabled = true;
+  if (ownerSelect) {
+    ownerSelect.disabled = true;
+  }
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
 
   try {
+    const eventAt = normalizeEventAtFromForm(formData);
+    const evidenceIds = parseEvidenceIds(formData.get("evidenceIds"));
     await applicationPersistenceFacade.execute(async () => {
       if (isStructure) {
         await mapOwnershipCoordinator.setStructureOwnership(localActor, {
           seasonId: seasonIdentity.seasonId,
           serverId: appState.activeServer,
           structureId: selectedItem.id,
-          footprint: getStructureFootprint(selectedItem),
-          ownerUnionId: ownerId
+          ownerUnionId: ownerId,
+          eventAt,
+          evidenceIds
+        });
+      } else if (isStrategicNode) {
+        await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
+          seasonId: seasonIdentity.seasonId,
+          serverId: appState.activeServer,
+          territoryRef: {
+            type: "strategic_node",
+            nodeId: selectedItem.nodeId
+          },
+          ownerUnionId: ownerId,
+          eventAt,
+          evidenceIds
         });
       } else {
         await mapOwnershipCoordinator.setTerritoryOwnership(localActor, {
@@ -2842,7 +3065,9 @@ async function handleSelectionPanelChange(event) {
           serverId: appState.activeServer,
           row: Number(selectedItem.row),
           col: Number(selectedItem.col),
-          ownerUnionId: ownerId
+          ownerUnionId: ownerId,
+          eventAt,
+          evidenceIds
         });
       }
     });
@@ -2858,7 +3083,12 @@ async function handleSelectionPanelChange(event) {
     renderSelectionPanel(selectedItem);
     console.error("Unable to apply or persist updated map ownership", error);
   } finally {
-    ownerSelect.disabled = false;
+    if (ownerSelect) {
+      ownerSelect.disabled = false;
+    }
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
   }
 }
 
@@ -2867,7 +3097,10 @@ function attachSelectionPanelHandlers() {
     return;
   }
 
-  selectionPanel.addEventListener("change", handleSelectionPanelChange);
+  selectionPanel.addEventListener("submit", handleSelectionPanelSubmit);
+  selectionPanel.addEventListener("change", () => {
+    updateOwnershipEventTimeRows(selectionPanel);
+  });
 }
 
 function getSelectedTargetView(item) {
@@ -2880,6 +3113,16 @@ function getSelectedTargetView(item) {
       serverId: appState.activeServer,
       structureId: item.id,
       structureCode: item.code
+    });
+  }
+  if (isStrategicNodeSelection(item)) {
+    return selectedMapTargetViewService.getTerritoryView({
+      seasonId: seasonIdentity.seasonId,
+      serverId: appState.activeServer,
+      territoryRef: {
+        type: "strategic_node",
+        nodeId: item.nodeId
+      }
     });
   }
   return selectedMapTargetViewService.getTerritoryView({
@@ -3300,6 +3543,33 @@ function selectMarker(marker) {
   renderSelectionPanel(marker);
 }
 
+function selectStrategicNode(nodeData, element) {
+  if (!nodeData || !element) {
+    return;
+  }
+
+  const selectedItem = {
+    topologyTargetType: "strategic_node",
+    nodeId: nodeData.nodeId,
+    type: nodeData.type,
+    code: nodeData.typeCode,
+    level: nodeData.level
+  };
+
+  if (selectionState.selectedItem
+      && selectionState.selectedItem.topologyTargetType === "strategic_node"
+      && selectionState.selectedItem.nodeId === selectedItem.nodeId) {
+    return;
+  }
+
+  clearSelection();
+  selectionState.selectedItem = selectedItem;
+  selectionState.selectedElements = [element];
+  selectionState.errorMessage = null;
+  element.classList.add("selected");
+  renderSelectionPanel(selectedItem);
+}
+
 function createTileElement(tile) {
   const element = document.createElement("div");
   element.className = `${TILE_CLASS_PREFIX} ${tile.code}`;
@@ -3430,6 +3700,17 @@ function renderStrategicNodeNetworkMap(mapData) {
     map.classList.add("map--strategic-node-network");
     map.setAttribute("data-topology-type", "strategic_node_network");
     map.innerHTML = previewResult.markup;
+    const nodeById = new Map((mapData.nodes || []).map((node) => [node.nodeId, node]));
+    map.querySelectorAll("g[data-node-id]").forEach((element) => {
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const nodeId = element.getAttribute("data-node-id");
+        if (!nodeId || !nodeById.has(nodeId)) {
+          return;
+        }
+        selectStrategicNode(nodeById.get(nodeId), element);
+      });
+    });
   }
 
   return previewResult;
@@ -3474,6 +3755,55 @@ function initializeCamera(data) {
 function ensureTileOwnerIds(data) {
   // Map data is treated as shared immutable fallback data; ownership overrides live in server state service.
   return data;
+}
+
+function createOwnershipTargetCatalog(mapData) {
+  const topologyType = gameRulesEngine && typeof gameRulesEngine.getMapDefinition === "function"
+    ? gameRulesEngine.getMapDefinition().topologyType
+    : null;
+  if (!mapData || typeof mapData !== "object") {
+    return { territoryKeys: [], structures: [] };
+  }
+
+  if (topologyType === "strategic_node_network") {
+    return {
+      territoryKeys: Array.isArray(mapData.nodes)
+        ? mapData.nodes
+          .filter((node) => node && typeof node.nodeId === "string" && node.nodeId.trim() !== "")
+          .map((node) => ({ type: "strategic_node", nodeId: node.nodeId }))
+        : [],
+      structures: []
+    };
+  }
+
+  const territoryKeys = [];
+  (mapData.tiles || []).forEach((row) => {
+    (row || []).forEach((tile) => {
+      if (!tile) {
+        return;
+      }
+      territoryKeys.push({ row: Number(tile.row), col: Number(tile.col) });
+    });
+  });
+
+  const structures = (mapData.structures || []).map((structure) => {
+    const rows = Number(structure.rows || 1);
+    const cols = Number(structure.cols || 1);
+    const startRow = Number(structure.row);
+    const startCol = Number(structure.col);
+    const footprint = [];
+    for (let row = startRow; row < startRow + rows; row += 1) {
+      for (let col = startCol; col < startCol + cols; col += 1) {
+        footprint.push({ row, col });
+      }
+    }
+    return {
+      structureId: structure.id,
+      footprint
+    };
+  });
+
+  return { territoryKeys, structures };
 }
 
 function loadMapData() {
@@ -3534,13 +3864,15 @@ function createRuntimeId(kind) {
   return `${kind}-${globalThis.crypto.randomUUID()}`;
 }
 
-function initializeDataManagementRuntime() {
+function initializeDataManagementRuntime(mapData) {
   dataManagementRuntime = dataManagementRuntimeFactory({
     modules: dataManagementModules,
     unionRegistryService: appState.unionRegistryService,
     strategicDomainRuntime,
     evidenceDomainRuntime,
+    targetCatalog: createOwnershipTargetCatalog(mapData),
     serverStateService,
+    seasonAdministrationService,
     gameRulesEngine,
     clock: () => new Date().toISOString(),
     createId: createRuntimeId
@@ -3649,7 +3981,8 @@ function initializeMap() {
         throw error;
       }
       await ensureActiveSeasonServers(seasonContext.activated ? seasonContext : null);
-      initializeDataManagementRuntime();
+      loadedMapData = mapData;
+      initializeDataManagementRuntime(mapData);
       appState.allServers = serverStateService.listServers();
       const activeSeason = seasonAdministrationService.getActiveSeason();
       appState.servers = activeSeason
@@ -3658,7 +3991,6 @@ function initializeMap() {
       seasonSetupState.selectedServerIds = new Set(
         activeSeason ? activeSeason.serverIds : appState.allServers.map((server) => server.id)
       );
-      loadedMapData = mapData;
       initializeOwnershipService();
       initializeSummaryService();
       renderSeasonRuntimeShell(mapData);

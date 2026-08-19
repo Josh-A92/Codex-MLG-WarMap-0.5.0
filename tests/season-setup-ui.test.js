@@ -180,7 +180,7 @@ test("Season Setup handlers attach during workspace initialization", () => {
   assert.match(attachSource, /seasonSetupView\.addEventListener\("change", handleSeasonSetupChange\)/);
 
   const footprintStart = renderer.indexOf("function getStructureFootprint(");
-  const footprintEnd = renderer.indexOf("async function handleSelectionPanelChange", footprintStart);
+  const footprintEnd = renderer.indexOf("async function handleSelectionPanelSubmit", footprintStart);
   assert.doesNotMatch(renderer.slice(footprintStart, footprintEnd), /seasonSetupView\.addEventListener/);
 });
 

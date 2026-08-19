@@ -5,7 +5,7 @@
     "unionRegistryService",
     "gameRulesEngine"
   ]);
-  const TERRITORY_FIELDS = new Set(["seasonId", "serverId", "row", "col"]);
+  const TERRITORY_FIELDS = new Set(["seasonId", "serverId", "row", "col", "territoryRef"]);
   const STRUCTURE_FIELDS = new Set([
     "seasonId", "serverId", "structureId", "structureCode"
   ]);
@@ -146,12 +146,47 @@
     }
 
     function getTerritoryView(request) {
-      const value = exact(request, TERRITORY_FIELDS, "request");
+      if (!isRecord(request)) {
+        fail("invalid_input", "Selected Map Target View Service requires request.");
+      }
+      const unknown = Object.keys(request).filter((field) => !TERRITORY_FIELDS.has(field)).sort();
+      if (unknown.length > 0) {
+        fail("invalid_input", `Selected Map Target View Service does not recognize request.${unknown[0]}.`);
+      }
+      const value = request;
       const seasonId = requiredString(value.seasonId, "request.seasonId");
       const serverId = requiredString(value.serverId, "request.serverId");
-      const row = positiveInteger(value.row, "request.row");
-      const col = positiveInteger(value.col, "request.col");
-      const target = { type: "normal_map_cell", row, col };
+      let target;
+      if (Object.prototype.hasOwnProperty.call(value, "territoryRef")) {
+        if (Object.prototype.hasOwnProperty.call(value, "row")
+            || Object.prototype.hasOwnProperty.call(value, "col")) {
+          fail("invalid_input", "Selected Map Target View Service does not allow request.row or request.col with request.territoryRef.");
+        }
+        if (!isRecord(value.territoryRef)) {
+          fail("invalid_input", "Selected Map Target View Service requires request.territoryRef.");
+        }
+        if (value.territoryRef.type === "strategic_node") {
+          exact(value.territoryRef, new Set(["type", "nodeId"]), "request.territoryRef");
+          target = {
+            type: "strategic_node",
+            nodeId: requiredString(value.territoryRef.nodeId, "request.territoryRef.nodeId")
+          };
+        } else {
+          exact(value.territoryRef, new Set(["type", "row", "col"]), "request.territoryRef");
+          if (value.territoryRef.type !== "normal_map_cell") {
+            fail("invalid_input", "Selected Map Target View Service requires request.territoryRef.type to be normal_map_cell or strategic_node.");
+          }
+          target = {
+            type: "normal_map_cell",
+            row: positiveInteger(value.territoryRef.row, "request.territoryRef.row"),
+            col: positiveInteger(value.territoryRef.col, "request.territoryRef.col")
+          };
+        }
+      } else {
+        const row = positiveInteger(value.row, "request.row");
+        const col = positiveInteger(value.col, "request.col");
+        target = { type: "normal_map_cell", row, col };
+      }
       const record = ownership.getCurrentTerritoryRecord(
         serverId,
         seasonId,
