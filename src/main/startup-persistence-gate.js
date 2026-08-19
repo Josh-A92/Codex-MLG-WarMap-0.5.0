@@ -1,5 +1,4 @@
 const SAFE_GENERATION_STATUSES = new Set(["published", "already_published", "already_proven"]);
-const SAFE_LEGACY_STATUSES = new Set(["legacy_required"]);
 
 class StartupPersistenceGateError extends Error {
   constructor(code, message) {
@@ -73,21 +72,23 @@ function normalizeSettlement(value) {
     };
   }
   const safeGeneration = SAFE_GENERATION_STATUSES.has(value.status) && value.persistenceMode === "generation";
-  const safeLegacy = SAFE_LEGACY_STATUSES.has(value.status) && value.persistenceMode === "legacy";
-  if (safeGeneration || safeLegacy) {
+  if (safeGeneration) {
     return {
       status: "open",
       settled: true,
-      mode: safeGeneration ? "generation" : "legacy",
+      mode: "generation",
       reason: null,
       diagnostics: Array.isArray(value.diagnostics) ? clone(value.diagnostics) : []
     };
   }
+  const reason = value.status === "legacy_required"
+    ? "legacy_classification_required"
+    : "unsafe_startup_result";
   return {
     status: "blocked",
     settled: true,
     mode: null,
-    reason: "unsafe_startup_result",
+    reason,
     diagnostics: Array.isArray(value.diagnostics) ? clone(value.diagnostics) : []
   };
 }

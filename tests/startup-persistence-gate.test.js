@@ -36,11 +36,15 @@ async function assertCode(operation, code) {
 
   gate = createStartupPersistenceGate();
   gate.settle(startupResult("legacy_required", "legacy"));
-  let legacyWrites = 0;
-  await gate.writeLegacy(async () => { legacyWrites += 1; });
-  await assertCode(() => gate.writeGeneration(async () => { throw new Error("must not execute"); }), "persistence_mode_inactive");
-  assert.strictEqual(legacyWrites, 1);
-  console.log("PASS safe legacy result enables only legacy writes");
+  const legacyState = gate.getState();
+  assert.deepStrictEqual(legacyState, { status: "blocked", settled: true, mode: null, reason: "legacy_classification_required", diagnostics: [] });
+  let legacyExecuted = false;
+  let generationExecuted = false;
+  await assertCode(() => gate.writeLegacy(async () => { legacyExecuted = true; }), "persistence_mode_inactive");
+  await assertCode(() => gate.writeGeneration(async () => { generationExecuted = true; }), "persistence_mode_inactive");
+  assert.strictEqual(legacyExecuted, false);
+  assert.strictEqual(generationExecuted, false);
+  console.log("PASS legacy-required result cannot authorize either write mode");
 
   gate = createStartupPersistenceGate();
   const unsafe = { status: "verification_failed", persistenceMode: "unavailable", diagnostics: [{ code: "blocked" }] };
@@ -75,13 +79,13 @@ async function assertCode(operation, code) {
   console.log("PASS permitted writes execute serially");
 
   gate = createStartupPersistenceGate();
-  gate.settle(startupResult("legacy_required", "legacy"));
+  gate.settle(startupResult("published", "generation"));
   const laterWrites = [];
   await assert.rejects(
-    gate.writeLegacy(async () => { laterWrites.push("rejected"); throw new Error("expected write failure"); }),
+    gate.writeGeneration(async () => { laterWrites.push("rejected"); throw new Error("expected write failure"); }),
     /expected write failure/
   );
-  await gate.writeLegacy(async () => { laterWrites.push("later"); });
+  await gate.writeGeneration(async () => { laterWrites.push("later"); });
   assert.deepStrictEqual(laterWrites, ["rejected", "later"]);
   console.log("PASS rejected write does not poison the queue");
 
