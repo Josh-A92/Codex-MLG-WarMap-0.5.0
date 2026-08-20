@@ -25,6 +25,7 @@ const { createOwnershipConflictAnalysisService } = require("../src/services/owne
 const { validateTerritoryOwnershipRecord, validateStructureOwnershipRecord } = require("../src/services/ownership-record-validator.js");
 const { validateOwnershipRetractionRecord } = require("../src/services/ownership-retraction-validator.js");
 const { createOwnershipConflictQuarantineLoader, OwnershipConflictQuarantineLoaderError } = require("../src/services/ownership-conflict-quarantine-loader.js");
+const { createOwnershipConflictRecoveryPlanBuilder } = require("../src/services/ownership-conflict-recovery-plan-builder.js");
 
 const savedAt = "2026-08-20T10:00:00.000Z";
 const targetCatalog = {
@@ -47,6 +48,9 @@ function structure(overrides = {}) {
 function retraction(overrides = {}) {
   return { retractionId: "retraction-1", seasonId: "season-1", serverId: "server-366", targetKind: "territory_ownership_record", retractedRecordId: "territory-1", actorId: "operator", reason: "undo", recordedAt: "2026-08-20T09:20:00Z", transactionId: "transaction-1", sourceType: "manual_retraction", ...overrides };
 }
+function auditRecord(overrides = {}) {
+  return { auditId: "audit-1", transactionId: "transaction-1", sequence: 1, actionType: "ownership_confirmed", targetType: "ownership_record", targetId: "territory-1", seasonId: "season-1", serverId: "server-366", actorId: "operator", recordedAt: "2026-08-20T09:20:00.000Z", outcome: "accepted", details: { source: "fixture" }, ...overrides };
+}
 function admin(archived = false) {
   const activation = { schemaVersion: 1, seasonId: "season-1", packageVersion: SEASON_1_PACKAGE.packageIdentity.packageVersion, serverIds: ["server-366"], confirmations: { mapAndStructures: true, resourcesAndValues: true }, activatedAt: "2026-08-20T08:00:00Z", activatedBy: "operator" };
   return archived ? { schemaVersion: 2, activeSeason: null, completedSeasons: [{ ...activation, completedAt: "2026-08-20T09:00:00Z", completedBy: "operator" }] } : { schemaVersion: 2, activeSeason: activation, completedSeasons: [] };
@@ -67,14 +71,14 @@ async function createFixture(directory, options = {}) {
     { documentId: "evidence-season-1", scope: "season-1", type: "evidence-domain", value: evidenceSerializer.serializeRuntime(evidenceRuntime, savedAt) },
     { documentId: "projection-season-1-season1-map", scope: "season-1/season1-map", type: "server-state", value: serializeServerState(serverStateService, savedAt) },
     { documentId: "season-administration", scope: "global", type: "season-administration", value: admin(options.archived) },
-    { documentId: "application-audit-global", scope: "global", type: "application-audit", value: { schemaVersion: 1, records: [] } }
+    { documentId: "application-audit-global", scope: "global", type: "application-audit", value: { schemaVersion: 1, records: options.auditRecords || [] } }
   ];
   const store = createGenerationStore({ baseDirectory: path.join(directory, "generations") });
   await store.commit({ expectedGeneration: 0, transactionId: "fixture", createdAt: savedAt, documents });
   return { store, documents };
 }
 
-function loaderFor(store) {
+function loaderFor(store, overrides = {}) {
   const analyzer = createOwnershipConflictAnalysisService({ ownershipHistoryResolver: createOwnershipHistoryResolver({ targetCatalog }) });
   return createOwnershipConflictQuarantineLoader({
     generationStore: store,
@@ -82,7 +86,7 @@ function loaderFor(store) {
     deserializeStrategicDomainEnvelope: deserializeStrategicDomainEnvelope,
     deserializeEvidenceEnvelope: evidenceSerializer.deserializeEnvelope.bind(evidenceSerializer),
     deserializeServerState: deserializePersistenceEnvelope,
-    deserializeApplicationAuditEnvelope: auditSerializer.deserializeEnvelope.bind(auditSerializer),
+    deserializeApplicationAuditEnvelope: overrides.deserializeApplicationAuditEnvelope || auditSerializer.deserializeEnvelope.bind(auditSerializer),
     deserializeOwnershipHistoryProvenance: provenanceSerializer.deserialize.bind(provenanceSerializer),
     validateTerritoryOwnershipRecord,
     validateStructureOwnershipRecord,
@@ -119,8 +123,12 @@ async function expected(store) {
     assert.strictEqual(result.status, "recovery_ready");
     assert.strictEqual(result.conflict.kind, "territory");
     assert.deepStrictEqual(result.conflict.recordIds, ["territory-a", "territory-b"]);
+    assert.deepStrictEqual(result.existingAuditRecords, []);
     assert.strictEqual(Object.isFrozen(result), true);
     assert.strictEqual(Object.isFrozen(result.conflict.records), true);
+    assert.strictEqual(Object.isFrozen(result.existingAuditRecords), true);
+    const plan = createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory }).build({ snapshot: result, retainedRecordId: "territory-a", reason: "Resolve duplicate terminal." });
+    assert.deepStrictEqual(plan.existingAuditRecords, []);
     console.log("PASS real filesystem admits exact territory conflict as frozen recovery data");
   });
 
@@ -178,7 +186,29 @@ async function expected(store) {
     const { store } = await createFixture(directory, { territoryRecords: [territory()] });
     const result = await loaderFor(store).load({ expectedCurrent: await expected(store) });
     assert.strictEqual(result.status, "recovery_not_required");
+    assert.deepStrictEqual(result.existingAuditRecords, []);
     console.log("PASS valid non-conflicting history returns recovery_not_required");
+  });
+
+  await withDirectory(async (directory) => {
+    const records = [auditRecord(), auditRecord({ auditId: "audit-2", transactionId: "transaction-2", sequence: 2, details: { source: "fixture", nested: { order: 2 } } })];
+    const { store } = await createFixture(directory, { territoryRecords: [territory({ ownershipRecordId: "territory-a" }), territory({ ownershipRecordId: "territory-b", ownerUnionId: "union-0002", effectiveAt: "2026-08-20T09:01:00Z", eventAt: { precision: "exact", at: "2026-08-20T09:01:00Z" }, reviewedAt: "2026-08-20T09:11:00Z" })], auditRecords: records });
+    const result = await loaderFor(store).load({ expectedCurrent: await expected(store) });
+    assert.deepStrictEqual(result.existingAuditRecords, records);
+    assert.notStrictEqual(result.existingAuditRecords, records);
+    assert.strictEqual(Object.isFrozen(result.existingAuditRecords), true);
+    assert.strictEqual(Object.isFrozen(result.existingAuditRecords[1].details.nested), true);
+    records[1].details.nested.order = "changed";
+    assert.strictEqual(result.existingAuditRecords[1].details.nested.order, 2);
+    console.log("PASS validated audit history preserves order and is isolated");
+  });
+
+  await withDirectory(async (directory) => {
+    const { store } = await createFixture(directory, { territoryRecords: [territory()] });
+    for (const malformed of [{}, { records: null }, { records: {} }]) {
+      await assert.rejects(loaderFor(store, { deserializeApplicationAuditEnvelope: () => malformed }).load({ expectedCurrent: await expected(store) }), (error) => error instanceof OwnershipConflictQuarantineLoaderError && error.code === "invalid_application_audit");
+    }
+    console.log("PASS missing or malformed audit deserializer output is refused");
   });
 
   await withDirectory(async (directory) => {
@@ -219,5 +249,5 @@ async function expected(store) {
     console.log("PASS uncertain ownership does not become recoverable conflict");
   });
 
-  console.log("12 ownership conflict quarantine loader scenarios passed");
+  console.log("14 ownership conflict quarantine loader scenarios passed");
 })().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });

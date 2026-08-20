@@ -1,11 +1,12 @@
 (function initializeOwnershipConflictRecoveryPlanBuilder(globalScope) {
-  const FACTORY_FIELDS = new Set();
+  const FACTORY_FIELDS = new Set(["validateAuditHistory"]);
   const INPUT_FIELDS = new Set(["snapshot", "retainedRecordId", "reason"]);
   const SNAPSHOT_FIELDS = new Set([
     "status",
     "sourceGeneration",
     "scope",
     "documentMetadata",
+    "existingAuditRecords",
     "territoryRecords",
     "structureRecords",
     "retractionRecords",
@@ -73,6 +74,14 @@
     return value;
   }
 
+  function validateExistingAuditRecords(value, validateHistory) {
+    const records = requiredArray(value, "snapshot.existingAuditRecords");
+    let result;
+    try { result = validateHistory(records); } catch (error) { fail("invalid_snapshot", "snapshot.existingAuditRecords validation failed."); }
+    if (!isRecord(result) || result.valid !== true || !Array.isArray(result.errors)) fail("invalid_snapshot", "snapshot.existingAuditRecords is invalid.");
+    return clone(records);
+  }
+
   function canonical(value) {
     if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
     if (!isRecord(value)) return JSON.stringify(value);
@@ -135,6 +144,8 @@
 
   function createOwnershipConflictRecoveryPlanBuilder(options = {}) {
     rejectUnknown(options, FACTORY_FIELDS, "options");
+    if (typeof options.validateAuditHistory !== "function") fail("invalid_factory", "options.validateAuditHistory must be a function.");
+    const validateAuditHistory = options.validateAuditHistory;
 
     function build(input) {
       rejectUnknown(input, INPUT_FIELDS, "input");
@@ -147,6 +158,7 @@
       const conflict = validateConflict(input.snapshot.conflict, scope);
       if (!Array.isArray(input.snapshot.territoryRecords) || !Array.isArray(input.snapshot.structureRecords) || !Array.isArray(input.snapshot.retractionRecords)) fail("invalid_snapshot", "input.snapshot histories are required.");
       const documentMetadata = validateDocumentMetadata(input.snapshot.documentMetadata);
+      const existingAuditRecords = validateExistingAuditRecords(input.snapshot.existingAuditRecords, validateAuditHistory);
       const history = conflict.kind === "territory" ? input.snapshot.territoryRecords : input.snapshot.structureRecords;
       const idField = conflict.kind === "territory" ? "ownershipRecordId" : "structureOwnershipId";
       const historyById = new Map(history.map((record) => [record && record[idField], record]));
@@ -166,6 +178,7 @@
         sourceGeneration,
         scope,
         documentMetadata,
+        existingAuditRecords,
         territoryRecords: clone(input.snapshot.territoryRecords),
         structureRecords: clone(input.snapshot.structureRecords),
         retractionRecords: clone(input.snapshot.retractionRecords),

@@ -244,6 +244,7 @@
         auditEnvelope = deserializeAudit(byId.get("application-audit-global").value);
       } catch (error) { fail("non_ownership_validation_failed", "A non-ownership document failed normal validation.", error); }
       if (!isRecord(unionEnvelope) || !Array.isArray(unionEnvelope.identities)) fail("invalid_union_registry", "Validated union registry is incomplete.");
+      if (!isRecord(auditEnvelope) || !Array.isArray(auditEnvelope.records)) fail("invalid_application_audit", "Validated application audit history is incomplete.");
       const unionIds = new Set(unionEnvelope.identities.map((identityValue, index) => requireString(identityValue.unionId, `unionRegistry.identities[${index}].unionId`)));
       if (!isRecord(strategicEnvelope) || strategicEnvelope.seasonId !== seasonId || !isRecord(strategicEnvelope.state)) fail("scope_mismatch", "Strategic envelope scope is invalid.");
       if (!isRecord(projectionEnvelope) || projectionEnvelope.seasonId !== seasonId || projectionEnvelope.baseMapId !== baseMapId || !Array.isArray(projectionEnvelope.servers)) fail("scope_mismatch", "Projection envelope scope is invalid.");
@@ -281,13 +282,14 @@
           if (conflict) conflicts.push(conflict);
         } catch (error) { fail("ownership_history_invalid", `Ownership history for '${serverId}' is not recoverable.`, error); }
       }
-      if (conflicts.length === 0) return immutable({ status: "recovery_not_required", sourceGeneration: actual, scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived }, documentMetadata: manifestDocuments.map((document) => clone(document)) });
+      if (conflicts.length === 0) return immutable({ status: "recovery_not_required", sourceGeneration: actual, scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived }, documentMetadata: manifestDocuments.map((document) => clone(document)), existingAuditRecords: auditEnvelope.records });
       if (conflicts.length !== 1) fail("multiple_conflicts", "Quarantine permits exactly one recoverable ownership conflict at a time.");
       return immutable({
         status: "recovery_ready",
         sourceGeneration: actual,
         scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived },
         documentMetadata: manifestDocuments.map((document) => clone(document)),
+        existingAuditRecords: auditEnvelope.records,
         territoryRecords,
         structureRecords,
         retractionRecords,
