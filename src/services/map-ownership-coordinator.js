@@ -5,6 +5,9 @@
   const conflictAnalysisExports = globalScope.createOwnershipConflictAnalysisService
     ? globalScope
     : (typeof require === "function" ? require("./ownership-conflict-analysis-service.js") : {});
+  const projectionMaterializerExports = globalScope.createOwnershipProjectionMaterializer
+    ? globalScope
+    : (typeof require === "function" ? require("./ownership-projection-materializer.js") : {});
   const FACTORY_FIELDS = new Set([
     "relationService",
     "serverIntelligenceManagementService",
@@ -124,63 +127,6 @@
     }, {});
   }
 
-  function normalizeCatalog(value) {
-    if (!isRecord(value)) {
-      fail("invalid_factory", "Map Ownership Coordinator requires options.targetCatalog.");
-    }
-    if (!Array.isArray(value.territoryKeys) || !Array.isArray(value.structures)) {
-      fail("invalid_factory", "Map Ownership Coordinator requires options.targetCatalog territoryKeys and structures arrays.");
-    }
-    const territoryTargetKeys = new Set();
-    const structureFootprintById = new Map();
-
-    value.territoryKeys.forEach((entry, index) => {
-      if (!isRecord(entry)) {
-        fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.territoryKeys[${index}] to be an object.`);
-      }
-      if (entry.type === "strategic_node") {
-        const nodeId = requiredString(entry.nodeId, `targetCatalog.territoryKeys[${index}].nodeId`);
-        territoryTargetKeys.add(JSON.stringify(["strategic_node", nodeId]));
-        return;
-      }
-      const row = positiveInteger(entry.row, `targetCatalog.territoryKeys[${index}].row`);
-      const col = positiveInteger(entry.col, `targetCatalog.territoryKeys[${index}].col`);
-      territoryTargetKeys.add(JSON.stringify(["normal_map_cell", row, col]));
-    });
-
-    value.structures.forEach((entry, index) => {
-      if (!isRecord(entry) || !Array.isArray(entry.footprint)) {
-        fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.structures[${index}] with a footprint array.`);
-      }
-      const structureId = requiredString(entry.structureId, `targetCatalog.structures[${index}].structureId`);
-      const footprint = entry.footprint.map((point, pointIndex) => {
-        if (!isRecord(point)) {
-          fail("invalid_factory", `Map Ownership Coordinator requires targetCatalog.structures[${index}].footprint[${pointIndex}] to be an object.`);
-        }
-        const row = positiveInteger(point.row, `targetCatalog.structures[${index}].footprint[${pointIndex}].row`);
-        const col = positiveInteger(point.col, `targetCatalog.structures[${index}].footprint[${pointIndex}].col`);
-        const targetKey = JSON.stringify(["normal_map_cell", row, col]);
-        if (!territoryTargetKeys.has(targetKey)) {
-          fail("invalid_factory", `Map Ownership Coordinator requires structure '${structureId}' footprint to reference a known territory target.`);
-        }
-        return { row, col, key: `${row}-${col}` };
-      });
-      structureFootprintById.set(structureId, footprint);
-    });
-
-    return {
-      territoryTargetKeys,
-      structureFootprintById
-    };
-  }
-
-  function territoryProjectionKey(territoryRef) {
-    if (territoryRef.type === "strategic_node") {
-      return JSON.stringify(["strategic_node", territoryRef.nodeId]);
-    }
-    return `${territoryRef.row}-${territoryRef.col}`;
-  }
-
   function territoryCatalogKey(territoryRef) {
     if (territoryRef.type === "strategic_node") {
       return JSON.stringify(["strategic_node", territoryRef.nodeId]);
@@ -298,11 +244,17 @@
       fail("invalid_factory", "Map Ownership Coordinator requires options.clock.");
     }
 
-    const catalog = normalizeCatalog(input.targetCatalog);
     if (typeof historyResolverExports.createOwnershipHistoryResolver !== "function") {
       fail("invalid_factory", "Map Ownership Coordinator requires the ownership history resolver.");
     }
     const historyResolver = historyResolverExports.createOwnershipHistoryResolver({
+      targetCatalog: input.targetCatalog
+    });
+    if (typeof projectionMaterializerExports.createOwnershipProjectionMaterializer !== "function") {
+      fail("invalid_factory", "Map Ownership Coordinator requires the ownership projection materializer.");
+    }
+    const projectionMaterializer = projectionMaterializerExports.createOwnershipProjectionMaterializer({
+      ownershipHistoryResolver: historyResolver,
       targetCatalog: input.targetCatalog
     });
     if (typeof conflictAnalysisExports.createOwnershipConflictAnalysisService !== "function") {
@@ -360,14 +312,13 @@
     }
 
     function ensureKnownTerritory(territoryRef) {
-      const key = territoryCatalogKey(territoryRef);
-      if (!catalog.territoryTargetKeys.has(key)) {
-        fail("invalid_target", `Map Ownership Coordinator could not find target '${key}' in the active map catalog.`);
+      if (!projectionMaterializer.hasTerritory(territoryRef)) {
+        fail("invalid_target", `Map Ownership Coordinator could not find target '${territoryCatalogKey(territoryRef)}' in the active map catalog.`);
       }
     }
 
     function ensureKnownStructure(structureId) {
-      if (!catalog.structureFootprintById.has(structureId)) {
+      if (!projectionMaterializer.hasStructure(structureId)) {
         fail("invalid_target", `Map Ownership Coordinator could not find structure '${structureId}' in the active map catalog.`);
       }
     }
@@ -408,21 +359,16 @@
     }
 
     function createProjectionMap(seasonId, serverId) {
-      const resolved = resolveOwnershipState(seasonId, serverId);
-      const rebuiltOwnership = {};
-      resolved.territories.forEach((record) => {
-        const targetKey = territoryProjectionKey(record.territoryRef);
-        rebuiltOwnership[targetKey] = record.ownershipState === "owned" ? record.ownerUnionId : null;
-      });
-
-      resolved.structures.forEach((record) => {
-        const footprint = catalog.structureFootprintById.get(record.structureId) || [];
-        footprint.forEach((cell) => {
-          rebuiltOwnership[cell.key] = record.ownershipState === "owned" ? record.ownerUnionId : null;
-        });
-      });
-
-      return rebuiltOwnership;
+      try {
+        return projectionMaterializer.materialize(ownershipHistoryInput(seasonId, serverId));
+      } catch (error) {
+        fail(
+          error && error.code === "contradiction"
+            ? "contradictory_authoritative_history"
+            : "invalid_authoritative_history",
+          `Map Ownership Coordinator could not rebuild ownership projection: ${error.message}`
+        );
+      }
     }
 
     function ownershipHistoryInput(seasonId, serverId) {
@@ -575,7 +521,7 @@
         });
         const rebuiltOwnership = createProjectionMap(seasonId, serverId);
         replaceServerProjection(serverId, rebuiltOwnership);
-        return { retraction, targetType: territoryRef.type, projectedTerritoryKeys: [territoryProjectionKey(territoryRef)] };
+        return { retraction, targetType: territoryRef.type, projectedTerritoryKeys: [projectionMaterializer.projectionKeyForTerritory(territoryRef)] };
       });
     }
 
@@ -613,9 +559,8 @@
           sourceType: "manual_retraction"
         });
         const rebuiltOwnership = createProjectionMap(seasonId, serverId);
-        const footprint = catalog.structureFootprintById.get(structureId) || [];
         replaceServerProjection(serverId, rebuiltOwnership);
-        return { retraction, targetType: "logical_structure", projectedTerritoryKeys: footprint.map((cell) => cell.key) };
+        return { retraction, targetType: "logical_structure", projectedTerritoryKeys: projectionMaterializer.projectionKeysForStructure(structureId) };
       });
     }
 
@@ -687,7 +632,7 @@
           targetType: territoryRef.type,
           record,
           verification,
-          projectedTerritoryKeys: [territoryProjectionKey(territoryRef)]
+          projectedTerritoryKeys: [projectionMaterializer.projectionKeyForTerritory(territoryRef)]
         };
       });
     }
@@ -723,12 +668,11 @@
         );
         const rebuiltOwnership = createProjectionMap(seasonId, serverId);
         replaceServerProjection(serverId, rebuiltOwnership);
-        const footprint = catalog.structureFootprintById.get(structureId) || [];
         return {
           targetType: "logical_structure",
           record,
           verification,
-          projectedTerritoryKeys: footprint.map((cell) => cell.key)
+          projectedTerritoryKeys: projectionMaterializer.projectionKeysForStructure(structureId)
         };
       });
     }

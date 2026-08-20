@@ -257,6 +257,7 @@ Factory input fields:
   validateAuditRecord,
   validateAuditHistory,
   ownershipResolver,
+  ownershipProjectionMaterializer,
   serializers: {
     serializeStrategicDomainEnvelope,
     serializeServerStateEnvelope,
@@ -342,7 +343,8 @@ The pure Slice 3B builder is
 `createOwnershipConflictRecoveryDocumentBuilder({ trustedActor,
 createTransactionId, createRetractionId, createAuditId, clock,
 validateOwnershipRetraction, validateOwnershipRetractionHistory,
-validateAuditRecord, validateAuditHistory, ownershipResolver,
+  validateAuditRecord, validateAuditHistory, ownershipResolver,
+  ownershipProjectionMaterializer,
 serializers })`. It accepts only a validated Slice 3A recovery
 plan. It performs no filesystem or generation-store calls and returns the
 deterministic value/reference input shape consumed by the later preparation
@@ -362,7 +364,8 @@ dependencies in this exact order:
   rejecting empty or colliding results.
 5. Construct and validate all append-only retractions and the complete
   post-retraction history.
-6. Rebuild and validate the projection solely through the existing resolver,
+6. Rebuild and validate the projection solely through the injected shared
+  `ownershipProjectionMaterializer`, which invokes the existing resolver,
   requiring the retained record to be the sole effective exact terminal.
 7. Call `createAuditId()` exactly once.
 8. Construct the `ownership_conflict_resolved` audit record, validate it with
@@ -393,9 +396,11 @@ The returned candidate inputs copy every authoritative document unchanged except
 5. Create a candidate with `expectedCurrent` equal to the exact observed current
    identity.
 
-The projection builder must call the shared ownership analysis/resolver over the
-post-retraction records. It must not patch a map key from the retained record or
-copy a caller-supplied projection.
+The injected `ownershipProjectionMaterializer` is host-neutral, owns no mutable
+service state, performs no writes, and is the only resolver-to-projection
+interpretation used by both normal coordination and future Slice 3B document
+construction. It must not patch a map key from the retained record or copy a
+caller-supplied projection.
 
 Existing ownership records and retractions retain their original values and
 ordering. Unrelated documents and optional provenance remain exact source
