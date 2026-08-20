@@ -247,20 +247,58 @@ Factory input fields:
 
 ```js
 {
-  snapshotAdapter,
-  documentValidator,
-  conflictAnalysis,
-  targetCatalogFactory,
-  candidateDocumentBuilder,
-  candidateVerifier,
-  generationStore,
-  auditIdFactory,
-  transactionIdFactory,
-  clock
+  trustedActor,
+  createTransactionId,
+  createRetractionId,
+  createAuditId,
+  clock,
+  validateOwnershipRetraction,
+  validateOwnershipRetractionHistory,
+  validateAuditRecord,
+  validateAuditHistory,
+  ownershipResolver,
+  serializers: {
+    serializeStrategicDomainEnvelope,
+    serializeServerStateEnvelope,
+    serializeApplicationAuditEnvelope
+  }
 }
 ```
 
-No unknown factory fields are allowed.
+The exact construction dependency is created in the main process. The current
+desktop composition uses the existing trusted-local-actor convention with the
+fixed configured local actor identity `desktop-user`:
+
+```js
+trustedActor: createTrustedLocalActor("desktop-user")
+```
+
+The recovery service validates that `trustedActor` is an immutable plain object
+with exactly one non-empty `actorId` value; any trusted grant fields are
+preserved but not operator-controlled. Renderer, preload,
+recovery form, plan, and operator input cannot provide or override it. Invalid
+actor output fails before any ID factory or clock is invoked.
+
+`createTransactionId()`, `createRetractionId()`, and `createAuditId()` are
+trusted main-process factories. They must return non-empty strings. The service
+owns every invocation and rejects duplicate IDs: transaction IDs collide with
+any existing audit transaction identity, retraction IDs collide with existing
+retraction IDs and earlier IDs in the current batch, and audit IDs collide with
+existing audit IDs. Operator input cannot provide any of these IDs.
+
+`clock()` is a trusted main-process function returning a valid `Date`. The
+service calls it exactly once per construction attempt and uses one
+`toISOString()` UTC value for every new retraction and the audit record. Invalid,
+non-Date, or throwing clock output fails closed. A failed unpublished attempt
+may consume generated IDs and a timestamp; a retry obtains fresh values. The
+higher-level execution coordinator owns already-resolved/current-generation
+idempotency and must avoid invoking this service when no recovery is required.
+
+The `serializers` object is required and exact. Its three functions are trusted
+main-process composition adapters over the existing strategic-domain,
+server-state, and application-audit serializer/validator contracts; they accept
+already constructed in-memory envelope values and return validated document
+values without storage access. No unknown factory fields are allowed.
 
 Read API:
 
@@ -280,31 +318,89 @@ Command input fields are exactly:
 { retainedRecordId, reason }
 ```
 
-`retainedRecordId` must equal one ID from the internally derived terminal list.
-`reason` must be a trimmed bounded string, for example maximum 1000 characters.
-The command must not accept `transactionId`, `target`, `kind`, `retractedRecordIds`,
-`projection`, `sourceDocumentIds`, actor identity, or timestamps.
+Those fields belong to the earlier recovery interaction that creates a validated
+Slice 3A plan. Slice 3B receives only that validated plan and no additional
+operator fields; it does not accept `retainedRecordId` or `reason` again.
 
-### 4.5 Recovery candidate builder
+The plan is the sole operator-derived input to document construction. It must
+already bind the retained ID, reason, exact source generation, conflict kind,
+target, and analyzer-derived terminal list. Transaction IDs, retraction IDs,
+audit IDs, timestamps, actor identity, rejected IDs, projection, provenance,
+scope, and generation metadata are never accepted from the operator.
+
+For Slice 3B collision checks, the validated Slice 3A plan must also carry the
+complete existing application-audit history as `existingAuditRecords`. This is
+source state derived by the quarantine loader, not an operator field. If that
+history is absent or unvalidated, construction is refused; the builder never
+reads audit storage or calls an audit service to discover it.
+
+### 4.5 Recovery document builder and candidate inputs
 
 Responsibility:
 
-1. Re-read the exact current source generation.
-2. Re-run quarantined document validation and conflict analysis.
-3. Verify the retained ID still belongs to the exact current conflict.
-4. Copy every authoritative document unchanged except:
-   - append retractions to the strategic ownership-retraction collection;
-   - replace the server-state document with the projection rebuilt from the
-     post-retraction authoritative history;
-   - append one complete `ownership_conflict_resolved` audit record.
-5. Preserve all source document identities and checksums as references where
+The pure Slice 3B builder is
+`createOwnershipConflictRecoveryDocumentBuilder({ trustedActor,
+createTransactionId, createRetractionId, createAuditId, clock,
+validateOwnershipRetraction, validateOwnershipRetractionHistory,
+validateAuditRecord, validateAuditHistory, ownershipResolver,
+serializers })`. It accepts only a validated Slice 3A recovery
+plan. It performs no filesystem or generation-store calls and returns the
+deterministic value/reference input shape consumed by the later preparation
+slice.
+
+After revalidating the plan, its exact source-generation binding, document
+metadata, complete histories, conflict fingerprint, retained ID, and rejected
+IDs, the builder re-runs the shared analyzer over the complete carried history
+and requires byte/value-equivalent conflict identity. Then it calls trusted
+dependencies in this exact order:
+
+1. Validate the immutable trusted actor.
+2. Call `clock()` exactly once and normalize one canonical UTC `recordedAt`.
+3. Call `createTransactionId()` exactly once and reject existing audit
+  transaction collisions.
+4. Call `createRetractionId()` once per canonically sorted rejected record ID,
+  rejecting empty or colliding results.
+5. Construct and validate all append-only retractions and the complete
+  post-retraction history.
+6. Rebuild and validate the projection solely through the existing resolver,
+  requiring the retained record to be the sole effective exact terminal.
+7. Call `createAuditId()` exactly once.
+8. Construct the `ownership_conflict_resolved` audit record, validate it with
+  `validateAuditRecord`, append it to a cloned audit history, and validate the
+  complete history with `validateAuditHistory`.
+9. Serialize only the genuinely changed documents and return frozen candidate
+  document inputs.
+
+The builder creates each retraction record; the existing retraction validator
+and history validator are its only retraction-shape authorities. The builder
+creates the audit record in memory; the existing audit validators are its only
+audit-history authorities. It never calls or mutates `ApplicationAuditRecordService`.
+
+The audit record uses `trustedActor.actorId`, the single clock result, the one
+transaction ID, the one audit ID, and the plan-bound conflict/source fields. The
+complete audit history is `existingAuditRecords` plus that new record, validated
+before the changed application-audit document is returned.
+
+The returned candidate inputs copy every authoritative document unchanged except:
+
+- append retractions to the strategic ownership-retraction collection;
+- replace the server-state document with the projection rebuilt from the
+  post-retraction authoritative history;
+- append one complete `ownership_conflict_resolved` audit record.
+
+4. Preserve all source document identities and checksums as references where
    allowed; changed documents become candidate-owned values.
-6. Create a candidate with `expectedCurrent` equal to the exact observed current
+5. Create a candidate with `expectedCurrent` equal to the exact observed current
    identity.
 
 The projection builder must call the shared ownership analysis/resolver over the
 post-retraction records. It must not patch a map key from the retained record or
 copy a caller-supplied projection.
+
+Existing ownership records and retractions retain their original values and
+ordering. Unrelated documents and optional provenance remain exact source
+references. The pure builder creates no durable record, pointer, candidate file,
+timestamp outside its one injected clock read, or persistent side effect.
 
 ### 4.6 Normal candidate verifier and startup gate
 
@@ -358,6 +454,28 @@ writing `PREVIOUS` and `CURRENT`.
   where recovery facts are assembled.
 - The new generation becomes authoritative only after normal verified
   publication.
+
+Slice 3B trusted construction authority is main-process-only. The current
+desktop composition creates `trustedActor` through the existing convention as
+`createTrustedLocalActor("desktop-user")`. The builder validates exactly one
+non-empty `actorId`; renderer, preload, plan, and operator input cannot supply or
+override it.
+
+`createTransactionId()`, `createRetractionId()`, and `createAuditId()` are
+injected main-process factories owned and invoked by the builder. Each must
+return a non-empty string. Transaction IDs must not collide with any transaction
+ID in carried audit history. Retraction IDs must not collide with carried
+retraction IDs or earlier IDs generated in the same canonical rejected-ID batch.
+Audit IDs must not collide with carried audit IDs. Empty, duplicate, or throwing
+factory output fails closed. Operator input cannot provide any generated ID.
+
+`clock()` is an injected main-process function returning a valid `Date`. The
+builder calls it exactly once per construction attempt after plan validation and
+uses its single `toISOString()` value for every new retraction and the audit
+record. Invalid, non-Date, or throwing output fails closed. Failed unpublished
+attempts may consume IDs or timestamps; retries obtain fresh values. A higher
+level execution coordinator owns already-resolved idempotency and skips builder
+invocation when no recovery is required.
 
 ## 6. State Machine
 
@@ -415,6 +533,10 @@ Output is either:
 - `recovery_ready` with deterministic conflict details; or
 - a blocked diagnostic with no recovery capability.
 
+Slice 3B receives exactly one validated Slice 3A recovery plan. The retained
+record ID and reason are already inside that plan; the document builder accepts
+no additional operator fields.
+
 ### Resolution result
 
 ```js
@@ -448,6 +570,12 @@ The candidate must contain one `ownership_conflict_resolved` record with:
 The individual append-only retraction records use the same transaction ID and
 trusted actor, and contain their own retraction IDs, recorded timestamps, target
 kind, and retracted record IDs.
+
+The pure builder obtains the audit ID from `createAuditId()` only after all
+retractions and the resolver-derived projection validate successfully. It builds
+the audit record in memory, validates it with `validateAuditRecord`, appends it
+to a cloned history, and validates the complete history with
+`validateAuditHistory`. It does not call or mutate `ApplicationAuditRecordService`.
 
 ## 8. Failure Classifications and User Outcomes
 
@@ -489,6 +617,23 @@ Recovery is a candidate transaction, not an in-place repair:
 11. Publish through `GenerationStore.publish()`.
 12. Re-read `CURRENT` and restart normal startup against the published identity.
 
+Slice 3B is only the in-memory portion between source validation and later
+candidate preparation. After pure plan validation and exact conflict reanalysis,
+its trusted call order is:
+
+1. validate `trustedActor`;
+2. read `clock()` once;
+3. call `createTransactionId()` once and check audit-history collisions;
+4. call `createRetractionId()` once per canonically sorted rejected ID;
+5. construct and validate retractions and post-retraction history;
+6. rebuild and validate projection through the existing resolver;
+7. call `createAuditId()` once;
+8. construct and validate the audit record and cloned audit history; and
+9. serialize changed documents and return frozen candidate inputs.
+
+It does not invoke `GenerationStore.prepare()`, `publish()`, or `commit()` and
+does not write files, pointers, candidates, or live service state.
+
 The application mutation coordinator is not used to mutate the source generation
 because recovery must not make partial changes to the blocked live graph. The
 candidate document builder and GenerationStore provide the transaction boundary.
@@ -506,6 +651,10 @@ Concurrent behavior:
   returns `stale_current`.
 - If the same candidate is retried after publication, GenerationStore returns
   `already_published`; restart verification must still pass.
+- A failed unpublished Slice 3B attempt may consume its generated IDs and
+  timestamp. A retry uses fresh factory results. The later execution coordinator
+  first reloads the exact current generation and skips construction when the
+  conflict is already resolved or published.
 - A changed source document, conflict set, retained choice, or audit reason
   requires a new candidate identity and cannot be silently merged.
 
@@ -625,6 +774,27 @@ No test edits a normal user profile or canonical map data.
 18. The normal first-run, aligned legacy, rebuildable legacy, fallback/recovery,
     already-proven, and clean generation startup tests remain unchanged.
 
+### Slice 3B construction tests
+
+19. Forged actor, transaction, retraction ID, audit ID, timestamp, rejected ID,
+  projection, provenance, or audit fields are rejected; only the validated plan
+  and trusted construction dependencies are accepted.
+20. Invalid trusted actor output, empty or duplicate transaction/retraction/audit
+  IDs, collisions with carried audit/retraction history, invalid clock output,
+  and factory exceptions fail closed before partial output is returned.
+21. `createRetractionId()` is called exactly once per canonical rejected ID in
+  sorted order, `clock()` is called exactly once, and transaction/audit factories
+  are called only at their specified points.
+22. Failed unpublished attempts may consume IDs; retries obtain fresh values, and
+  an already-resolved retry invokes no builder factories.
+23. Territory and structure construction preserve underlying territory/footprint
+  projection semantics, existing history order, existing audit history, exact
+  unrelated-document references, and optional provenance references.
+24. Serializer, validator, resolver, projection, fingerprint, and source-generation
+  binding failures return no candidate inputs and perform no writes.
+25. Missing or malformed `existingAuditRecords` is refused; transaction and audit
+  collision checks use only that validated carried history.
+
 ### Electron walkthrough
 
 - Seed one disposable profile using real serializers and GenerationStore.
@@ -681,11 +851,14 @@ This architecture does not include:
 
 ### Slice 3: Candidate recovery transaction
 
-- Add quarantined recovery service and main-process-only session ownership.
-- Derive the conflict set internally and accept only retained ID plus reason.
-- Build append-only retractions, complete audit record, and resolver-derived
-  projection in a new candidate.
-- Reuse normal candidate checksum and gate verification.
+- **3A:** build and validate the pure recovery plan from quarantined conflict data.
+- **3B:** construct changed document/reference inputs in memory using
+  `createOwnershipConflictRecoveryDocumentBuilder` and the exact trusted actor,
+  ID factories, clock, validators, serializers, and resolver contract above.
+  The Slice 3A plan carries validated `existingAuditRecords` for collision checks.
+- **3C:** add quarantined recovery execution/session ownership, candidate
+  preparation, isolated verification, and publication through the existing
+  generation boundary.
 
 ### Slice 4: Minimal Electron recovery surface
 
@@ -742,6 +915,11 @@ The design is ready for implementation only when:
   complete until the remaining release work is closed.
 
 ## 18. Unresolved Engineering Questions
+
+The Slice 3B trusted authority contract is settled. Main-process composition
+supplies immutable `trustedActor`, `createTransactionId`, `createRetractionId`,
+`createAuditId`, and `clock`, plus the existing validators, resolver, and
+serializers. No renderer or operator authority is required for construction.
 
 - Can the current document validators be cleanly separated from service
   construction without weakening any existing constructor validation? If not,
