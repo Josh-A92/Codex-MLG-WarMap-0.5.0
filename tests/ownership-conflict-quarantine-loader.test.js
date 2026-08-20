@@ -73,6 +73,7 @@ async function createFixture(directory, options = {}) {
     { documentId: "season-administration", scope: "global", type: "season-administration", value: admin(options.archived) },
     { documentId: "application-audit-global", scope: "global", type: "application-audit", value: { schemaVersion: 1, records: options.auditRecords || [] } }
   ];
+  if (options.includeProvenance) documents.push({ documentId: "ownership-provenance:season-1:season1-map", scope: "season-1/season1-map", type: "ownership-history-provenance", value: provenanceSerializer.serialize({ seasonId: "season-1", baseMapId: "season1-map", activeSeasonId: "season-1", records: [] }) });
   const store = createGenerationStore({ baseDirectory: path.join(directory, "generations") });
   await store.commit({ expectedGeneration: 0, transactionId: "fixture", createdAt: savedAt, documents });
   return { store, documents };
@@ -127,8 +128,13 @@ async function expected(store) {
     assert.strictEqual(Object.isFrozen(result), true);
     assert.strictEqual(Object.isFrozen(result.conflict.records), true);
     assert.strictEqual(Object.isFrozen(result.existingAuditRecords), true);
-    const plan = createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory }).build({ snapshot: result, retainedRecordId: "territory-a", reason: "Resolve duplicate terminal." });
+    assert.deepStrictEqual(result.documents.map((document) => [document.documentId, document.scope, document.type]), [["union-registry-global", "global", "union-registry"], ["strategic-season-1", "season-1", "strategic-domain"], ["evidence-season-1", "season-1", "evidence-domain"], ["projection-season-1-season1-map", "season-1/season1-map", "server-state"], ["season-administration", "global", "season-administration"], ["application-audit-global", "global", "application-audit"]]);
+    assert.deepStrictEqual(result.sourceDocumentIds, { strategic: "strategic-season-1", projection: "projection-season-1-season1-map" });
+    assert.strictEqual(Object.isFrozen(result.documents), true);
+    assert.strictEqual(Object.isFrozen(result.documents[1].value), true);
+    const plan = createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory, deserializeStrategicDomainEnvelope, deserializeApplicationAuditEnvelope: auditSerializer.deserializeEnvelope.bind(auditSerializer), deserializeServerState: deserializePersistenceEnvelope }).build({ snapshot: result, retainedRecordId: "territory-a", reason: "Resolve duplicate terminal." });
     assert.deepStrictEqual(plan.existingAuditRecords, []);
+    assert.deepStrictEqual(plan.documents, result.documents);
     console.log("PASS real filesystem admits exact territory conflict as frozen recovery data");
   });
 
@@ -162,7 +168,7 @@ async function expected(store) {
       loaded.manifest.documents[0].type = "unsupported-role";
       return loaded;
     });
-    await assert.rejects(loaderFor(invalidRoleStore).load({ expectedCurrent: await expected(store) }), (error) => error instanceof OwnershipConflictQuarantineLoaderError && /role|document|manifest/i.test(error.code));
+    await assert.rejects(loaderFor(invalidRoleStore).load({ expectedCurrent: await expected(store) }), (error) => error instanceof OwnershipConflictQuarantineLoaderError && /role|document|manifest|generation/i.test(error.code));
     const invalidDomainStore = mutatingStore(store, (loaded) => {
       const audit = loaded.documents.find((document) => document.documentId === "application-audit-global");
       audit.value.schemaVersion = 99;
@@ -188,6 +194,15 @@ async function expected(store) {
     assert.strictEqual(result.status, "recovery_not_required");
     assert.deepStrictEqual(result.existingAuditRecords, []);
     console.log("PASS valid non-conflicting history returns recovery_not_required");
+  });
+
+  await withDirectory(async (directory) => {
+    const { store } = await createFixture(directory, { includeProvenance: true, territoryRecords: [territory({ ownershipRecordId: "territory-a" }), territory({ ownershipRecordId: "territory-b", ownerUnionId: "union-0002", effectiveAt: "2026-08-20T09:01:00Z", eventAt: { precision: "exact", at: "2026-08-20T09:01:00Z" }, reviewedAt: "2026-08-20T09:11:00Z" })] });
+    const result = await loaderFor(store).load({ expectedCurrent: await expected(store) });
+    assert.strictEqual(result.documents.length, 7);
+    assert.strictEqual(result.documents[6].type, "ownership-history-provenance");
+    assert.strictEqual(Object.isFrozen(result.documents[6].value), true);
+    console.log("PASS optional provenance source document is preserved in manifest order");
   });
 
   await withDirectory(async (directory) => {
@@ -249,5 +264,5 @@ async function expected(store) {
     console.log("PASS uncertain ownership does not become recoverable conflict");
   });
 
-  console.log("14 ownership conflict quarantine loader scenarios passed");
+  console.log("15 ownership conflict quarantine loader scenarios passed");
 })().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });

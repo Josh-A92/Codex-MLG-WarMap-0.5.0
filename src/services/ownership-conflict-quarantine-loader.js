@@ -201,9 +201,13 @@
       const byId = new Map();
       manifestDocuments.forEach((document, index) => {
         if (byId.has(document.documentId)) fail("duplicate_document_id", `Duplicate document '${document.documentId}'.`);
-        byId.set(document.documentId, { manifest: document, value: loaded.documents[index] && loaded.documents[index].value });
-        if (!isRecord(loaded.documents[index]) || loaded.documents[index].documentId !== document.documentId) fail("invalid_generation", "Loaded documents do not match manifest identity.");
+        const loadedDocument = loaded.documents[index];
+        if (!isRecord(loadedDocument) || loadedDocument.documentId !== document.documentId
+            || (Object.prototype.hasOwnProperty.call(loadedDocument, "scope") && loadedDocument.scope !== document.scope)
+            || (Object.prototype.hasOwnProperty.call(loadedDocument, "type") && loadedDocument.type !== document.type)) fail("invalid_generation", "Loaded documents do not match manifest identity.");
+        byId.set(document.documentId, { manifest: document, value: loadedDocument.value });
       });
+      const documents = manifestDocuments.map((document) => ({ documentId: document.documentId, scope: document.scope, type: document.type, value: clone(byId.get(document.documentId).value) }));
       const strategic = manifestDocuments.find((document) => document.type === "strategic-domain");
       const projection = manifestDocuments.find((document) => document.type === "server-state");
       if (!strategic || !projection || manifestDocuments.filter((document) => document.type === "strategic-domain").length !== 1 || manifestDocuments.filter((document) => document.type === "server-state").length !== 1) fail("duplicate_role", "Current generation must contain exactly one strategic and projection document.");
@@ -282,13 +286,16 @@
           if (conflict) conflicts.push(conflict);
         } catch (error) { fail("ownership_history_invalid", `Ownership history for '${serverId}' is not recoverable.`, error); }
       }
-      if (conflicts.length === 0) return immutable({ status: "recovery_not_required", sourceGeneration: actual, scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived }, documentMetadata: manifestDocuments.map((document) => clone(document)), existingAuditRecords: auditEnvelope.records });
+      const sourceDocumentIds = { strategic: strategic.documentId, projection: projection.documentId };
+      if (conflicts.length === 0) return immutable({ status: "recovery_not_required", sourceGeneration: actual, scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived }, documentMetadata: manifestDocuments.map((document) => clone(document)), documents, sourceDocumentIds, existingAuditRecords: auditEnvelope.records });
       if (conflicts.length !== 1) fail("multiple_conflicts", "Quarantine permits exactly one recoverable ownership conflict at a time.");
       return immutable({
         status: "recovery_ready",
         sourceGeneration: actual,
         scope: { seasonId, baseMapId, serverIds, archived: administrationScope.archived },
         documentMetadata: manifestDocuments.map((document) => clone(document)),
+        documents,
+        sourceDocumentIds,
         existingAuditRecords: auditEnvelope.records,
         territoryRecords,
         structureRecords,

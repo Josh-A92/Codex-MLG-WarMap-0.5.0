@@ -1,11 +1,13 @@
 (function initializeOwnershipConflictRecoveryPlanBuilder(globalScope) {
-  const FACTORY_FIELDS = new Set(["validateAuditHistory"]);
+  const FACTORY_FIELDS = new Set(["validateAuditHistory", "deserializeStrategicDomainEnvelope", "deserializeApplicationAuditEnvelope", "deserializeServerState"]);
   const INPUT_FIELDS = new Set(["snapshot", "retainedRecordId", "reason"]);
   const SNAPSHOT_FIELDS = new Set([
     "status",
     "sourceGeneration",
     "scope",
     "documentMetadata",
+    "documents",
+    "sourceDocumentIds",
     "existingAuditRecords",
     "territoryRecords",
     "structureRecords",
@@ -15,6 +17,8 @@
   const GENERATION_FIELDS = new Set(["generation", "manifestFile", "manifestSha256"]);
   const SCOPE_FIELDS = new Set(["seasonId", "baseMapId", "serverIds", "archived"]);
   const DOCUMENT_FIELDS = new Set(["documentId", "scope", "type", "fileName", "sha256"]);
+  const SOURCE_DOCUMENT_FIELDS = new Set(["documentId", "scope", "type", "value"]);
+  const SOURCE_DOCUMENT_ID_FIELDS = new Set(["strategic", "projection"]);
   const CONFLICT_FIELDS = new Set(["seasonId", "serverId", "kind", "targetKey", "recordIds", "records"]);
   const MAX_REASON_LENGTH = 1000;
 
@@ -82,6 +86,23 @@
     return clone(records);
   }
 
+  function isData(value, seen = new Set()) {
+    if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+    if (typeof value === "number") return Number.isFinite(value);
+    if (Array.isArray(value)) {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      const valid = value.every((entry) => isData(entry, seen));
+      seen.delete(value);
+      return valid;
+    }
+    if (!isRecord(value) || seen.has(value)) return false;
+    seen.add(value);
+    const valid = Object.keys(value).every((key) => isData(value[key], seen));
+    seen.delete(value);
+    return valid;
+  }
+
   function canonical(value) {
     if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
     if (!isRecord(value)) return JSON.stringify(value);
@@ -142,10 +163,63 @@
     });
   }
 
+  function validateDocuments(value, metadata) {
+    const documents = requiredArray(value, "snapshot.documents");
+    if (documents.length !== metadata.length) fail("invalid_snapshot", "snapshot.documents must match documentMetadata count.");
+    const ids = new Set();
+    return documents.map((document, index) => {
+      rejectUnknown(document, SOURCE_DOCUMENT_FIELDS, `snapshot.documents[${index}]`);
+      if (!Object.prototype.hasOwnProperty.call(document, "value") || !isData(document.value)) fail("invalid_snapshot", `snapshot.documents[${index}].value is invalid.`);
+      const documentId = requiredString(document.documentId, `snapshot.documents[${index}].documentId`);
+      const scope = requiredString(document.scope, `snapshot.documents[${index}].scope`);
+      const type = requiredString(document.type, `snapshot.documents[${index}].type`);
+      if (ids.has(documentId)) fail("invalid_snapshot", "snapshot.documents contains duplicate document IDs.");
+      ids.add(documentId);
+      const expected = metadata[index];
+      if (documentId !== expected.documentId || scope !== expected.scope || type !== expected.type) fail("invalid_snapshot", "snapshot.documents must match documentMetadata order and identity.");
+      return { documentId, scope, type, value: clone(document.value) };
+    });
+  }
+
+  function validateSourceDocumentIds(value, documents) {
+    rejectUnknown(value, SOURCE_DOCUMENT_ID_FIELDS, "snapshot.sourceDocumentIds");
+    const strategic = requiredString(value.strategic, "snapshot.sourceDocumentIds.strategic");
+    const projection = requiredString(value.projection, "snapshot.sourceDocumentIds.projection");
+    if (strategic === projection) fail("invalid_snapshot", "snapshot.sourceDocumentIds roles must differ.");
+    const strategicDocuments = documents.filter((document) => document.type === "strategic-domain");
+    const projectionDocuments = documents.filter((document) => document.type === "server-state");
+    if (strategicDocuments.length !== 1 || projectionDocuments.length !== 1 || strategicDocuments[0].documentId !== strategic || projectionDocuments[0].documentId !== projection) fail("invalid_snapshot", "snapshot.sourceDocumentIds must identify unique strategic and projection documents.");
+    return { strategic, projection };
+  }
+
+  function validateDocumentBindings(documents, sourceDocumentIds, histories, existingAuditRecords, scope, adapters) {
+    const strategicDocument = documents.find((document) => document.documentId === sourceDocumentIds.strategic);
+    const auditDocuments = documents.filter((document) => document.type === "application-audit");
+    const projectionDocument = documents.find((document) => document.documentId === sourceDocumentIds.projection);
+    if (auditDocuments.length !== 1) fail("invalid_snapshot", "snapshot.documents must include exactly one application audit.");
+    const auditDocument = auditDocuments[0];
+    let strategicEnvelope; let auditEnvelope; let projectionEnvelope;
+    try {
+      strategicEnvelope = adapters.deserializeStrategicDomainEnvelope(strategicDocument.value);
+      auditEnvelope = adapters.deserializeApplicationAuditEnvelope(auditDocument.value);
+      projectionEnvelope = adapters.deserializeServerState(projectionDocument.value);
+    } catch (error) { fail("invalid_snapshot", "snapshot source document validation failed."); }
+    if (!isRecord(strategicEnvelope) || !isRecord(strategicEnvelope.state)
+        || canonical(strategicEnvelope.state.territoryOwnershipRecords) !== canonical(histories.territoryRecords)
+        || canonical(strategicEnvelope.state.structureOwnershipRecords) !== canonical(histories.structureRecords)
+        || canonical(strategicEnvelope.state.ownershipRetractions) !== canonical(histories.retractionRecords)) fail("invalid_snapshot", "Strategic document does not match snapshot histories.");
+    if (!isRecord(auditEnvelope) || canonical(auditEnvelope.records) !== canonical(existingAuditRecords)) fail("invalid_snapshot", "Application audit document does not match snapshot audit history.");
+    if (!isRecord(projectionEnvelope) || projectionEnvelope.seasonId !== scope.seasonId || projectionEnvelope.baseMapId !== scope.baseMapId) fail("invalid_snapshot", "Projection document scope does not match snapshot scope.");
+  }
+
   function createOwnershipConflictRecoveryPlanBuilder(options = {}) {
     rejectUnknown(options, FACTORY_FIELDS, "options");
     if (typeof options.validateAuditHistory !== "function") fail("invalid_factory", "options.validateAuditHistory must be a function.");
+    ["deserializeStrategicDomainEnvelope", "deserializeApplicationAuditEnvelope", "deserializeServerState"].forEach((field) => {
+      if (typeof options[field] !== "function") fail("invalid_factory", `options.${field} must be a function.`);
+    });
     const validateAuditHistory = options.validateAuditHistory;
+    const adapters = { deserializeStrategicDomainEnvelope: options.deserializeStrategicDomainEnvelope, deserializeApplicationAuditEnvelope: options.deserializeApplicationAuditEnvelope, deserializeServerState: options.deserializeServerState };
 
     function build(input) {
       rejectUnknown(input, INPUT_FIELDS, "input");
@@ -158,7 +232,10 @@
       const conflict = validateConflict(input.snapshot.conflict, scope);
       if (!Array.isArray(input.snapshot.territoryRecords) || !Array.isArray(input.snapshot.structureRecords) || !Array.isArray(input.snapshot.retractionRecords)) fail("invalid_snapshot", "input.snapshot histories are required.");
       const documentMetadata = validateDocumentMetadata(input.snapshot.documentMetadata);
+      const documents = validateDocuments(input.snapshot.documents, documentMetadata);
+      const sourceDocumentIds = validateSourceDocumentIds(input.snapshot.sourceDocumentIds, documents);
       const existingAuditRecords = validateExistingAuditRecords(input.snapshot.existingAuditRecords, validateAuditHistory);
+      validateDocumentBindings(documents, sourceDocumentIds, { territoryRecords: input.snapshot.territoryRecords, structureRecords: input.snapshot.structureRecords, retractionRecords: input.snapshot.retractionRecords }, existingAuditRecords, scope, adapters);
       const history = conflict.kind === "territory" ? input.snapshot.territoryRecords : input.snapshot.structureRecords;
       const idField = conflict.kind === "territory" ? "ownershipRecordId" : "structureOwnershipId";
       const historyById = new Map(history.map((record) => [record && record[idField], record]));
@@ -178,6 +255,8 @@
         sourceGeneration,
         scope,
         documentMetadata,
+        documents,
+        sourceDocumentIds,
         existingAuditRecords,
         territoryRecords: clone(input.snapshot.territoryRecords),
         structureRecords: clone(input.snapshot.structureRecords),

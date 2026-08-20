@@ -15,30 +15,56 @@ function auditRecord(id, details = {}) {
 }
 function snapshot(kind = "territory", ids = ["a", "b"], overrides = {}) {
   const records = ids.map((id, index) => record(kind, id, `union-${index + 1}`));
+  const existingAuditRecords = overrides.existingAuditRecords || [];
+  const territoryRecords = kind === "territory" ? records : [];
+  const structureRecords = kind === "structure" ? records : [];
+  const documentMetadata = [
+    { documentId: "strategic-season-1", scope: "season-1", type: "strategic-domain", fileName: "strategic.json", sha256: "sha256:strategic" },
+    { documentId: "projection-season-1-season1-map", scope: "season-1/season1-map", type: "server-state", fileName: "projection.json", sha256: "sha256:projection" },
+    { documentId: "application-audit-global", scope: "global", type: "application-audit", fileName: "audit.json", sha256: "sha256:audit" }
+  ];
   return {
     status: "recovery_ready",
     sourceGeneration: { generation: 4, manifestFile: "generation-4.json", manifestSha256: "sha256:generation-4" },
     scope: { seasonId: "season-1", baseMapId: "season1-map", serverIds: ["server-366"], archived: false },
-    documentMetadata: [{ documentId: "strategic-season-1", scope: "season-1", type: "strategic-domain", fileName: "strategic.json", sha256: "sha256:strategic" }],
-    existingAuditRecords: [],
-    territoryRecords: kind === "territory" ? records : [],
-    structureRecords: kind === "structure" ? records : [],
+    documentMetadata,
+    documents: [
+      { documentId: "strategic-season-1", scope: "season-1", type: "strategic-domain", value: { seasonId: "season-1", state: { territoryOwnershipRecords: territoryRecords, structureOwnershipRecords: structureRecords, ownershipRetractions: [] } } },
+      { documentId: "projection-season-1-season1-map", scope: "season-1/season1-map", type: "server-state", value: { seasonId: "season-1", baseMapId: "season1-map", servers: [] } },
+      { documentId: "application-audit-global", scope: "global", type: "application-audit", value: { records: existingAuditRecords } }
+    ],
+    sourceDocumentIds: { strategic: "strategic-season-1", projection: "projection-season-1-season1-map" },
+    existingAuditRecords,
+    territoryRecords,
+    structureRecords,
     retractionRecords: [],
     conflict: { seasonId: "season-1", serverId: "server-366", kind, targetKey: kind === "territory" ? '["normal_map_cell",1,1]' : '["logical_structure","fort-1"]', recordIds: ids.slice(), records },
     ...overrides
   };
 }
-function build(input) { return createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory }).build(input); }
+function factory(overrides = {}) { return createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory, deserializeStrategicDomainEnvelope: (value) => value, deserializeApplicationAuditEnvelope: (value) => value, deserializeServerState: (value) => value, ...overrides }); }
+function build(input) { return factory().build(input); }
 function expectError(callback, code) { assert.throws(callback, (error) => error instanceof OwnershipConflictRecoveryPlanBuilderError && error.code === code); }
 
 expectError(() => createOwnershipConflictRecoveryPlanBuilder(), "invalid_factory");
 expectError(() => createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory: null }), "invalid_factory");
+expectError(() => createOwnershipConflictRecoveryPlanBuilder({ validateAuditHistory, deserializeStrategicDomainEnvelope: null, deserializeApplicationAuditEnvelope: null, deserializeServerState: null }), "invalid_factory");
 
 const territoryPlan = build({ snapshot: snapshot(), retainedRecordId: "a", reason: "Duplicate terminal import" });
 assert.strictEqual(territoryPlan.status, "recovery_plan_ready");
 assert.deepStrictEqual(territoryPlan.rejectedRecordIds, ["b"]);
 assert.deepStrictEqual(territoryPlan.existingAuditRecords, []);
+assert.deepStrictEqual(territoryPlan.sourceDocumentIds, { strategic: "strategic-season-1", projection: "projection-season-1-season1-map" });
+assert.strictEqual(Object.isFrozen(territoryPlan.documents), true);
 console.log("PASS valid territory recovery plan");
+
+const provenanceSnapshot = snapshot();
+provenanceSnapshot.documentMetadata.push({ documentId: "ownership-provenance:season-1:season1-map", scope: "season-1/season1-map", type: "ownership-history-provenance", fileName: "provenance.json", sha256: "sha256:provenance" });
+provenanceSnapshot.documents.push({ documentId: "ownership-provenance:season-1:season1-map", scope: "season-1/season1-map", type: "ownership-history-provenance", value: { records: [{ serverId: "server-366" }] } });
+const provenancePlan = build({ snapshot: provenanceSnapshot, retainedRecordId: "a", reason: "Preserve source provenance" });
+assert.strictEqual(provenancePlan.documents[3].type, "ownership-history-provenance");
+assert.strictEqual(Object.isFrozen(provenancePlan.documents[3].value), true);
+console.log("PASS optional provenance source document is preserved in recovery plan");
 
 const structurePlan = build({ snapshot: snapshot("structure"), retainedRecordId: "b", reason: "Structure record B is authoritative" });
 assert.strictEqual(structurePlan.conflict.kind, "structure");
@@ -67,7 +93,31 @@ expectError(() => build({ snapshot: Object.fromEntries(Object.entries(snapshot()
 [null, {}, [null], ["invalid"], [{}], [auditRecord("duplicate"), auditRecord("duplicate", { different: true })]].forEach((existingAuditRecords) => expectError(() => build({ snapshot: snapshot("territory", ["a", "b"], { existingAuditRecords }), retainedRecordId: "a", reason: "reason" }), Array.isArray(existingAuditRecords) ? "invalid_snapshot" : "invalid_input"));
 console.log("PASS malformed and incomplete snapshots are refused");
 
-const extraFields = ["conflictKind", "targetKey", "rejectedRecordIds", "projection", "provenance", "transactionId", "timestamp", "auditFacts", "existingAuditRecords", "seasonId"];
+[
+  { documents: [] },
+  { documents: snapshot().documents.slice().reverse() },
+  { documents: snapshot().documents.map((document, index) => index === 0 ? { ...document, scope: "wrong" } : document) },
+  { documents: snapshot().documents.concat([snapshot().documents[0]]) },
+  { sourceDocumentIds: { strategic: "strategic-season-1" } },
+  { sourceDocumentIds: { strategic: "strategic-season-1", projection: "strategic-season-1" } },
+  { sourceDocumentIds: { strategic: "projection-season-1-season1-map", projection: "strategic-season-1" } },
+  { territoryRecords: [] },
+  { existingAuditRecords: [auditRecord("audit-1")], documents: snapshot().documents },
+  { documents: snapshot().documents.map((document) => document.type === "server-state" ? { ...document, value: { ...document.value, baseMapId: "wrong-map" } } : document) }
+].forEach((overrides) => expectError(() => build({ snapshot: snapshot("territory", ["a", "b"], overrides), retainedRecordId: "a", reason: "reason" }), overrides.sourceDocumentIds && !Object.prototype.hasOwnProperty.call(overrides.sourceDocumentIds, "projection") ? "invalid_input" : "invalid_snapshot"));
+[
+  { documentId: "strategic-copy", scope: "season-1", type: "strategic-domain", fileName: "strategic-copy.json", sha256: "sha256:strategic-copy", value: snapshot().documents[0].value },
+  { documentId: "projection-copy", scope: "season-1/season1-map", type: "server-state", fileName: "projection-copy.json", sha256: "sha256:projection-copy", value: snapshot().documents[1].value },
+  { documentId: "audit-copy", scope: "global", type: "application-audit", fileName: "audit-copy.json", sha256: "sha256:audit-copy", value: snapshot().documents[2].value }
+].forEach((extraDocument) => {
+  const duplicateRoleSnapshot = snapshot();
+  duplicateRoleSnapshot.documentMetadata.push({ documentId: extraDocument.documentId, scope: extraDocument.scope, type: extraDocument.type, fileName: extraDocument.fileName, sha256: extraDocument.sha256 });
+  duplicateRoleSnapshot.documents.push({ documentId: extraDocument.documentId, scope: extraDocument.scope, type: extraDocument.type, value: extraDocument.value });
+  expectError(() => build({ snapshot: duplicateRoleSnapshot, retainedRecordId: "a", reason: "reason" }), "invalid_snapshot");
+});
+console.log("PASS document metadata roles and integrity bindings fail closed");
+
+const extraFields = ["conflictKind", "targetKey", "rejectedRecordIds", "projection", "provenance", "transactionId", "timestamp", "auditFacts", "existingAuditRecords", "documents", "sourceDocumentIds", "seasonId"];
 extraFields.forEach((field) => {
   const input = { snapshot: snapshot(), retainedRecordId: "a", reason: "reason", [field]: "caller-value" };
   expectError(() => build(input), "invalid_input");
@@ -99,9 +149,10 @@ assert.strictEqual(Object.isFrozen(auditPlan.existingAuditRecords), true);
 assert.strictEqual(Object.isFrozen(auditPlan.existingAuditRecords[0].details.nested), true);
 existingAuditRecords[0].details.nested.order = "changed";
 assert.strictEqual(auditPlan.existingAuditRecords[0].details.nested.order, 1);
+assert.strictEqual(Object.isFrozen(auditPlan.documents[0].value.state), true);
 console.log("PASS existing audit history preserves order and remains isolated");
 
 const source = require("fs").readFileSync(require("path").join(__dirname, "..", "src", "services", "ownership-conflict-recovery-plan-builder.js"), "utf8");
 assert.doesNotMatch(source, /GenerationStore|filesystem|electron|\bipc\b|timestamp|Date\(|write|commit|publish|prepare|fetch|localStorage/i);
 console.log("PASS plan builder is host-neutral and side-effect free");
-console.log("18 ownership conflict recovery plan scenarios passed");
+console.log("20 ownership conflict recovery plan scenarios passed");
